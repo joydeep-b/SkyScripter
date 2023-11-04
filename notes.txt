@@ -1,0 +1,39 @@
+To capture in bulb mode:
+
+1. Set the camera to Bulb mode.
+2. Start the exposure: gphoto2 --set-config /main/actions/eosremoterelease=5
+3. Stop the exposure: gphoto2 --set-config /main/actions/eosremoterelease=4
+
+More information about eosremoterelease:
+gphoto2 --get-config /main/actions/eosremoterelease
+
+
+Get config about aperture:
+gphoto2 --get-config /main/capturesettings/aperture
+
+ptpcamerad seems to be using the USB device....
+
+sudo launchctl print gui/501/com.apple.ptpcamerad
+
+==============
+https://discussions.apple.com/thread/254703577
+
+sudo launchctl disable gui/501/com.apple.ptpcamerad
+
+
+You can then check with launchctl dumpstate that the service is disabled:
+
+disabled services = {
+       "com.github.macadmins.Nudge" => enabled
+       "com.druva.inSyncUpgrade" => enabled
+       "com.apple.ManagedClientAgent.enrollagent" => disabled
+       "com.apple.Siri.agent" => enabled
+       "com.microsoft.update.agent" => enabled
+       "com.apple.FolderActionsDispatcher" => disabled
+        "com.apple.ptpcamerad" => disabled
+       "com.apple.appleseed.seedusaged.postinstall" => disabled
+       "com.apple.ScriptMenuApp" => disabled
+   }
+
+
+==============
