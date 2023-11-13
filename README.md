@@ -1,13 +1,14 @@
 # Astro GPhoto
 
 Astro GPhoto is a collection of shell scripts to automate astrophotography with
-a DSLR camera. It is based on the [GPhoto](http://www.gphoto.org/) command line
+a DSLR camera based on the [GPhoto](http://www.gphoto.org/) command line
 tool.
 
 ## Requirements
 
 * A DSLR camera supported by GPhoto
 * A computer with GPhoto installed
+* [OpenCV](https://opencv.org/): `pip install opencv-python`
 
 ### Mac OS
 

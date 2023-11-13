@@ -50,6 +50,7 @@ next_filename() {
 }
 
 # Make sure camera is in bulb mode
+gphoto2 --set-config /main/capturesettings/autoexposuremodedial=Bulb
 
 echo "ISO: $ISO, Aperture: $APERTURE, Shutter: $SHUTTER"
 gphoto2 --set-config iso=$ISO --set-config aperture=$APERTURE
