@@ -34,3 +34,4 @@ Reference: https://discussions.apple.com/thread/254703577
 * `./single_capture.sh` - Capture a single image
 * `./get_all_settings.sh` - Get all camera settings
 * `./sequence_capture.sh` - Capture a sequence of images
+* `python focus.py` - Focus assist tool
