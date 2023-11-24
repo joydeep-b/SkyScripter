@@ -1,5 +1,4 @@
 #!/bin/bash
-
 set -e
 
 # If gphoto2 is not found, exit

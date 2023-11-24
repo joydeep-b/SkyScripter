@@ -14,7 +14,7 @@ def display_image(window_name, image_path):
 
 def update_images():
     global main_image, zoom_location, main_window_name
-    capture_image()
+    # capture_image()
     main_image = display_image(main_window_name, 'tmp.jpg')
     update_zoomed_image(zoom_location[0], zoom_location[1])
 
@@ -78,9 +78,7 @@ def main():
     print('        Medium  |    , key   |    . key    |')
     print('        Coarse  |    [ key   |    ] key    |')
     
-    capture_image()
-    main_image = display_image(main_window_name, 'filename.jpg')
-    update_zoomed_image(0, 0)
+    update_images()
 
     # Move the zoom window to the top left corner of the screen.
     cv2.moveWindow(zoom_window_name, 0, 0)
