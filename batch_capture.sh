@@ -61,7 +61,7 @@ if [ "$HELP" = true ]; then
   exit 0
 fi
 
-echo "Capturing $NUM images to $IMAGE_DIR"
+echo "Capturing $NUM images to \"$IMAGE_DIR\""
 echo "ISO: $ISO, Aperture: $APERTURE, Shutter: $SHUTTER"
 
 mkdir -p $IMAGE_DIR
@@ -91,33 +91,66 @@ if (( $(echo "$SHUTTER_DECIMAL > 30" | bc -l) )); then
   gphoto2 --set-config /main/imgsettings/imageformat=RAW \
           --set-config iso=$ISO \
           --set-config aperture=$APERTURE
-  echo "Shutter Release Immediate"
-  gphoto2 --set-config /main/actions/eosremoterelease=5
-  sleep $SHUTTER_DECIMAL
-  echo "Shutter Release Full"
-  gphoto2 --set-config /main/actions/eosremoterelease=4
-  download_last_image $FILENAME
-  if [ $VIEW = true ]; then
-    open "$FILENAME" -a preview
-  fi
-  exit 1
+
+  t_start=$(date +%s.%N)
+  t_per_image=$(echo "scale=3; 3 + $SHUTTER_DECIMAL" | bc -l)
+  for (( c=1; c<=$NUM; c++ ))
+  do
+    FILENAME=$(next_filename)
+    t_left=$(echo "scale=3; $t_per_image * ($NUM - $c + 1)" | bc -l)
+    t_left_hr=$(echo "scale=0; $t_left / 3600" | bc -l)
+    t_left_min=$(echo "scale=0; ($t_left - $t_left_hr * 3600)/60" | bc -l)
+    t_left_sec=$(echo "scale=0; ($t_left - $t_left_hr * 3600 - $t_left_min * 60)" | bc -l)
+
+    # Print status of the form 001/100 t_left: 0.000
+    printf "%d / %d Estimated time left: %.0fhr %.0fmin %.0fs\n" $c $NUM $t_left_hr $t_left_min $t_left_sec
+    # echo "Shutter Release Immediate"
+    gphoto2 --set-config /main/actions/eosremoterelease=5
+    sleep $SHUTTER_DECIMAL
+    # echo "Shutter Release Full"
+    gphoto2 --set-config /main/actions/eosremoterelease=4
+    download_last_image $FILENAME > /dev/null
+    if [ $VIEW = true ]; then
+      open "$FILENAME" -a preview
+    fi
+    sleep 1
+    t_now=$(date +%s.%N)
+    t_diff=$(echo "$t_now - $t_start" | bc -l)
+    t_per_image=$(echo "scale=3; $t_diff / $c" | bc -l)
+  done
+else
+  # Otherwise, we can use Manual mode
+  gphoto2 --set-config /main/capturesettings/autoexposuremodedial=Manual
+  t_start=$(date +%s.%N)
+  t_per_image=$(echo "scale=3; 3 + $SHUTTER_DECIMAL" | bc -l)
+  for (( c=1; c<=$NUM; c++ ))
+  do
+    FILENAME=$(next_filename)
+    t_left=$(echo "scale=3; $t_per_image * ($NUM - $c + 1)" | bc -l)
+    t_left_hr=$(echo "scale=0; $t_left / 3600" | bc -l)
+    t_left_min=$(echo "scale=0; ($t_left - $t_left_hr * 3600)/60" | bc -l)
+    t_left_sec=$(echo "scale=0; ($t_left - $t_left_hr * 3600 - $t_left_min * 60)" | bc -l)
+
+    # Print status of the form 001/100 t_left: 0.000
+    printf "%d / %d Estimated time left: %.0fhr %.0fmin %.0fs\n" $c $NUM $t_left_hr $t_left_min $t_left_sec
+
+    # Capture the image
+    gphoto2 --set-config /main/imgsettings/imageformat=RAW \
+            --set-config /main/capturesettings/autoexposuremodedial=Manual \
+            --set-config iso=$ISO \
+            --set-config shutterspeed=$SHUTTER \
+            --set-config aperture=$APERTURE \
+            --capture-image-and-download --filename "$FILENAME" $KEEP $FORCE \
+            > /dev/null
+    if [ $VIEW = true ]; then
+      open "$FILENAME" -a preview
+    fi
+    sleep 1
+    t_now=$(date +%s.%N)
+    t_diff=$(echo "$t_now - $t_start" | bc -l)
+    t_per_image=$(echo "scale=3; $t_diff / $c" | bc -l)
+    # echo "Time per image: $t_per_image seconds"
+    # estimated_time=$(echo "scale=3; $t_diff / $c * ($NUM - $c)" | bc -l)
+    # echo "Estimated time remaining: $estimated_time seconds"
+  done
 fi
-
-# Otherwise, we can use Manual mode
-for (( c=1; c<=$NUM; c++ ))
-do
-  FILENAME=$(next_filename)
-  echo "$(printf "%03d" $c)"
-
-  # Capture the image
-  gphoto2 --set-config /main/imgsettings/imageformat=RAW \
-          --set-config /main/capturesettings/autoexposuremodedial=Manual \
-          --set-config iso=$ISO \
-          --set-config shutterspeed=$SHUTTER \
-          --set-config aperture=$APERTURE \
-          --capture-image-and-download --filename "$FILENAME" $KEEP $FORCE
-  if [ $VIEW = true ]; then
-    open "$FILENAME" -a preview
-  fi
-  sleep 1
-done
