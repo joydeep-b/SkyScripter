@@ -2,10 +2,19 @@ import subprocess
 import cv2
 import os
 
-
 def capture_image():
-    # Replace 'filename.jpg' with your desired file path
-    subprocess.run(['gphoto2', '--capture-image-and-download', '--filename', 'tmp.jpg', '--force-overwrite'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    global iso, shutter_speed
+    # print(f'Capturing image with iso={iso}, shutter_speed={shutter_speed}')
+    # Capture in desired iso, aperture, and shutter speed, pipe output to /dev/null.
+    result = subprocess.run(['gphoto2',
+                              '--set-config', f'iso={iso}',
+                              '--set-config', f'shutterspeed={shutter_speed}',
+                              '--capture-image-and-download',
+                              '--filename', 'tmp.jpg',
+                              '--force-overwrite'], stdout=subprocess.DEVNULL)
+    if result.returncode != 0:
+        print("Error capturing image.")
+        exit(1)
 
 def display_image(window_name, image_path):
     image = cv2.imread(image_path)
@@ -14,13 +23,13 @@ def display_image(window_name, image_path):
 
 def update_images():
     global main_image, zoom_location, main_window_name
-    # capture_image()
+    capture_image()
     main_image = display_image(main_window_name, 'tmp.jpg')
     update_zoomed_image(zoom_location[0], zoom_location[1])
 
 def update_zoomed_image(x, y):
-    global main_image, zoom_window_name
-    zoomed_image = zoom_image(main_image, (x, y))
+    global main_image, zoom_window_name, zoom_factor
+    zoomed_image = zoom_image(main_image, (x, y), zoom_factor=zoom_factor)
     cv2.imshow(zoom_window_name, zoomed_image)
 
 def zoom_image(image, click_point, zoom_factor=8, window_size=(400, 400)):
@@ -60,8 +69,11 @@ def click_event(event, x, y, flags, param):
             zoom_location = (x, y)
 
 def main():
-    # Capture in Large Fine JPEG mode.
-    subprocess.run(['gphoto2', '--set-config', '/main/imgsettings/imageformat=0'])
+    global iso, aperture, shutter_speed, zoom_factor
+    iso = 800
+    shutter_speed = '1/100'
+    zoom_factor = 8
+    # create_settings_window()
 
     global main_image, main_window_name, zoom_window_name, zoom_location
     zoom_location = (0, 0)
@@ -73,10 +85,21 @@ def main():
 
 
     print('Press Spacebar to capture an image, ESC to exit.')
+    print('-' * 60)
     print('Focus controls: |   Closer   |   Farther   |')
     print('          Fine  | Left arrow | Right arrow |')
     print('        Medium  |    , key   |    . key    |')
     print('        Coarse  |    [ key   |    ] key    |')
+    print('-' * 60)
+    print('Pan controls:   |     Up     |    Down     |   Left   |   Right  |')
+    print('                |   w key    |   s key     |  a key   |  d key   |')
+    print('-' * 60)
+    print('Zoom controls:  |   Zoom in  |  Zoom out   |')
+    print('                |   q key    |   e key     |')
+    print('-' * 60)
+    print('ISO controls:   |  Decrease  |  Increase   |')
+    print('                |   z key    |    x key    |')
+    print('-' * 60)
     
     update_images()
 
@@ -123,6 +146,54 @@ def main():
             subprocess.run(['gphoto2', '--set-config', '/main/actions/manualfocusdrive=1'])
             update_images()
 
+        # Pan left
+        if key == 97: # a key
+            zoom_location = (zoom_location[0] - 10, zoom_location[1])
+            update_zoomed_image(*zoom_location)
+
+        # Pan right
+        if key == 100: # d key
+            zoom_location = (zoom_location[0] + 10, zoom_location[1])
+            update_zoomed_image(*zoom_location)
+
+        # Pan up
+        if key == 119: # w key
+            zoom_location = (zoom_location[0], zoom_location[1] - 10)
+            update_zoomed_image(*zoom_location)
+
+        # Pan down
+        if key == 115: # s key
+            zoom_location = (zoom_location[0], zoom_location[1] + 10)
+            update_zoomed_image(*zoom_location)
+
+        # "q" key: zoom in
+        if key == 113:
+            if zoom_factor > 1:
+              zoom_factor = zoom_factor // 2
+            print(f'Zoom factor: {zoom_factor}')
+            update_zoomed_image(*zoom_location)
+
+        # "e" key: zoom out
+        if key == 101:
+            if zoom_factor < 64:
+              zoom_factor = zoom_factor * 2
+            print(f'Zoom factor: {zoom_factor}')
+            update_zoomed_image(*zoom_location)
+
+        # "z" key: Decrease ISO
+        if key == 122:
+            if iso > 100:
+                iso = iso // 2
+            update_images()
+
+        # "x" key: Increase ISO
+        if key == 120:
+            if iso < 51200:
+                iso = iso * 2
+            update_images()
+
+    # Delete the temporary image file
+    os.remove('tmp.jpg')
     cv2.destroyAllWindows()
 
 if __name__ == "__main__":
