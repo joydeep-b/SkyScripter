@@ -48,6 +48,9 @@ fi
 
 echo "Capturing $FILENAME with ISO $ISO, Aperture $APERTURE, Shutter $SHUTTER"
 
+# Ensure capturing in RAW
+gphoto2 --set-config /main/imgsettings/imageformat=RAW
+
 # Convert the shutter speed to a decimal
 SHUTTER_DECIMAL=$(echo "scale=3; $SHUTTER" | bc)
 
@@ -96,5 +99,18 @@ else
 fi
 
 if [ $VIEW = true ]; then
-  open "$FILENAME" -a preview
+  # If on Mac, open the image in Preview
+  if [ "$(uname)" == "Darwin" ]; then
+    open "$FILENAME" -a preview
+  elif [ "$(expr substr $(uname -s) 1 5)" == "Linux" ]; then
+    # If on Linux, open the image in geeqie
+    # Check if geeqie is installed
+    if ! [ -x "$(command -v geeqie)" ]; then
+      echo 'Error: geeqie is not installed.' >&2
+      echo 'Please install geeqie using "sudo apt install geeqie"'  >&2
+      exit 1
+    fi
+    geeqie "$FILENAME"
+  fi
+
 fi

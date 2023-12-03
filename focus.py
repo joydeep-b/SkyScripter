@@ -62,6 +62,8 @@ def display_image(window_name, image_path):
     image = cv2.imread(image_path)
     # image_scaled = cv2.resize(image, (0, 0), fx=0.15, fy=0.15)
     cv2.imshow(window_name, image)
+    # Resize the window to fit the screen.
+    cv2.resizeWindow(window_name, 1500, 1000)
     return image
 
 def update_images():
@@ -156,7 +158,7 @@ def main():
     zoom_window_name = "Zoomed View"
     setup_camera()
     update_keymap()
-    cv2.namedWindow(main_window_name)
+    cv2.namedWindow(main_window_name, cv2.WINDOW_NORMAL)
     cv2.setMouseCallback(main_window_name, click_event)
     # Move the main window to the right of the left window.
     cv2.moveWindow(main_window_name, 400, 0)
