@@ -1,6 +1,42 @@
 import subprocess
 import cv2
 import os
+import numpy as np
+
+def find_star(image):
+    # Convert to grayscale and normalize
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    gray = cv2.normalize(gray, None, 0, 255, cv2.NORM_MINMAX)
+
+    # Apply a blur to reduce noise
+    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+
+    # Find the brightest point
+    (minVal, maxVal, minLoc, maxLoc) = cv2.minMaxLoc(blurred)
+    return maxLoc, maxVal
+
+
+def compute_fwhm(image, star_location, max_val):
+    x, y = star_location
+    row = image[y, :]
+    max_intensity = max_val
+
+    # Find the half max value
+    half_max = max_intensity / 2
+
+    # print(f'Max intensity: {max_intensity:9.3f}')
+    # print(f'x: {x}, y: {y}')
+    left_crossings = np.where(row[:x] < half_max)[0]
+    right_crossings = np.where(row[x:] < half_max)[0]
+    # Check if crossings are found
+    if left_crossings.size > 0 and right_crossings.size > 0:
+        left_idx = left_crossings[-1]
+        right_idx = x + right_crossings[0]
+        fwhm = right_idx - left_idx
+        return fwhm
+    else:
+        # Handle case where FWHM cannot be computed
+        return None
 
 def capture_image():
     global iso, shutter_speed
@@ -18,6 +54,7 @@ def capture_image():
 
 def display_image(window_name, image_path):
     image = cv2.imread(image_path)
+    # image_scaled = cv2.resize(image, (0, 0), fx=0.15, fy=0.15)
     cv2.imshow(window_name, image)
     return image
 
@@ -49,13 +86,31 @@ def zoom_image(image, click_point, zoom_factor=8, window_size=(400, 400)):
     # Compute sum of laplacian to check if the image is blurry
     laplacian = cv2.Laplacian(zoomed_img, cv2.CV_64F).var()
     # Print the laplacian value in format %9.3f
-    print(f'Laplacian: {laplacian:9.3f}')
     zoomed_img = cv2.resize(zoomed_img, window_size, interpolation=cv2.INTER_NEAREST)
 
-    # Overlay the laplacian value on the image, and a black box behind it.
+    # Star detection
+    star_location, max_val = find_star(zoomed_img)
+
+    # Compute FWHM
+    fwhm = compute_fwhm(zoomed_img, star_location, max_val)
+
+    # Draw a crosshair and circle around the star
+    cv2.drawMarker(zoomed_img, star_location, (0, 0, 255), cv2.MARKER_CROSS, 10, 2)
+    if fwhm:
+      cv2.circle(zoomed_img, star_location, fwhm // 2, (0, 0, 255), 2)
+
+    # Overlay the laplacian and FWHM values on the image, and a black box behind it.
     cv2.rectangle(zoomed_img, (0, 0), (300, 25), (0, 0, 0), -1)
     cv2.putText(zoomed_img, f'Laplacian: {laplacian:9.3f}', (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 255), 2, cv2.LINE_AA)
+    if fwhm:
+      fwhm = fwhm / zoom_factor
+      cv2.rectangle(zoomed_img, (0, 25), (300, 50), (0, 0, 0), -1)
+      cv2.putText(zoomed_img, f'FWHM: {fwhm:9.3f}', (10, 45), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 255), 2, cv2.LINE_AA)
 
+    if fwhm:
+      print(f'Laplacian: {laplacian:9.3f} | FWHM: {fwhm:9.3f}')
+    else:      
+      print(f'Laplacian: {laplacian:9.3f} | FWHM: None')
     return zoomed_img
 
 def click_event(event, x, y, flags, param):
@@ -82,6 +137,8 @@ def main():
     zoom_window_name = "Zoomed View"
     cv2.namedWindow(main_window_name)
     cv2.setMouseCallback(main_window_name, click_event)
+    # Move the main window to the right of the left window.
+    cv2.moveWindow(main_window_name, 400, 0)
 
 
     print('Press Spacebar to capture an image, ESC to exit.')
@@ -170,14 +227,14 @@ def main():
         if key == 113:
             if zoom_factor > 1:
               zoom_factor = zoom_factor // 2
-            print(f'Zoom factor: {zoom_factor}')
+            # print(f'Zoom factor: {zoom_factor}')
             update_zoomed_image(*zoom_location)
 
         # "e" key: zoom out
         if key == 101:
             if zoom_factor < 64:
               zoom_factor = zoom_factor * 2
-            print(f'Zoom factor: {zoom_factor}')
+            # print(f'Zoom factor: {zoom_factor}')
             update_zoomed_image(*zoom_location)
 
         # "z" key: Decrease ISO
