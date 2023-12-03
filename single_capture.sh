@@ -69,6 +69,7 @@ download_last_image() {
     fi
 }
 
+echo "Capturing image..."
 # If the shutter speed is greater than 30, then we need to use bulb mode.
 if (( $(echo "$SHUTTER_DECIMAL > 30" | bc -l) )); then
   echo "Shutter speed is greater than 30 seconds. Using bulb mode."
@@ -90,9 +91,9 @@ else
           --set-config shutterspeed=$SHUTTER \
           --set-config aperture=$APERTURE \
           --capture-image-and-download --filename "$FILENAME" \
-          $KEEP \
-          --force-overwrite
-done
+          --force-overwrite \
+          $KEEP
+fi
 
 if [ $VIEW = true ]; then
   open "$FILENAME" -a preview

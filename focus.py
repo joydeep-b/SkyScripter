@@ -2,6 +2,12 @@ import subprocess
 import cv2
 import os
 import numpy as np
+import platform
+
+KEY_MAP = {
+    'left': 2,
+    'right': 3
+}
 
 def find_star(image):
     # Convert to grayscale and normalize
@@ -123,6 +129,19 @@ def click_event(event, x, y, flags, param):
             update_zoomed_image(x, y)
             zoom_location = (x, y)
 
+def setup_camera():
+    # Set the camera to JPEG mode
+    subprocess.run(['gphoto2', '--set-config', '/main/imgsettings/imageformat=0'])
+
+def update_keymap():
+    global KEY_MAP
+    if platform.system() == 'Darwin':
+        KEY_MAP['left'] = 2
+        KEY_MAP['right'] = 3
+    elif platform.system() == 'Linux':
+        KEY_MAP['left'] = 81
+        KEY_MAP['right'] = 83
+
 def main():
     global iso, aperture, shutter_speed, zoom_factor
     iso = 800
@@ -135,10 +154,13 @@ def main():
     main_image = None
     main_window_name = "DSLR Viewer"
     zoom_window_name = "Zoomed View"
+    setup_camera()
+    update_keymap()
     cv2.namedWindow(main_window_name)
     cv2.setMouseCallback(main_window_name, click_event)
     # Move the main window to the right of the left window.
     cv2.moveWindow(main_window_name, 400, 0)
+    print('Current ISO: %d' % iso)
 
 
     print('Press Spacebar to capture an image, ESC to exit.')
@@ -174,12 +196,12 @@ def main():
             break
 
         # Left key: focus closer +1
-        if key == 2:
+        if key == KEY_MAP['left']:
             subprocess.run(['gphoto2', '--set-config', '/main/actions/manualfocusdrive=0'])
             update_images()
         
         # Right key: focus further -1
-        if key == 3:
+        if key == KEY_MAP['right']:
             subprocess.run(['gphoto2', '--set-config', '/main/actions/manualfocusdrive=4'])
             update_images()
 
@@ -241,12 +263,14 @@ def main():
         if key == 122:
             if iso > 100:
                 iso = iso // 2
+            print('Current ISO: %d' % iso)
             update_images()
 
         # "x" key: Increase ISO
         if key == 120:
             if iso < 51200:
                 iso = iso * 2
+            print('Current ISO: %d' % iso)
             update_images()
 
     # Delete the temporary image file
