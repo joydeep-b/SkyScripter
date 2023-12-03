@@ -59,15 +59,16 @@ download_last_image() {
     output_filename=$1
     # Get the index of the last file
     last_file_index=$(gphoto2 --list-files | grep -E '#[0-9]+ ' | tail -1 | awk '{print $1}' | tr -d '#')
+    # Downloading the last image is a bit flakey, so we keep the file on the camera just in case (--keep)
     # Check if output filename is provided
     if [ -z "$output_filename" ]; then
         # No filename provided, download file with original name
-        gphoto2 --get-file $last_file_index
+        gphoto2 --get-file $last_file_index --keep --force-overwrite
     else
         # Filename provided, download and rename file
         gphoto2 --get-file $last_file_index \
                 --filename "$output_filename" \
-                $KEEP \
+                --keep \
                 --force-overwrite
     fi
 }
