@@ -58,8 +58,11 @@ download_last_image() {
     # Optional argument: output filename
     output_filename=$1
     # Get the index of the last file
+    files=$(gphoto2 --list-files)
+    echo "$files"
     last_file_index=$(gphoto2 --list-files | grep -E '#[0-9]+ ' | tail -1 | awk '{print $1}' | tr -d '#')
     # Downloading the last image is a bit flakey, so we keep the file on the camera just in case (--keep)
+    echo "Downloading file $last_file_index"
     # Check if output filename is provided
     if [ -z "$output_filename" ]; then
         # No filename provided, download file with original name
@@ -86,6 +89,7 @@ if (( $(echo "$SHUTTER_DECIMAL > 30" | bc -l) )); then
   sleep $SHUTTER_DECIMAL
   echo "Shutter Release Full"
   gphoto2 --set-config /main/actions/eosremoterelease=4
+  sleep 3
   download_last_image $FILENAME
 else
   # Capture the image
