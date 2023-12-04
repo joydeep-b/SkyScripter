@@ -147,7 +147,7 @@ def update_keymap():
 def main():
     global iso, aperture, shutter_speed, zoom_factor
     iso = 800
-    shutter_speed = '1/100'
+    shutter_speed = '2'
     zoom_factor = 8
     # create_settings_window()
 

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e
+set -x -e
 
 # If gphoto2 is not found, exit
 if ! [ -x "$(command -v gphoto2)" ]; then
@@ -99,8 +99,7 @@ else
           --set-config shutterspeed=$SHUTTER \
           --set-config aperture=$APERTURE \
           --capture-image-and-download --filename "$FILENAME" \
-          --force-overwrite \
-          $KEEP
+          --force-overwrite
 fi
 
 if [ $VIEW = true ]; then
@@ -117,5 +116,4 @@ if [ $VIEW = true ]; then
     fi
     geeqie "$FILENAME"
   fi
-
 fi
