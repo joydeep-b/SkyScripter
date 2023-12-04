@@ -7,7 +7,8 @@ tool.
 ## Requirements
 
 * A DSLR camera supported by GPhoto
-* A computer with GPhoto installed
+* A computer with GPhoto installed -- tested with gphoto2 2.5.28.1 (compiled
+  from source)
 * [OpenCV](https://opencv.org/): `pip install opencv-python`
 
 ### Mac OS

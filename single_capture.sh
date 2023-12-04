@@ -84,13 +84,20 @@ if (( $(echo "$SHUTTER_DECIMAL > 30" | bc -l) )); then
   gphoto2 --set-config /main/imgsettings/imageformat=RAW \
           --set-config iso=$ISO \
           --set-config aperture=$APERTURE
-  echo "Shutter Release Immediate"
-  gphoto2 --set-config /main/actions/eosremoterelease=5
-  sleep $SHUTTER_DECIMAL
-  echo "Shutter Release Full"
-  gphoto2 --set-config /main/actions/eosremoterelease=4
-  sleep 3
-  download_last_image $FILENAME
+
+  gphoto2 --set-config eosremoterelease=Immediate \
+          --wait-event=${SHUTTER_DECIMAL}s \
+          --set-config eosremoterelease="Release Full" \
+          --wait-event-and-download=2s \
+          --filename "$FILENAME" \
+          --force-overwrite 
+  # echo "Shutter Release Immediate"
+  # gphoto2 --set-config /main/actions/eosremoterelease=5
+  # sleep $SHUTTER_DECIMAL
+  # echo "Shutter Release Full"
+  # gphoto2 --set-config /main/actions/eosremoterelease=4
+  # sleep 3
+  # download_last_image $FILENAME
 else
   # Capture the image
   gphoto2 --set-config /main/imgsettings/imageformat=RAW \
