@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -x -e
+set -e
 
 # If gphoto2 is not found, exit
 if ! [ -x "$(command -v gphoto2)" ]; then
@@ -54,28 +54,6 @@ gphoto2 --set-config /main/imgsettings/imageformat=RAW
 # Convert the shutter speed to a decimal
 SHUTTER_DECIMAL=$(echo "scale=3; $SHUTTER" | bc)
 
-download_last_image() {
-    # Optional argument: output filename
-    output_filename=$1
-    # Get the index of the last file
-    files=$(gphoto2 --list-files)
-    echo "$files"
-    last_file_index=$(gphoto2 --list-files | grep -E '#[0-9]+ ' | tail -1 | awk '{print $1}' | tr -d '#')
-    # Downloading the last image is a bit flakey, so we keep the file on the camera just in case (--keep)
-    echo "Downloading file $last_file_index"
-    # Check if output filename is provided
-    if [ -z "$output_filename" ]; then
-        # No filename provided, download file with original name
-        gphoto2 --get-file $last_file_index --keep --force-overwrite
-    else
-        # Filename provided, download and rename file
-        gphoto2 --get-file $last_file_index \
-                --filename "$output_filename" \
-                --keep \
-                --force-overwrite
-    fi
-}
-
 echo "Capturing image..."
 # If the shutter speed is greater than 30, then we need to use bulb mode.
 if (( $(echo "$SHUTTER_DECIMAL > 30" | bc -l) )); then
@@ -90,14 +68,8 @@ if (( $(echo "$SHUTTER_DECIMAL > 30" | bc -l) )); then
           --set-config eosremoterelease="Release Full" \
           --wait-event-and-download=2s \
           --filename "$FILENAME" \
-          --force-overwrite 
-  # echo "Shutter Release Immediate"
-  # gphoto2 --set-config /main/actions/eosremoterelease=5
-  # sleep $SHUTTER_DECIMAL
-  # echo "Shutter Release Full"
-  # gphoto2 --set-config /main/actions/eosremoterelease=4
-  # sleep 3
-  # download_last_image $FILENAME
+          --force-overwrite \
+          ${KEEP}
 else
   # Capture the image
   gphoto2 --set-config /main/imgsettings/imageformat=RAW \
@@ -106,7 +78,8 @@ else
           --set-config shutterspeed=$SHUTTER \
           --set-config aperture=$APERTURE \
           --capture-image-and-download --filename "$FILENAME" \
-          --force-overwrite
+          --force-overwrite \
+          ${KEEP}
 fi
 
 if [ $VIEW = true ]; then

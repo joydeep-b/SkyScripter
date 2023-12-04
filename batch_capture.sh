@@ -69,21 +69,6 @@ mkdir -p $IMAGE_DIR
 # Convert the shutter speed to a decimal
 SHUTTER_DECIMAL=$(echo "scale=3; $SHUTTER" | bc)
 
-download_last_image() {
-    # Optional argument: output filename
-    output_filename=$1
-    # Get the index of the last file
-    last_file_index=$(gphoto2 --list-files | grep -E '#[0-9]+ ' | tail -1 | awk '{print $1}' | tr -d '#')
-    # Check if output filename is provided
-    if [ -z "$output_filename" ]; then
-        # No filename provided, download file with original name
-        gphoto2 --get-file $last_file_index
-    else
-        # Filename provided, download and rename file
-        gphoto2 --get-file $last_file_index --filename "$output_filename"
-    fi
-}
-
 # If the shutter speed is greater than 30, then we need to use bulb mode.
 if (( $(echo "$SHUTTER_DECIMAL > 30" | bc -l) )); then
   echo "Shutter speed is greater than 30 seconds. Using bulb mode."
@@ -104,12 +89,14 @@ if (( $(echo "$SHUTTER_DECIMAL > 30" | bc -l) )); then
 
     # Print status of the form 001/100 t_left: 0.000
     printf "%d / %d Estimated time left: %.0fhr %.0fmin %.0fs\n" $c $NUM $t_left_hr $t_left_min $t_left_sec
-    # echo "Shutter Release Immediate"
-    gphoto2 --set-config /main/actions/eosremoterelease=5
-    sleep $SHUTTER_DECIMAL
-    # echo "Shutter Release Full"
-    gphoto2 --set-config /main/actions/eosremoterelease=4
-    download_last_image $FILENAME > /dev/null
+    
+    gphoto2 --set-config eosremoterelease=Immediate \
+            --wait-event=${SHUTTER_DECIMAL}s \
+            --set-config eosremoterelease="Release Full" \
+            --wait-event-and-download=2s \
+            --filename "$FILENAME" \
+            --force-overwrite \
+            ${KEEP} > /dev/null
     if [ $VIEW = true ]; then
       open "$FILENAME" -a preview
     fi
