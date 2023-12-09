@@ -134,6 +134,8 @@ def click_event(event, x, y, flags, param):
 def setup_camera():
     # Set the camera to JPEG mode
     subprocess.run(['gphoto2', '--set-config', '/main/imgsettings/imageformat=0'])
+    # Set the camera to manual mode
+    subprocess.run(['gphoto2', '--set-config', '/main/capturesettings/autoexposuremodedial=Manual'])
 
 def update_keymap():
     global KEY_MAP
@@ -146,8 +148,8 @@ def update_keymap():
 
 def main():
     global iso, aperture, shutter_speed, zoom_factor
-    iso = 800
-    shutter_speed = '2'
+    iso = 3200
+    shutter_speed = '1'
     zoom_factor = 8
     # create_settings_window()
 

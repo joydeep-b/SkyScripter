@@ -69,6 +69,26 @@ mkdir -p $IMAGE_DIR
 # Convert the shutter speed to a decimal
 SHUTTER_DECIMAL=$(echo "scale=3; $SHUTTER" | bc)
 
+# Helper function to print time left
+print_time_left() {
+  t_left_hr=$(echo "scale=0; $t_left / 3600" | bc -l)
+  t_left_min=$(echo "scale=0; ($t_left - $t_left_hr * 3600)/60" | bc -l)
+  t_left_sec=$(echo "scale=0; ($t_left - $t_left_hr * 3600 - $t_left_min * 60)" | bc -l)
+
+  # Compute estimated time of completion.
+  t_now=$(date +%s.%N)
+  t_complete=$(echo "scale=0; $t_now + $t_left" | bc -l)
+  t_complete_hr=$(date -d @$t_complete +%H | sed 's/^0*//')
+  t_complete_min=$(date -d @$t_complete +%M | sed 's/^0*//')
+  t_complete_sec=$(date -d @$t_complete +%S | sed 's/^0*//')
+
+  # Print status of the form 001/100 t_left: 0.000
+  printf "%3d / %3d Time left: %2.0fh %2.0fm %2.0fs;" \
+         $c $NUM $t_left_hr $t_left_min $t_left_sec
+  printf " Completion time: %02d:%02d:%02d\n" \
+         $t_complete_hr $t_complete_min $t_complete_sec
+}
+
 # If the shutter speed is greater than 30, then we need to use bulb mode.
 if (( $(echo "$SHUTTER_DECIMAL > 30" | bc -l) )); then
   echo "Shutter speed is greater than 30 seconds. Using bulb mode."
@@ -83,13 +103,7 @@ if (( $(echo "$SHUTTER_DECIMAL > 30" | bc -l) )); then
   do
     FILENAME=$(next_filename)
     t_left=$(echo "scale=3; $t_per_image * ($NUM - $c + 1)" | bc -l)
-    t_left_hr=$(echo "scale=0; $t_left / 3600" | bc -l)
-    t_left_min=$(echo "scale=0; ($t_left - $t_left_hr * 3600)/60" | bc -l)
-    t_left_sec=$(echo "scale=0; ($t_left - $t_left_hr * 3600 - $t_left_min * 60)" | bc -l)
-
-    # Print status of the form 001/100 t_left: 0.000
-    printf "%d / %d Estimated time left: %.0fhr %.0fmin %.0fs\n" $c $NUM $t_left_hr $t_left_min $t_left_sec
-    
+    print_time_left    
     gphoto2 --set-config eosremoterelease=Immediate \
             --wait-event=${SHUTTER_DECIMAL}s \
             --set-config eosremoterelease="Release Full" \
@@ -114,12 +128,7 @@ else
   do
     FILENAME=$(next_filename)
     t_left=$(echo "scale=3; $t_per_image * ($NUM - $c + 1)" | bc -l)
-    t_left_hr=$(echo "scale=0; $t_left / 3600" | bc -l)
-    t_left_min=$(echo "scale=0; ($t_left - $t_left_hr * 3600)/60" | bc -l)
-    t_left_sec=$(echo "scale=0; ($t_left - $t_left_hr * 3600 - $t_left_min * 60)" | bc -l)
-
-    # Print status of the form 001/100 t_left: 0.000
-    printf "%d / %d Estimated time left: %.0fhr %.0fmin %.0fs\n" $c $NUM $t_left_hr $t_left_min $t_left_sec
+    print_time_left
 
     # Capture the image
     gphoto2 --set-config /main/imgsettings/imageformat=RAW \
