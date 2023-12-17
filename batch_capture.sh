@@ -81,12 +81,14 @@ print_time_left() {
   t_complete_hr=$(date -d @$t_complete +%H | sed 's/^0*//')
   t_complete_min=$(date -d @$t_complete +%M | sed 's/^0*//')
   t_complete_sec=$(date -d @$t_complete +%S | sed 's/^0*//')
+  BATTERY=$(gphoto2 --get-config /main/status/batterylevel | grep Current | grep -o '[0-9]*')
 
   # Print status of the form 001/100 t_left: 0.000
   printf "%3d / %3d Time left: %2.0fh %2.0fm %2.0fs;" \
          $c $NUM $t_left_hr $t_left_min $t_left_sec
-  printf " Completion time: %02d:%02d:%02d\n" \
+  printf " Completion time: %02d:%02d:%02d;" \
          $t_complete_hr $t_complete_min $t_complete_sec
+  printf " Battery: %3d%%\n" $BATTERY
 }
 
 # If the shutter speed is greater than 30, then we need to use bulb mode.
@@ -104,6 +106,7 @@ if (( $(echo "$SHUTTER_DECIMAL > 30" | bc -l) )); then
     FILENAME=$(next_filename)
     t_left=$(echo "scale=3; $t_per_image * ($NUM - $c + 1)" | bc -l)
     print_time_left    
+    
     gphoto2 --set-config eosremoterelease=Immediate \
             --wait-event=${SHUTTER_DECIMAL}s \
             --set-config eosremoterelease="Release Full" \
@@ -130,7 +133,6 @@ else
     t_left=$(echo "scale=3; $t_per_image * ($NUM - $c + 1)" | bc -l)
     print_time_left
 
-    # Capture the image
     gphoto2 --set-config /main/imgsettings/imageformat=RAW \
             --set-config /main/capturesettings/autoexposuremodedial=Manual \
             --set-config iso=$ISO \
