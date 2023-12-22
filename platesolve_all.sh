@@ -7,14 +7,19 @@ SIRIL_PATH="/Applications/Siril.app/Contents/MacOS/siril-cli"
 WCS_COORDS=""
 IMAGE_DIR=""
 THIS_DIR=$(pwd)
-OUT_FILE="drift.csv"
+OUT_FILE="wcs.csv"
+FOCUS=""
 
 usage() {
-    echo "Usage: $0 [-w wcs_coords] [-i image_dir]" 1>&2
+    echo "Usage: $0 [-w wcs_coords] [-i image_dir] [-o out_file] [-f focus]"
+    echo "  -w wcs_coords: WCS coordinates to use for plate solving. Example: \"6:33:12.24 4:56:32\" for NGC 2244"
+    echo "  -i image_dir: Directory containing the images to process"
+    echo "  -o out_file: Output file to write the drift coordinates to. Default: wcs.csv"
+    echo "  -f focus: Focus value to use for the images. If not specified, the focus value will be extracted from the image metadata"
     exit 1
 }
 
-while getopts ":w:i:o:" o; do
+while getopts ":w:i:o:f:" o; do
     case "${o}" in
         w)
             WCS_COORDS=${OPTARG}
@@ -24,6 +29,9 @@ while getopts ":w:i:o:" o; do
             ;;
         o)
             OUT_FILE=${OPTARG}
+            ;;
+        f)
+            FOCUS=${OPTARG}
             ;;
         *)
             usage
@@ -36,11 +44,16 @@ if [ -z "${WCS_COORDS}" ] || [ -z "${IMAGE_DIR}" ]; then
 fi
 
 get_wcs_coords() {
+  FOCUS_OPT=""
+  # if $FOCUS is a non empty string, set FOCUS_OPT to " -focal=$FOCUS". 
+  if [ ! -z "$FOCUS" ]; then
+    FOCUS_OPT=" -focal=$FOCUS"
+  fi 
   local image=$1
   local output=$($SIRIL_PATH -d $THIS_DIR -s - 2>/dev/null <<ENDSIRIL
 requires 1.2.0
 load $FILE
-platesolve $WCS_COORDS -platesolve -catalog=nomad -limitmag=8 
+platesolve $WCS_COORDS -platesolve -catalog=nomad -limitmag=8 $FOCUS_OPT
 close
 ENDSIRIL
 )
@@ -57,7 +70,7 @@ ENDSIRIL
       echo ""
       return
   fi
-
+  # echo $output
   # echo "RA/DEC ${alpha_h}h${alpha_m}m${alpha_s}s ${delta_sign}${delta_d}°${delta_m}'${delta_s}"
 
   # Convert the alpha and delta values to decimal degrees
@@ -69,8 +82,9 @@ ENDSIRIL
 
 echo "RA(deg), DEC(deg)" > $OUT_FILE
 
-for FILE in $IMAGE_DIR/*.CR3; do
-    # echo "Processing $FILE"
+for FILE in "$IMAGE_DIR/"*
+do
+    echo "Processing $FILE"
     coords=$(get_wcs_coords $FILE)
     if [ -z "$coords" ]; then
         echo "Could not get WCS coordinates for $FILE"
