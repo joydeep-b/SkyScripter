@@ -8,7 +8,7 @@ if ! [ -x "$(command -v gphoto2)" ]; then
 fi
 
 ISO=100
-APERTURE=5.6
+APERTURE=""
 SHUTTER=1/100
 HELP=false
 FORCE=""
@@ -62,7 +62,14 @@ if [ "$HELP" = true ]; then
 fi
 
 echo "Capturing $NUM images to \"$IMAGE_DIR\""
-echo "ISO: $ISO, Aperture: $APERTURE, Shutter: $SHUTTER"
+
+# If the aperture is not set, then do not pass that option to gphoto.
+if [ -z "$APERTURE" ]; then
+  APERTURE_OPT=""
+  echo "ISO: $ISO, Aperture: NA, Shutter: $SHUTTER"
+else
+  APERTURE_OPT="--set-config aperture=$APERTURE"
+fi
 
 mkdir -p $IMAGE_DIR
 
@@ -76,11 +83,14 @@ print_time_left() {
   t_left_sec=$(echo "scale=0; ($t_left - $t_left_hr * 3600 - $t_left_min * 60)" | bc -l)
 
   # Compute estimated time of completion.
-  t_now=$(date +%s.%N)
-  t_complete=$(echo "scale=0; $t_now + $t_left" | bc -l)
-  t_complete_hr=$(date -d @$t_complete +%H | sed 's/^0*//')
-  t_complete_min=$(date -d @$t_complete +%M | sed 's/^0*//')
-  t_complete_sec=$(date -d @$t_complete +%S | sed 's/^0*//')
+  t_now=$(date +%s)
+  t_complete=$(echo "scale=0; $t_now + $t_left" | bc -l | awk '{print int($1)}')
+  t_complete_hr=$(date -r $t_complete +%H | sed 's/^0*//')
+  t_complete_min=$(date -r $t_complete +%M | sed 's/^0*//')
+  t_complete_sec=$(date -r $t_complete +%S | sed 's/^0*//')
+  # t_complete_hr=$(date -d @$t_complete +%H | sed 's/^0*//')
+  # t_complete_min=$(date -d @$t_complete +%M | sed 's/^0*//')
+  # t_complete_sec=$(date -d @$t_complete +%S | sed 's/^0*//')
   BATTERY=$(gphoto2 --get-config /main/status/batterylevel | grep Current | grep -o '[0-9]*')
 
   # Print status of the form 001/100 t_left: 0.000
@@ -97,7 +107,7 @@ if (( $(echo "$SHUTTER_DECIMAL > 30" | bc -l) )); then
   gphoto2 --set-config /main/capturesettings/autoexposuremodedial=Bulb
   gphoto2 --set-config /main/imgsettings/imageformat=RAW \
           --set-config iso=$ISO \
-          --set-config aperture=$APERTURE
+          $APERTURE_OPT
 
   t_start=$(date +%s.%N)
   t_per_image=$(echo "scale=3; 3 + $SHUTTER_DECIMAL" | bc -l)
@@ -137,7 +147,7 @@ else
             --set-config /main/capturesettings/autoexposuremodedial=Manual \
             --set-config iso=$ISO \
             --set-config shutterspeed=$SHUTTER \
-            --set-config aperture=$APERTURE \
+            $APERTURE_OPT \
             --capture-image-and-download --filename "$FILENAME" $KEEP $FORCE \
             > /dev/null
     if [ $VIEW = true ]; then
