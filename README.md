@@ -35,27 +35,27 @@ Reference: https://discussions.apple.com/thread/254703577
 
 ## Capture Scripts
 
-* `./batch_capture.sh` - Capture a batch sequence of images with the same settings.
-    Usage: `batch_capture.sh [-i ISO] [-a APERTURE] [-s SHUTTER] [-f] [-d IMAGE_DIR] [-n NUM] [-v] [-k]`
-    `-i ISO`: The ISO of the image (default: 100)
-    `-a APERTURE`: The aperture of the image (default: 5.6)
-    `-s SHUTTER`: The shutter speed of the image (default: 1/100)
-    `-f`: Force overwrite of existing files
-    `-d`: The directory to save the images (default: images)
-    `-n`: The number of images to capture (default: 1)
-    `-v`: View the image after capture
-    `-k`: Keep the image on the camera after capture
-    `-h`: Print this help message
-* `./remote_batch.sh` - Run the batch capture on a remote computer (e.g., an astrophotography computer connected to the rig), and copy over the results to the local compute once complete.
-    Usage: `remote_batch.sh [-i ISO] [-s SHUTTER] [-a APERTURE] [-c HOST] [-r REMOTE_DIR] [-l LOCAL_DIR]`
-    `-i ISO`: The ISO of the image (default: 800)
-    `-s SHUTTER`: The shutter speed of the image (default: 60)
-    `-a APERTURE`: The aperture of the image (default: 8)
-    `-c HOST`: The hostname of the remote machine (default: astropc)
-    `-r REMOTE_DIR`: The directory to save the images on the remote machine (default: images)
-    `-l LOCAL_DIR`: The directory to save the images on the local machine (default: ~/Astrophotography/images)
-    `-g REMOTE_ASTRO_GPHOTO_DIR`: The directory of the astro_gphoto repository on the remote machine (default: ~/astro_gphoto)
-    `-h`: Print this help message
+* `./batch_capture.sh` - Capture a batch sequence of images with the same settings.  
+    Usage: `batch_capture.sh [-i ISO] [-a APERTURE] [-s SHUTTER] [-f] [-d IMAGE_DIR] [-n NUM] [-v] [-k]`  
+    `-i ISO`: The ISO of the image (default: 100)  
+    `-a APERTURE`: The aperture of the image (default: 5.6)  
+    `-s SHUTTER`: The shutter speed of the image (default: 1/100)  
+    `-f`: Force overwrite of existing files  
+    `-d`: The directory to save the images (default: images)  
+    `-n`: The number of images to capture (default: 1)  
+    `-v`: View the image after capture  
+    `-k`: Keep the image on the camera after capture  
+    `-h`: Print this help message  
+* `./remote_batch.sh` - Run the batch capture on a remote computer (e.g., an astrophotography computer connected to the rig), and copy over the results to the local compute once complete.  
+    Usage: `remote_batch.sh [-i ISO] [-s SHUTTER] [-a APERTURE] [-c HOST] [-r REMOTE_DIR] [-l LOCAL_DIR]`  
+    `-i ISO`: The ISO of the image (default: 800)  
+    `-s SHUTTER`: The shutter speed of the image (default: 60)  
+    `-a APERTURE`: The aperture of the image (default: 8)  
+    `-c HOST`: The hostname of the remote machine (default: astropc)  
+    `-r REMOTE_DIR`: The directory to save the images on the remote machine (default: images)  
+    `-l LOCAL_DIR`: The directory to save the images on the local machine (default: ~/Astrophotography/images)  
+    `-g REMOTE_ASTRO_GPHOTO_DIR`: The directory of the astro_gphoto repository on the remote machine (default: ~/astro_gphoto)  
+    `-h`: Print this help message  
 
 
 ## Other Utilities
