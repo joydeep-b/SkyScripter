@@ -7,12 +7,13 @@ ISO=800
 APERTURE=8
 SHUTTER=60
 NUM=1
+REMOTE_ASTRO_GPHOTO_DIR=~/astro_gphoto
 REMOTE_DIR=$(date +%Y-%m-%d)
 LOCAL_DIR=~/Astrophotography/$(date +%Y-%m-%d)
 HELP=false
 
 # Check command line arguments to override defaults.
-while getopts i:s:a:c:r:l:h option; do
+while getopts i:s:a:c:r:l:g:h option; do
   case "${option}" in
     i) ISO=${OPTARG};;
     s) SHUTTER=${OPTARG};;
@@ -20,6 +21,7 @@ while getopts i:s:a:c:r:l:h option; do
     c) HOST=${OPTARG};;
     r) REMOTE_DIR=${OPTARG};;
     l) LOCAL_DIR=${OPTARG};;
+    g) REMOTE_ASTRO_GPHOTO_DIR=${OPTARG};;
     h) HELP=true;;
   esac
 done
@@ -33,10 +35,11 @@ if [ "$HELP" = true ]; then
   echo "  -c HOST: The hostname of the remote machine (default: astropc)"
   echo "  -r REMOTE_DIR: The directory to save the images on the remote machine (default: images)"
   echo "  -l LOCAL_DIR: The directory to save the images on the local machine (default: ~/Astrophotography/images)"
+  echo "  -g REMOTE_ASTRO_GPHOTO_DIR: The directory of the astro_gphoto repository on the remote machine (default: ~/astro_gphoto)"
   echo "  -h: Print this help message"
   echo "Example: remote_batch.sh -i 800 -s 60 -a 8 -c astropc -r $(date +%Y-%m-%d)/seq01 -l ~/Astrophotography/$(date +%Y-%m-%d)"
   exit 0
 fi
-ssh $HOST "cd ~/astro_gphoto; ./batch_capture.sh -i $ISO -s $SHUTTER -a $APERTURE -n $NUM -d $REMOTE_DIR"
+ssh $HOST "cd $REMOTE_ASTRO_GPHOTO_DIR; ./batch_capture.sh -i $ISO -s $SHUTTER -a $APERTURE -n $NUM -d $REMOTE_DIR"
 
-rsync -avz $HOST:~/astro_gphoto/$REMOTE_DIR $LOCAL_DIR
+rsync -avz $HOST:$REMOTE_ASTRO_GPHOTO_DIR/$REMOTE_DIR $LOCAL_DIR

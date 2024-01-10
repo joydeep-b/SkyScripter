@@ -46,7 +46,7 @@ FILENAME=$(next_filename)
 
 # Print the help message
 if [ "$HELP" = true ]; then
-  echo "Usage: single_capture.sh [-i ISO] [-a APERTURE] [-s SHUTTER]"
+  echo "Usage: batch_capture.sh [-i ISO] [-a APERTURE] [-s SHUTTER] [-f] [-d IMAGE_DIR] [-n NUM] [-v] [-k]"
   echo "  -i ISO: The ISO of the image (default: 100)"
   echo "  -a APERTURE: The aperture of the image (default: 5.6)"
   echo "  -s SHUTTER: The shutter speed of the image (default: 1/100)"
