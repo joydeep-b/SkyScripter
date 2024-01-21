@@ -85,9 +85,18 @@ print_time_left() {
   # Compute estimated time of completion.
   t_now=$(date +%s)
   t_complete=$(echo "scale=0; $t_now + $t_left" | bc -l | awk '{print int($1)}')
-  t_complete_hr=$(date -r $t_complete +%H | sed 's/^0*//')
-  t_complete_min=$(date -r $t_complete +%M | sed 's/^0*//')
-  t_complete_sec=$(date -r $t_complete +%S | sed 's/^0*//')
+  if [ "$(uname)" == "Darwin" ]; then
+    t_complete_hr=$(date -r $t_complete +%H | sed 's/^0*//')
+    t_complete_min=$(date -r $t_complete +%M | sed 's/^0*//')
+    t_complete_sec=$(date -r $t_complete +%S | sed 's/^0*//')
+  else
+    t_complete_hr=$(date -d @$t_complete +%H | sed 's/^0*//')
+    t_complete_min=$(date -d @$t_complete +%M | sed 's/^0*//')
+    t_complete_sec=$(date -d @$t_complete +%S | sed 's/^0*//')
+  fi
+  # t_complete_hr=$(date -r $t_complete +%H | sed 's/^0*//')
+  # t_complete_min=$(date -r $t_complete +%M | sed 's/^0*//')
+  # t_complete_sec=$(date -r $t_complete +%S | sed 's/^0*//')
   # t_complete_hr=$(date -d @$t_complete +%H | sed 's/^0*//')
   # t_complete_min=$(date -d @$t_complete +%M | sed 's/^0*//')
   # t_complete_sec=$(date -d @$t_complete +%S | sed 's/^0*//')
