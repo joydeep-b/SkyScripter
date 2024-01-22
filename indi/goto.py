@@ -2,12 +2,19 @@
 
 from astroquery.simbad import Simbad 
 from astropy.coordinates import SkyCoord
+from astropy.coordinates import FK5
+from astropy.coordinates import ICRS
 import astropy.units as units
+from astropy.coordinates import GCRS
 import sys
 import os
 import subprocess
 import astropy.time
 import argparse
+
+SITE_LONGITUDE=262.297595
+SITE_LATITUDE=30.266521
+SITE_ELEVATION=140.0
 
 def exec(command):
   # print(command)
@@ -16,7 +23,7 @@ def exec(command):
   if returncode != 0:
     print("Error: command '%s' returned %d" % (command, returncode))
     sys.exit(1)
-
+ 
 def get_wcs_coordinates(object_name):
     # Query the object
     result_table = Simbad.query_object(object_name)
@@ -24,18 +31,20 @@ def get_wcs_coordinates(object_name):
     if result_table is None:
         print(f"ERROR: Unable to find object '{object_name}'")
         sys.exit(1)
-
     # Extract RA and DEC
     ra = result_table['RA'][0]
     dec = result_table['DEC'][0]
-    print(f"RA: {ra}, DEC: {dec}")
+    # print(f"RA: {ra}, DEC: {dec}")
 
-    # Create a SkyCoord object
+    # Convert J2000 coordinates to JNow.
+    c = SkyCoord(ra, dec, unit=(units.hourangle, units.deg), frame=ICRS())
+    # jnow_coord = c.transform_to(GCRS(obstime=astropy.time.Time.now()))
+    jnow_coord = c.transform_to(FK5(equinox=astropy.time.Time.now()))
+    
+    ra = jnow_coord.ra.to(units.hourangle)
+    dec = c.dec
+    
     coord = SkyCoord(ra, dec, unit=(units.hourangle, units.deg))
-
-    # return coord.ra.to_string(unit=units.hour, sep=':') + ' ' + \
-    #        coord.dec.to_string(unit=units.degree, sep=':')
-    # Return RA in hours and DEC in degrees
     return coord.ra.hour, coord.dec.deg
 
 def indi_goto(device, ra, dec):
