@@ -7,7 +7,31 @@ import sys
 import subprocess
 import re
 
-def extract_and_convert_coordinates(output):
+def extract_and_convert_coordinates_astap(output):
+    # Define the regex pattern, to match output like this:
+    # Solution found: 05: 36 03.8	-05° 27 14
+    regex = r"Solution found: ([0-9]+): ([0-9]+) ([0-9]+\.[0-9]+)\t([+-])([0-9]+)° ([0-9]+) ([0-9]+)"
+
+    # Search for the pattern in the output
+    match = re.search(regex, output)
+    if not match:
+        print("No match found")
+        return None, None
+
+    # Extract matched groups
+    alpha_h, alpha_m, alpha_s, delta_sign, delta_d, delta_m, delta_s = match.groups()
+    print(f"RA: {alpha_h}h{alpha_m}m{alpha_s}s, DEC: {delta_sign}{delta_d}°{delta_m}'{delta_s}")
+
+    # Convert alpha (RA) to decimal degrees
+    alpha = 180/12 * (float(alpha_h) + float(alpha_m)/60 + float(alpha_s)/3600)
+
+    # Convert delta (DEC) to decimal degrees
+    delta_multiplier = 1 if delta_sign == '+' else -1
+    delta = delta_multiplier * (float(delta_d) + float(delta_m)/60 + float(delta_s)/3600)
+
+    return alpha, delta
+
+def extract_and_convert_coordinates_siril(output):
     # Define the regex pattern
     regex = r"Image center: alpha: ([0-9]+)h([0-9]+)m([0-9]+)s, delta: ([+-])([0-9]+)°([0-9]+)'([0-9]+)"
 
@@ -19,6 +43,7 @@ def extract_and_convert_coordinates(output):
 
     # Extract matched groups
     alpha_h, alpha_m, alpha_s, delta_sign, delta_d, delta_m, delta_s = match.groups()
+    print(f"RA: {alpha_h}h{alpha_m}m{alpha_s}s, DEC: {delta_sign}{delta_d}°{delta_m}'{delta_s}")
 
     # Convert alpha (RA) to decimal degrees
     alpha = 180/12 * (int(alpha_h) + int(alpha_m)/60 + int(alpha_s)/3600)
@@ -49,7 +74,7 @@ def get_wcs_coordinates(object_name):
     # Return RA, DEC in degrees
     return coord.ra.deg, coord.dec.deg
 
-def run_plate_solve(this_dir, file, wcs_coords, focal_option):
+def run_plate_solve_siril(this_dir, file, wcs_coords, focal_option):
     SIRIL_PATH = '/Applications/Siril.app/Contents/MacOS/siril-cli'
     siril_commands = f"""requires 1.2.0
 load {file}
@@ -66,11 +91,24 @@ close
                                 text=True, 
                                 capture_output=True,
                                 check=True)
-        ra, dec = extract_and_convert_coordinates(result.stdout)
+        ra, dec = extract_and_convert_coordinates_siril(result.stdout)
         return ra, dec
     except subprocess.CalledProcessError as e:
         return None, None
 
+def run_plate_solve_astap(this_dir, file, wcs_coords, focal_option):
+    ASTAP_PATH = '/Applications/ASTAP.app/Contents/MacOS/astap'
+    astap_cli_command = [ASTAP_PATH, "-f", file]
+    try:
+        result = subprocess.run(astap_cli_command, 
+                                text=True, 
+                                capture_output=True,
+                                check=True)
+        ra, dec = extract_and_convert_coordinates_astap(result.stdout)
+        return ra, dec
+    except subprocess.CalledProcessError as e:
+        return None, None
+    
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Platesolve all images in a directory')
     parser.add_argument('-d', '--directory', type=str, help='Directory containing images to platesolve')
@@ -79,14 +117,15 @@ if __name__ == "__main__":
     parser.add_argument('-f', '--focal', type=str, help='Override focal length', default='')
     parser.add_argument('-c', '--csv', type=str, help='CSV file to write results to', default='')
     args = parser.parse_args()
+    coordinates = None
     if args.directory is None:
         print('ERROR: No directory specified')
         parser.print_help()
         sys.exit(1)
-    if args.object is None and args.wcs is None:
-        print('ERROR: No object or WCS coordinates specified')
-        parser.print_help()
-        sys.exit(1)
+    # if args.object is None and args.wcs is None:
+    #     print('ERROR: No object or WCS coordinates specified')
+    #     parser.print_help()
+    #     sys.exit(1)
     if args.object is not None and args.wcs is not None:
         print('ERROR: Both object and WCS coordinates specified')
         parser.print_help()
@@ -104,6 +143,9 @@ if __name__ == "__main__":
         focal_option = ''
 
     
+    if coordinates is None:
+        print('\nWARNING!\nBlind platesolving using ASTAP, no WCS coordinates specified, and no object name specified -- this will be slow! \nIf you know the approximate RA and DEC of the image, specify it with the -w option, or specify an object name with the -o option.\n')
+
     current_dir = os.getcwd()
     csv_file = None
     if args.csv != '':
@@ -115,13 +157,25 @@ if __name__ == "__main__":
         # Exclude system files.
         if filename.startswith('.'):
             continue
+        # Exclude non-image files.
+        allowed_extensions = ['.fit', '.fits', '.cr2', '.cr3', '.jpg', '.png', '.tif', '.tiff']
+        if not any(filename.lower().endswith(ext) for ext in allowed_extensions):
+            continue
         file = args.directory + '/' + filename
         print(f"{filename}:", end=' ')
-        result = run_plate_solve(current_dir, file, coordinates, focal_option)
+        if coordinates is None:
+          result = run_plate_solve_astap(current_dir, file, coordinates, focal_option)
+        else:
+          result = run_plate_solve_siril(current_dir, file, coordinates, focal_option)
         if result[0] is not None and result[1] is not None:
-            print(f"RA={result[0]:.6f}, DEC={result[1]:.6f}")
+            # print(f"RA={result[0]:.12f}, DEC={result[1]:.12f}")
+            pass
         else:
             print(f"Platesolve failed")
         if csv_file is not None:
-            csv_file.write(f"{filename}, {result[0]}, {result[1]}\n")
+            if result[0] is None or result[1] is None:
+                csv_file.write(f"{filename}, NaN, NaN \n")
+            else:
+              # Write the numbers in 6 decimal places
+              csv_file.write(f"{filename}, {result[0]:.12f}, {result[1]:.12f}\n")
         # sys.exit(1)
