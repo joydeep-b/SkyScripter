@@ -36,7 +36,7 @@ def target_wait(device):
     target_dec = float(ReadIndi(device, "TARGET_EOD_COORD.DEC"))
     ra = float(ReadIndi(device, "EQUATORIAL_EOD_COORD.RA"))
     dec = float(ReadIndi(device, "EQUATORIAL_EOD_COORD.DEC"))
-    if abs(target_ra - ra) < 0.001 and abs(target_dec - dec) < 0.001:
+    if abs(target_ra - ra) < 0.002 and abs(target_dec - dec) < 0.001:
       return
     print("Target: %9.6f %9.6f Current: %9.6f %9.6f Difference: %9.6f %9.6f" % (target_ra, target_dec, ra, dec, target_ra - ra, target_dec - dec))
     time.sleep(1)
