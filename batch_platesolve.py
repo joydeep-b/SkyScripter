@@ -43,7 +43,7 @@ def extract_and_convert_coordinates_siril(output):
 
     # Extract matched groups
     alpha_h, alpha_m, alpha_s, delta_sign, delta_d, delta_m, delta_s = match.groups()
-    print(f"RA: {alpha_h}h{alpha_m}m{alpha_s}s, DEC: {delta_sign}{delta_d}°{delta_m}'{delta_s}")
+    # print(f"RA: {alpha_h}h{alpha_m}m{alpha_s}s, DEC: {delta_sign}{delta_d}°{delta_m}'{delta_s}")
 
     # Convert alpha (RA) to decimal degrees
     alpha = 180/12 * (int(alpha_h) + int(alpha_m)/60 + int(alpha_s)/3600)
@@ -74,8 +74,47 @@ def get_wcs_coordinates(object_name):
     # Return RA, DEC in degrees
     return coord.ra.deg, coord.dec.deg
 
+def run_star_detect_siril(this_dir, file):
+    # If MacOS, use the Siril.app version
+    if sys.platform == 'darwin':
+      SIRIL_PATH = '/Applications/Siril.app/Contents/MacOS/siril-cli'
+    else:
+      SIRIL_PATH = 'siril-cli'
+      
+    siril_commands = f"""requires 1.2.0
+load {file}
+findstar
+close
+"""
+    # Define the command to run
+    siril_cli_command = [SIRIL_PATH, "-d", this_dir, "-s", "-"]
+
+    # Run the command and capture output
+    try:
+        result = subprocess.run(siril_cli_command, 
+                                input=siril_commands,
+                                text=True, 
+                                capture_output=True,
+                                check=True)
+        # Extract the number of stars detected, and the FWHM. Sample output:
+        # Found 343 Gaussian profile stars in image, channel #0 (FWHM 5.428217)
+        regex = r"Found ([0-9]+) Gaussian profile stars in image, channel #0 \(FWHM ([0-9]+\.[0-9]+)\)"
+        match = re.search(regex, result.stdout)
+        if not match:
+            print("No match found")
+            return None, None
+        num_stars, fwhm = match.groups()
+        return num_stars, fwhm
+    except subprocess.CalledProcessError as e:
+        return None, None
+    
 def run_plate_solve_siril(this_dir, file, wcs_coords, focal_option):
-    SIRIL_PATH = '/Applications/Siril.app/Contents/MacOS/siril-cli'
+    # If MacOS, use the Siril.app version
+    if sys.platform == 'darwin':
+      SIRIL_PATH = '/Applications/Siril.app/Contents/MacOS/siril-cli'
+    else:
+      SIRIL_PATH = 'siril-cli'
+
     siril_commands = f"""requires 1.2.0
 load {file}
 platesolve {wcs_coords} -platesolve -catalog=nomad -limitmag=10 {focal_option}
@@ -150,7 +189,7 @@ if __name__ == "__main__":
     csv_file = None
     if args.csv != '':
         csv_file = open(args.csv, 'w')
-        csv_file.write('Filename,RA,DEC\n')
+        csv_file.write('Filename,RA,DEC,NumStars,FWHM\n')
         print(f"Writing results to {args.csv}")
     # Run platesolve on all images in the directory
     for filename in sorted(os.listdir(args.directory)):
@@ -162,7 +201,6 @@ if __name__ == "__main__":
         if not any(filename.lower().endswith(ext) for ext in allowed_extensions):
             continue
         file = args.directory + '/' + filename
-        print(f"{filename}:", end=' ')
         if coordinates is None:
           result = run_plate_solve_astap(current_dir, file, coordinates, focal_option)
         else:
@@ -172,10 +210,9 @@ if __name__ == "__main__":
             pass
         else:
             print(f"Platesolve failed")
+        num_stars, fwhm = run_star_detect_siril(current_dir, file)
+        print(f"File: {filename}, RA={result[0]:.12f}, DEC={result[1]:.12f}, NumStars={num_stars}, FWHM={fwhm}")
         if csv_file is not None:
-            if result[0] is None or result[1] is None:
-                csv_file.write(f"{filename}, NaN, NaN \n")
-            else:
-              # Write the numbers in 6 decimal places
-              csv_file.write(f"{filename}, {result[0]:.12f}, {result[1]:.12f}\n")
+            # Write the numbers in 6 decimal places
+            csv_file.write(f"{filename}, {result[0]:.12f}, {result[1]:.12f}, {num_stars}, {fwhm}\n")
         # sys.exit(1)
