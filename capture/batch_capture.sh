@@ -94,20 +94,12 @@ print_time_left() {
     t_complete_min=$(date -d @$t_complete +%M | sed 's/^0*//')
     t_complete_sec=$(date -d @$t_complete +%S | sed 's/^0*//')
   fi
-  # t_complete_hr=$(date -r $t_complete +%H | sed 's/^0*//')
-  # t_complete_min=$(date -r $t_complete +%M | sed 's/^0*//')
-  # t_complete_sec=$(date -r $t_complete +%S | sed 's/^0*//')
-  # t_complete_hr=$(date -d @$t_complete +%H | sed 's/^0*//')
-  # t_complete_min=$(date -d @$t_complete +%M | sed 's/^0*//')
-  # t_complete_sec=$(date -d @$t_complete +%S | sed 's/^0*//')
-  BATTERY=$(gphoto2 --get-config /main/status/batterylevel | grep Current | grep -o '[0-9]*')
 
   # Print status of the form 001/100 t_left: 0.000
   printf "%3d / %3d Time left: %2.0fh %2.0fm %2.0fs;" \
          $c $NUM $t_left_hr $t_left_min $t_left_sec
-  printf " Completion time: %02d:%02d:%02d;" \
+  printf " Completion time: %02d:%02d:%02d\n" \
          $t_complete_hr $t_complete_min $t_complete_sec
-  printf " Battery: %3d%%\n" $BATTERY
 }
 
 # If the shutter speed is greater than 30, then we need to use bulb mode.
@@ -136,14 +128,18 @@ if (( $(echo "$SHUTTER_DECIMAL > 30" | bc -l) )); then
     if [ $VIEW = true ]; then
       open "$FILENAME" -a preview
     fi
-    sleep 1
     t_now=$(date +%s.%N)
     t_diff=$(echo "$t_now - $t_start" | bc -l)
     t_per_image=$(echo "scale=3; $t_diff / $c" | bc -l)
   done
 else
   # Otherwise, we can use Manual mode
-  gphoto2 --set-config /main/capturesettings/autoexposuremodedial=Manual
+  gphoto2 --set-config /main/capturesettings/autoexposuremodedial=Manual \
+          --set-config /main/imgsettings/imageformat=RAW \
+          --set-config /main/capturesettings/autoexposuremodedial=Manual \
+          --set-config iso=$ISO \
+          --set-config shutterspeed=$SHUTTER \
+          $APERTURE_OPT
   t_start=$(date +%s.%N)
   t_per_image=$(echo "scale=3; 3 + $SHUTTER_DECIMAL" | bc -l)
   for (( c=1; c<=$NUM; c++ ))
@@ -151,23 +147,13 @@ else
     FILENAME=$(next_filename)
     t_left=$(echo "scale=3; $t_per_image * ($NUM - $c + 1)" | bc -l)
     print_time_left
-
-    gphoto2 --set-config /main/imgsettings/imageformat=RAW \
-            --set-config /main/capturesettings/autoexposuremodedial=Manual \
-            --set-config iso=$ISO \
-            --set-config shutterspeed=$SHUTTER \
-            $APERTURE_OPT \
-            --capture-image-and-download --filename "$FILENAME" $KEEP $FORCE \
+    gphoto2 --capture-image-and-download --filename "$FILENAME" $KEEP $FORCE \
             > /dev/null
     if [ $VIEW = true ]; then
       open "$FILENAME" -a preview
     fi
-    sleep 1
     t_now=$(date +%s.%N)
     t_diff=$(echo "$t_now - $t_start" | bc -l)
     t_per_image=$(echo "scale=3; $t_diff / $c" | bc -l)
-    # echo "Time per image: $t_per_image seconds"
-    # estimated_time=$(echo "scale=3; $t_diff / $c * ($NUM - $c)" | bc -l)
-    # echo "Estimated time remaining: $estimated_time seconds"
   done
 fi

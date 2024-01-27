@@ -73,8 +73,8 @@ def run_plate_solve_astap(file, wcs_coords, focal_option):
                                 text=True, 
                                 capture_output=True,
                                 check=True)
-        # print(result.stdout)
-        # print(result.stderr)
+        print(result.stdout)
+        print(result.stderr)
         ra, dec = extract_and_convert_coordinates_astap(result.stdout)
         return ra, dec
     except subprocess.CalledProcessError as e:
@@ -112,12 +112,15 @@ def main():
     print("Set tracking...")
     set_tracking(args.device)
     print("Capturing image...")
-    # setup_camera()
-    # capture_image()
+    setup_camera()
+    capture_image()
     print('Running plate solve...')
     ra, dec = run_plate_solve_astap('tmp.jpg', None, None)
     # ra = 2
     # dec = 89
+    if ra is None or dec is None:
+        print('Plate solve failed')
+        sys.exit(1)
     print(f'RA: {ra}, DEC: {dec}')
     print('Syncing mount...')
     sync(args.device, ra, dec)
