@@ -13,6 +13,7 @@ from astropy.coordinates import GCRS
 import astropy.time
 import math
 
+SIMULATE = True
 iso = 3200
 shutter_speed = 2
 
@@ -35,6 +36,10 @@ def exec_shell(command):
 
 def capture_image():
     global iso, shutter_speed
+    if SIMULATE:
+        # Copy sample_data/NGC2244.cr3 to tmp.jpg
+        exec_shell('cp sample_data/NGC2244.cr3 tmp.jpg')
+        return
     # print(f'Capturing image with iso={iso}, shutter_speed={shutter_speed}')
     # Capture in desired iso, aperture, and shutter speed, pipe output to /dev/null.
     exec(['gphoto2',
@@ -45,6 +50,8 @@ def capture_image():
           '--force-overwrite'])
 
 def setup_camera():
+    if SIMULATE:
+        return
     # Set the camera to JPEG mode
     exec(['gphoto2', '--set-config', '/main/imgsettings/imageformat=0'])
     # Set the camera to manual mode
@@ -109,9 +116,12 @@ def verify_sync(device, ra_expected, dec_expected):
         sys.exit(1)
     
 def sync(device, ra, dec):
+    if SIMULATE:
+        return
     exec_shell("indi_setprop \"%s.TELESCOPE_TRACK_STATE.TRACK_ON=On\"" % device)
     exec_shell("indi_setprop \"%s.ON_COORD_SET.SYNC=On\"" % device)
     exec_shell("indi_setprop \"%s.EQUATORIAL_EOD_COORD.RA=%f;DEC=%f\"" % (device, ra, dec))
+    verify_sync(device, ra, dec)
 
 
 def get_wcs_coordinates(object_name):
@@ -137,13 +147,15 @@ def get_wcs_coordinates(object_name):
     coord = SkyCoord(ra, dec, unit=(units.hourangle, units.deg))
     return coord.ra.hour, coord.dec.deg
 
-def get_coordinates(args):
+def get_coordinates(args, parser):
     if args.object is None and args.wcs is None:
         print('ERROR: No object or WCS coordinates specified')
+        parser.print_help()
         sys.exit(1)
     if args.object is not None and args.wcs is not None:
-      print('ERROR: Both object and WCS coordinates specified')
-      sys.exit(1)
+        print('ERROR: Both object and WCS coordinates specified')
+        parser.print_help()
+        sys.exit(1)
     if args.object is not None:
         coordinates = get_wcs_coordinates(args.object)
         # Print WCS coordinates in 6 decimal places
@@ -162,6 +174,13 @@ def compute_error(ra_target, dec_target, ra, dec):
     dec_error = abs(dec_target - dec) * 3600
     return math.sqrt(ra_error**2 + dec_error**2)
 
+def goto(device, ra, dec):
+  if SIMULATE:
+      return
+  command = "indi_setprop \"%s.EQUATORIAL_EOD_COORD.RA=%f;DEC=%f\"" % (device, ra, dec)
+  exec("indi_setprop \"%s.ON_COORD_SET.TRACK=On\"" % device)
+  exec(command)
+
 def main():
     parser = argparse.ArgumentParser(description='Go to an astronomical object and align the mount to it')
     parser.add_argument('-o', '--object', type=str, 
@@ -177,7 +196,7 @@ def main():
 
     setup_camera()
 
-    ra_target, dec_target = get_coordinates(args)
+    ra_target, dec_target = get_coordinates(args, parser)
     # Repeat capture, sync, goto until within threshold, or max iterations reached.
     complete = False
     max_iterations = 10
@@ -185,15 +204,19 @@ def main():
     while not complete and iteration < max_iterations:
         iteration += 1
         print(f"Iteration {iteration}", end=' | ')
+        
         print('GoTo', end=' | ')
-        sync(args.device, ra_target, dec_target)
+        goto(args.device, ra_target, dec_target)
+        
         print("Capture", end=' | ')
         capture_image()
+        
         print('Plate solve', end=' | ')
         ra, dec = run_plate_solve_astap('tmp.jpg', None, None)
+        
         print('Sync', end=' | ')
         sync(args.device, ra, dec)
-        verify_sync(args.device, ra, dec)
+        
         error = compute_error(ra_target, dec_target, ra, dec)
         print("RA: %9.6f, DEC: %9.6f, Error: %4.1f" % (ra, dec, error))
         if error < args.threshold:
