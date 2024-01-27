@@ -13,7 +13,7 @@ from astropy.coordinates import GCRS
 import astropy.time
 import math
 
-SIMULATE = True
+SIMULATE = False
 iso = 3200
 shutter_speed = 2
 
@@ -37,8 +37,8 @@ def exec_shell(command):
 def capture_image():
     global iso, shutter_speed
     if SIMULATE:
-        # Copy sample_data/NGC2244.cr3 to tmp.jpg
-        exec_shell('cp sample_data/NGC2244.cr3 tmp.jpg')
+        # Copy sample_data/NGC2244.jpg to tmp.jpg
+        exec_shell('cp sample_data/NGC2244.jpg tmp.jpg')
         return
     # print(f'Capturing image with iso={iso}, shutter_speed={shutter_speed}')
     # Capture in desired iso, aperture, and shutter speed, pipe output to /dev/null.
@@ -56,6 +56,29 @@ def setup_camera():
     exec(['gphoto2', '--set-config', '/main/imgsettings/imageformat=0'])
     # Set the camera to manual mode
     exec(['gphoto2', '--set-config', '/main/capturesettings/autoexposuremodedial=Manual'])
+
+def extract_and_convert_coordinates_siril(output):
+    # Define the regex pattern
+    regex = r"Image center: alpha: ([0-9]+)h([0-9]+)m([0-9]+)s, delta: ([+-])([0-9]+)°([0-9]+)'([0-9]+)"
+
+    # Search for the pattern in the output
+    match = re.search(regex, output)
+    if not match:
+        print("No match found")
+        return None, None
+
+    # Extract matched groups
+    alpha_h, alpha_m, alpha_s, delta_sign, delta_d, delta_m, delta_s = match.groups()
+    # print(f"RA: {alpha_h}h{alpha_m}m{alpha_s}s, DEC: {delta_sign}{delta_d}°{delta_m}'{delta_s}")
+
+    # Convert alpha (RA) to decimal degrees
+    alpha = 180/12 * (int(alpha_h) + int(alpha_m)/60 + int(alpha_s)/3600)
+
+    # Convert delta (DEC) to decimal degrees
+    delta_multiplier = 1 if delta_sign == '+' else -1
+    delta = delta_multiplier * (int(delta_d) + int(delta_m)/60 + int(delta_s)/3600)
+    
+    return alpha, delta
 
 def extract_and_convert_coordinates_astap(output):
     # Define the regex pattern, to match output like this:
@@ -94,6 +117,9 @@ def run_plate_solve_astap(file, wcs_coords, focal_option):
         ra, dec = extract_and_convert_coordinates_astap(result.stdout)
         return ra, dec
     except subprocess.CalledProcessError as e:
+        print('ERROR: Plate solve failed')
+        print(e)
+        exit(1)
         return None, None
 
 def set_tracking(device):
@@ -205,6 +231,8 @@ def main():
         iteration += 1
         print(f"Iteration {iteration}", end=' | ')
         
+        t_start = astropy.time.Time.now()
+
         print('GoTo', end=' | ')
         goto(args.device, ra_target, dec_target)
         
@@ -217,8 +245,11 @@ def main():
         print('Sync', end=' | ')
         sync(args.device, ra, dec)
         
+        t_end = astropy.time.Time.now()
+
         error = compute_error(ra_target, dec_target, ra, dec)
-        print("RA: %9.6f, DEC: %9.6f, Error: %4.1f" % (ra, dec, error))
+        print("RA: %9.6f, DEC: %9.6f, Error: %4.1f | Iteration time: %4.1f" % (ra, dec, error, (t_end - t_start).sec))
+
         if error < args.threshold:
           complete = True
         elif iteration == max_iterations:
