@@ -2,24 +2,46 @@ import argparse
 import subprocess
 import sys
 import re
+import shutil
+
+SIMULATE = False
+VERBOSE = False
 
 def setup_camera():
+    global SIMULATE, VERBOSE
+    if SIMULATE:
+        return
+    stderr = subprocess.DEVNULL
+    if VERBOSE:
+      stderr = None
     # Set the camera to JPEG mode
-    if subprocess.run(['gphoto2', '--set-config', '/main/imgsettings/imageformat=RAW']) != 0:
+    if subprocess.run(['gphoto2', '--set-config', 
+                       '/main/imgsettings/imageformat=RAW'], 
+                       stdout=subprocess.DEVNULL, stderr=stderr) != 0:
         print("Error setting camera to capture RAW.")
         exit(1)
     # Set the camera to manual mode
-    if subprocess.run(['gphoto2', '--set-config', '/main/capturesettings/autoexposuremodedial=Manual']) != 0:
+    if subprocess.run(['gphoto2', '--set-config',
+                       '/main/capturesettings/autoexposuremodedial=Manual'], stdout=subprocess.DEVNULL, stderr=stderr) != 0:
         print("Error setting camera to manual mode.")
         exit(1)
 
 def capture_image(filename, iso, shutter_speed):
+    global SIMULATE, VERBOSE
+    if SIMULATE:
+        # Copy sample_data/NGC2244.cr3 to filename.
+        shutil.copyfile('sample_data/NGC2244.cr3', filename)
+        return
+    stderr = subprocess.DEVNULL
+    if VERBOSE:
+      stderr = None
     result = subprocess.run(['gphoto2',
                               '--set-config', f'iso={iso}',
                               '--set-config', f'shutterspeed={shutter_speed}',
                               '--capture-image-and-download',
                               '--filename', filename,
-                              '--force-overwrite'], stdout=subprocess.DEVNULL)
+                              '--force-overwrite'], 
+                              stdout=subprocess.DEVNULL, stderr=stderr)
     if result.returncode != 0:
         print("Error capturing image.")
         # exit(1)
@@ -63,25 +85,54 @@ close
         return None, None
 
 def main():
+    global SIMULATE, VERBOSE
     parser = argparse.ArgumentParser(description='Manually focus a telescope using a camera and star FWHM detection')
 
     # Optional arguments: ISO, exposure time
-    parser.add_argument('-i', '--iso', type=int, help='ISO setting for camera', default=1600)
-    parser.add_argument('-e', '--exposure', type=int, help='Exposure time for camera', default=2)
+    parser.add_argument('-i', '--iso', type=int, 
+                        help='ISO setting for camera', default=1600)
+    parser.add_argument('-e', '--exposure', type=int, 
+                        help='Exposure time for camera', default=2)
+    parser.add_argument('-s', '--simulate', action='store_true',
+                        help='Simulate camera capture')
+    parser.add_argument('-v', '--verbose', action='store_true',
+                        help='Verbose output')
 
     args = parser.parse_args()
+    
+    SIMULATE = args.simulate
+    VERBOSE = args.verbose
     # Set up the camera
     setup_camera()
-    print('Press ENTER to capture an image and analyze it, or type "q" to quit')
+    print('Press ENTER to capture an image and analyze it, CTRL-C to quit.')
+    # Set up keyboard input to not display entered characters, and to not wait for ENTER.
+    import termios
+    import sys
+    import tty
+    fd = sys.stdin.fileno()
+    old_settings = termios.tcgetattr(fd)
+    tty.setcbreak(fd)
+    # Set up SIGINT handler to restore terminal settings.
+    import signal
+    def signal_handler(sig, frame):
+        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+        sys.exit(0)
+    signal.signal(signal.SIGINT, signal_handler)
+
+
     while True:
         user_input = input()
         if user_input == 'q':
             break
-        print('Capturing image...')
+        if args.verbose:
+          print('Capturing image...')
         capture_image('tmp.cr3', args.iso, args.exposure)
-        print('Analyzing image...')
+        if args.verbose:
+          print('Analyzing image...')
         num_stars, fwhm = run_star_detect_siril('.', 'tmp.cr3')
-        print(f'Found %4d stars, FWHM = %5.2f' % (int(num_stars), float(fwhm)))
+        # Create bar graph with FWHM, ranging from 1 bar for 1.0 to 30 bars for 6.0, clipping to [1.0, 6.0].
+        bar_graph = int(max(min(40, (float(fwhm) - 1.0) * 5.0), 1.0))
+        print(f'Found %4d stars, FWHM = %5.2f %s' % (int(num_stars), float(fwhm), f'{"❚" * bar_graph}'))
 
 if __name__ == "__main__":
     main()
