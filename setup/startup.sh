@@ -47,4 +47,4 @@ fi
 # Call the function to set the time and location
 set_time_location
 sleep 1
-./read_site.py
+./setup/read_site.py

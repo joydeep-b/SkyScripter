@@ -1,8 +1,17 @@
 #!/usr/bin/env python3
+
 import subprocess
 import re
 import argparse
 import sys
+from astroquery.simbad import Simbad 
+from astropy.coordinates import SkyCoord
+from astropy.coordinates import FK5
+from astropy.coordinates import ICRS
+import astropy.units as units
+from astropy.coordinates import GCRS
+import astropy.time
+import math
 
 iso = 3200
 shutter_speed = 2
@@ -104,26 +113,95 @@ def sync(device, ra, dec):
     exec_shell("indi_setprop \"%s.ON_COORD_SET.SYNC=On\"" % device)
     exec_shell("indi_setprop \"%s.EQUATORIAL_EOD_COORD.RA=%f;DEC=%f\"" % (device, ra, dec))
 
+
+def get_wcs_coordinates(object_name):
+    # Query the object
+    result_table = Simbad.query_object(object_name)
+
+    if result_table is None:
+        print(f"ERROR: Unable to find object '{object_name}'")
+        sys.exit(1)
+    # Extract RA and DEC
+    ra = result_table['RA'][0]
+    dec = result_table['DEC'][0]
+    # print(f"RA: {ra}, DEC: {dec}")
+
+    # Convert J2000 coordinates to JNow.
+    c = SkyCoord(ra, dec, unit=(units.hourangle, units.deg), frame=ICRS())
+    # jnow_coord = c.transform_to(GCRS(obstime=astropy.time.Time.now()))
+    jnow_coord = c.transform_to(FK5(equinox=astropy.time.Time.now()))
+    
+    ra = jnow_coord.ra.to(units.hourangle)
+    dec = c.dec
+    
+    coord = SkyCoord(ra, dec, unit=(units.hourangle, units.deg))
+    return coord.ra.hour, coord.dec.deg
+
+def get_coordinates(args):
+    if args.object is None and args.wcs is None:
+        print('ERROR: No object or WCS coordinates specified')
+        sys.exit(1)
+    if args.object is not None and args.wcs is not None:
+      print('ERROR: Both object and WCS coordinates specified')
+      sys.exit(1)
+    if args.object is not None:
+        coordinates = get_wcs_coordinates(args.object)
+        # Print WCS coordinates in 6 decimal places
+        print(f"Using WCS coordinates of '{args.object}': {coordinates}")
+    else:
+        coordinates = args.wcs.split()
+        # Convert coordinates to RA and DEC in decimal degrees.
+        ra, dec = coordinates
+        c = SkyCoord(ra, dec, unit=(units.hourangle, units.deg))
+        coordinates = c.ra.deg, c.dec.deg
+    return coordinates
+
+def compute_error(ra_target, dec_target, ra, dec):
+    # Compute error in arcseconds. RA is in hours, DEC is in degrees.
+    ra_error = abs(ra_target - ra) / 24 * 360 * 3600
+    dec_error = abs(dec_target - dec) * 3600
+    return math.sqrt(ra_error**2 + dec_error**2)
+
 def main():
-    parser = argparse.ArgumentParser(description='Capture and plate solve an image, then sync the mount')
-    parser.add_argument('-d', '--device', type=str, help='INDI device name', default='SkyAdventurer GTi')
+    parser = argparse.ArgumentParser(description='Go to an astronomical object and align the mount to it')
+    parser.add_argument('-o', '--object', type=str, 
+                        help='Astronomical object name, either a catalog name (e.g., "M31") or a common name (e.g., "Andromeda Galaxy")')
+    parser.add_argument('-w', '--wcs', type=str, 
+                        help='WCS coordinates (e.g., "5:35:17 -5:23:24")')
+    parser.add_argument('-d', '--device', type=str, 
+                        help='INDI device name', default='SkyAdventurer GTi')
+    parser.add_argument('-t', '--threshold', type=float, 
+                        help='Max align error in arcseconds', default=30)
+    
     args = parser.parse_args()
 
-    print("Set tracking...")
-    set_tracking(args.device)
-    print("Capturing image...")
-    # setup_camera()
-    # capture_image()
-    print('Running plate solve...')
-    ra, dec = run_plate_solve_astap('tmp.jpg', None, None)
-    # ra = 2
-    # dec = 89
-    print(f'RA: {ra}, DEC: {dec}')
-    print('Syncing mount...')
-    sync(args.device, ra, dec)
-    print('Verifying sync...')
-    verify_sync(args.device, ra, dec)
-    print('Done.')
+    setup_camera()
+
+    ra_target, dec_target = get_coordinates(args)
+    # Repeat capture, sync, goto until within threshold, or max iterations reached.
+    complete = False
+    max_iterations = 10
+    iteration = 0
+    while not complete and iteration < max_iterations:
+        iteration += 1
+        print(f"Iteration {iteration}", end=' | ')
+        print('GoTo', end=' | ')
+        sync(args.device, ra_target, dec_target)
+        print("Capture", end=' | ')
+        capture_image()
+        print('Plate solve', end=' | ')
+        ra, dec = run_plate_solve_astap('tmp.jpg', None, None)
+        print('Sync', end=' | ')
+        sync(args.device, ra, dec)
+        verify_sync(args.device, ra, dec)
+        error = compute_error(ra_target, dec_target, ra, dec)
+        print("RA: %9.6f, DEC: %9.6f, Error: %4.1f" % (ra, dec, error))
+        if error < args.threshold:
+          complete = True
+        elif iteration == max_iterations:
+          print("ERROR: Max iterations reached")
+          sys.exit(1)
+
 
 if __name__ == '__main__':
     main()
