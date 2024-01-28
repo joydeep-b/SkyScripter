@@ -51,7 +51,7 @@ def extract_and_convert_coordinates_siril(output):
     # Convert delta (DEC) to decimal degrees
     delta_multiplier = 1 if delta_sign == '+' else -1
     delta = delta_multiplier * (int(delta_d) + int(delta_m)/60 + int(delta_s)/3600)
-
+    
     return alpha, delta
 
 def get_wcs_coordinates(object_name):

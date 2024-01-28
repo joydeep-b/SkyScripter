@@ -12,6 +12,7 @@ import astropy.units as units
 from astropy.coordinates import GCRS
 import astropy.time
 import math
+import time
 
 SIMULATE = False
 iso = 3200
@@ -44,9 +45,10 @@ def capture_image():
     # Capture in desired iso, aperture, and shutter speed, pipe output to /dev/null.
     exec(['gphoto2',
           '--set-config', f'iso={iso}',
+          '--set-config', '/main/imgsettings/imageformat=RAW',
           '--set-config', f'shutterspeed={shutter_speed}',
           '--capture-image-and-download',
-          '--filename', 'tmp.jpg',
+          '--filename', 'tmp.cr3',
           '--force-overwrite'])
 
 def setup_camera():
@@ -106,7 +108,7 @@ def extract_and_convert_coordinates_astap(output):
 
 def run_plate_solve_astap(file, wcs_coords, focal_option):
     ASTAP_PATH = 'astap'
-    astap_cli_command = [ASTAP_PATH, "-f", file]
+    astap_cli_command = [ASTAP_PATH, "-f", file, "-r", "180"]
     try:
         result = subprocess.run(astap_cli_command, 
                                 text=True, 
@@ -145,8 +147,11 @@ def sync(device, ra, dec):
     if SIMULATE:
         return
     exec_shell("indi_setprop \"%s.TELESCOPE_TRACK_STATE.TRACK_ON=On\"" % device)
+    time.sleep(1)
     exec_shell("indi_setprop \"%s.ON_COORD_SET.SYNC=On\"" % device)
+    time.sleep(1)
     exec_shell("indi_setprop \"%s.EQUATORIAL_EOD_COORD.RA=%f;DEC=%f\"" % (device, ra, dec))
+    time.sleep(1)
     verify_sync(device, ra, dec)
 
 
@@ -204,8 +209,17 @@ def goto(device, ra, dec):
   if SIMULATE:
       return
   command = "indi_setprop \"%s.EQUATORIAL_EOD_COORD.RA=%f;DEC=%f\"" % (device, ra, dec)
-  exec("indi_setprop \"%s.ON_COORD_SET.TRACK=On\"" % device)
-  exec(command)
+  exec_shell("indi_setprop \"%s.ON_COORD_SET.TRACK=On\"" % device)
+  exec_shell(command)
+  while True:
+    target_ra = float(ReadIndi(device, "TARGET_EOD_COORD.RA"))
+    target_dec = float(ReadIndi(device, "TARGET_EOD_COORD.DEC"))
+    ra = float(ReadIndi(device, "EQUATORIAL_EOD_COORD.RA"))
+    dec = float(ReadIndi(device, "EQUATORIAL_EOD_COORD.DEC"))
+    if abs(target_ra - ra) < 0.002 and abs(target_dec - dec) < 0.001:
+      return
+    print("Target: %9.6f %9.6f Current: %9.6f %9.6f Difference: %9.6f %9.6f" % (target_ra, target_dec, ra, dec, target_ra - ra, target_dec - dec))
+    time.sleep(1)
 
 def main():
     parser = argparse.ArgumentParser(description='Go to an astronomical object and align the mount to it')
@@ -240,7 +254,7 @@ def main():
         capture_image()
         
         print('Plate solve', end=' | ')
-        ra, dec = run_plate_solve_astap('tmp.jpg', None, None)
+        ra, dec = run_plate_solve_astap('tmp.cr3', None, None)
         
         print('Sync', end=' | ')
         sync(args.device, ra, dec)

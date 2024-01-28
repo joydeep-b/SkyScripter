@@ -17,16 +17,11 @@ def setup_camera():
     if VERBOSE:
       stderr = None
     # Set the camera to JPEG mode
-    if subprocess.run(['gphoto2', '--set-config', 
-                       '/main/imgsettings/imageformat=RAW'], 
-                       stdout=subprocess.DEVNULL, stderr=stderr) != 0:
-        print("Error setting camera to capture RAW.")
-        exit(1)
+    subprocess.run(['gphoto2', '--set-config', '/main/imgsettings/imageformat=RAW'], stdout=subprocess.DEVNULL)
     # Set the camera to manual mode
-    if subprocess.run(['gphoto2', '--set-config',
-                       '/main/capturesettings/autoexposuremodedial=Manual'], stdout=subprocess.DEVNULL, stderr=stderr) != 0:
-        print("Error setting camera to manual mode.")
-        exit(1)
+    subprocess.run(['gphoto2', '--set-config',
+                       '/main/capturesettings/autoexposuremodedial=Manual'], stdout=subprocess.DEVNULL)
+    
 
 def capture_image(filename, iso, shutter_speed):
     global SIMULATE, VERBOSE
@@ -123,9 +118,6 @@ def main():
 
 
     while True:
-        user_input = input()
-        if user_input == 'q':
-            break
         if args.verbose:
           print('Capturing image...')
         capture_image('tmp.cr3', args.iso, args.exposure)
@@ -135,6 +127,9 @@ def main():
         # Create bar graph with FWHM, ranging from 1 bar for 1.0 to 30 bars for 6.0, clipping to [1.0, 6.0].
         bar_graph = int(max(min(40, (float(fwhm) - 1.0) * 5.0), 1.0))
         print(f'Found %4d stars, FWHM = %5.2f %s' % (int(num_stars), float(fwhm), f'{"❚" * bar_graph}'))
+        user_input = input()
+        if user_input == 'q':
+            break
 
 if __name__ == "__main__":
     main()

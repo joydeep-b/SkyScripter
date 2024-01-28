@@ -30,9 +30,10 @@ def capture_image():
     # Capture in desired iso, aperture, and shutter speed, pipe output to /dev/null.
     exec(['gphoto2',
           '--set-config', f'iso={iso}',
+          '--set-config', '/main/imgsettings/imageformat=RAW',
           '--set-config', f'shutterspeed={shutter_speed}',
           '--capture-image-and-download',
-          '--filename', 'tmp.jpg',
+          '--filename', 'tmp.cr3',
           '--force-overwrite'])
 
 def setup_camera():
@@ -115,7 +116,7 @@ def main():
     setup_camera()
     capture_image()
     print('Running plate solve...')
-    ra, dec = run_plate_solve_astap('tmp.jpg', None, None)
+    ra, dec = run_plate_solve_astap('tmp.cr3', None, None)
     # ra = 2
     # dec = 89
     if ra is None or dec is None:
