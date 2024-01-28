@@ -127,14 +127,28 @@ def run_plate_solve_astap(file, wcs_coords, focal_option):
 def set_tracking(device):
     exec_shell("indi_setprop \"%s.TELESCOPE_TRACK_STATE.TRACK_ON=On\"" % device)
 
-def ReadIndi(device, propname):
+def ReadIndi(device, propname, timeout=2):
   # Call indi_getprop to get the property value
-  command = "indi_getprop \"%s.%s\"" % (device, propname)
+  command = "indi_getprop -t %d \"%s.%s\"" % (timeout, device, propname)
   # Execute the command and get the output.
   output = subprocess.run(command, shell=True, stdout=subprocess.PIPE).stdout.decode('utf-8')
-  # Parse the output to get the property value.
-  output = output.split("=")[1].strip()
-  return output
+  # Check for multiple lines of output.
+  lines = output.splitlines()
+  if len(lines) == 1:
+    # Parse the output to get the property value.
+    output = output.split("=")[1].strip()
+    return output  
+  else:
+    # Parse the output from each line to get all property values.
+    output = []
+    for line in lines:
+      # Get key-value pair. 
+      # Example:"SkyAdventurer GTi.RASTATUS.RAInitialized=Ok"
+      # Key="RAInitialized" Value="Ok"
+      key = line.split("=")[0].split(".")[-1]
+      value = line.split("=")[1].strip()
+      output.append((key, value))
+    return output
 
 def verify_sync(device, ra_expected, dec_expected):
     ra = float(ReadIndi(device, "EQUATORIAL_EOD_COORD.RA"))
@@ -205,21 +219,54 @@ def compute_error(ra_target, dec_target, ra, dec):
     dec_error = abs(dec_target - dec) * 3600
     return math.sqrt(ra_error**2 + dec_error**2)
 
+
+def get_mount_state(device):
+  ra_status = ReadIndi(device, "RASTATUS.*", 1)
+  de_status = ReadIndi(device, "DESTATUS.*", 1)
+
+  # If ra_status has ("RAGoto", "Ok"), or de_status has ("DEGoto", "Ok"), then the mount is running a goto slew.
+  goto_slew = False
+  for key, value in ra_status:
+    if key == "RAGoto" and value == "Ok":
+      goto_slew = True
+      break
+  for key, value in de_status:
+    if key == "DEGoto" and value == "Ok":
+      goto_slew = True
+      break
+  
+  # If not goto_slew, and ra_status has ('RARunning', 'Ok'), ('RAGoto', 'Busy'), and ('RAHighspeed', 'Busy'), then the mount is tracking.
+  tracking = False
+  if (not goto_slew) and \
+      ("RARunning", "Ok") in ra_status and \
+      ("RAGoto", "Busy") in ra_status and \
+      ("RAHighspeed", "Busy") in ra_status:
+    tracking = True
+
+  # If not goto_slew, not tracking, and ra_status has ('RARunning', 'Ok') or 
+  # de_status has ('DERunning', 'Ok'), then the mount is running a manual slew.
+  manual_slew = False
+  if (not goto_slew) and (not tracking) and \
+      (("RARunning", "Ok") in ra_status or \
+      ("DERunning", "Ok") in de_status):
+    manual_slew = True
+
+  return manual_slew, goto_slew, tracking
+
 def goto(device, ra, dec):
   if SIMULATE:
       return
-  command = "indi_setprop \"%s.EQUATORIAL_EOD_COORD.RA=%f;DEC=%f\"" % (device, ra, dec)
+  exec_shell("indi_setprop \"%s.TELESCOPE_TRACK_DEFAULT.TRACK_SIDEREAL=On\"" % device)
+  time.sleep(1)
   exec_shell("indi_setprop \"%s.ON_COORD_SET.TRACK=On\"" % device)
+  time.sleep(1)
+  command = "indi_setprop \"%s.EQUATORIAL_EOD_COORD.RA=%f;DEC=%f\"" % (device, ra, dec)
   exec_shell(command)
-  while True:
-    target_ra = float(ReadIndi(device, "TARGET_EOD_COORD.RA"))
-    target_dec = float(ReadIndi(device, "TARGET_EOD_COORD.DEC"))
-    ra = float(ReadIndi(device, "EQUATORIAL_EOD_COORD.RA"))
-    dec = float(ReadIndi(device, "EQUATORIAL_EOD_COORD.DEC"))
-    if abs(target_ra - ra) < 0.002 and abs(target_dec - dec) < 0.001:
-      return
-    print("Target: %9.6f %9.6f Current: %9.6f %9.6f Difference: %9.6f %9.6f" % (target_ra, target_dec, ra, dec, target_ra - ra, target_dec - dec))
+  tracking = False
+  while not tracking:
     time.sleep(1)
+    _, _, tracking = get_mount_state(device)
+
 
 def main():
     parser = argparse.ArgumentParser(description='Go to an astronomical object and align the mount to it')
@@ -243,20 +290,20 @@ def main():
     iteration = 0
     while not complete and iteration < max_iterations:
         iteration += 1
-        print(f"Iteration {iteration}", end=' | ')
+        print(f"Iteration {iteration}", end=' | ', flush=True)
         
         t_start = astropy.time.Time.now()
 
-        print('GoTo', end=' | ')
+        print('GoTo', end=' | ', flush=True)
         goto(args.device, ra_target, dec_target)
         
-        print("Capture", end=' | ')
+        print("Capture", end=' | ', flush=True)
         capture_image()
         
-        print('Plate solve', end=' | ')
+        print('Plate solve', end=' | ', flush=True)
         ra, dec = run_plate_solve_astap('tmp.cr3', None, None)
         
-        print('Sync', end=' | ')
+        print('Sync', end=' | ', flush=True)
         sync(args.device, ra, dec)
         
         t_end = astropy.time.Time.now()

@@ -109,20 +109,11 @@ def get_pier_side(device):
     print("Error: could not determine pier side")
     sys.exit(1)
 
-def ra_dec_to_alt_az(device, ra, dec):
+def get_alt_az(device, ra, dec):
   # First get site details from the mount.
-  latitude = float(ReadIndi(device, "GEOGRAPHIC_COORD.LAT"))
-  longitude = float(ReadIndi(device, "GEOGRAPHIC_COORD.LONG"))
-  elevation = float(ReadIndi(device, "GEOGRAPHIC_COORD.ELEV"))
-  # Next, create the current frame.
-  current_time = astropy.time.Time.now()
-  current_location = astropy.coordinates.EarthLocation.from_geodetic(lon=longitude * units.deg, lat=latitude * units.deg, height=elevation * units.m)
-  current_frame = astropy.coordinates.AltAz(obstime=current_time, location=current_location)
-  # Create the RA, DEC coordinates.
-  coord = SkyCoord(ra, dec, unit=(units.hourangle, units.deg))
-  # Convert to Alt, Az.
-  altaz = coord.transform_to(current_frame)
-  return altaz
+  alt = float(ReadIndi(device, "HORIZONTAL_COORD.ALT"))
+  az = float(ReadIndi(device, "HORIZONTAL_COORD.AZ"))
+  return alt, az
 
 def main():
   parser = argparse.ArgumentParser(
@@ -166,7 +157,7 @@ def main():
     pier_side = get_pier_side(args.device)
 
     # Convert RA, DEC to Alt, Az.
-    altaz = ra_dec_to_alt_az(args.device, ra, dec)
+    alt, az = get_alt_az(args.device, ra, dec)
 
     if pier_side == "East":
       time_to_flip = (12 + args.meridian_flip_angle - ha) * 3600
@@ -181,7 +172,7 @@ def main():
     log_string = "%s | %s |" % (current_date_time, mount_state)
     log_string += " RA: %9.6f HA: %9.6f DEC: %9.6f |" % (ra, ha, dec)
     log_string += " Pier side: %s |" % pier_side
-    log_string += " Az: %7.3f Alt: %7.3f |" % (altaz.az.deg, altaz.alt.deg)
+    log_string += " Az: %7.3f Alt: %7.3f |" % (alt, az)
     log_string += " Time to flip: %02d:%02d:%02d" % \
         (time_to_flip_hours, time_to_flip_minutes, time_to_flip_seconds)
     print(log_string)
@@ -192,7 +183,7 @@ def main():
       log_file.write("Performing meridian flip\n")
       perform_meridian_flip(args.device)
 
-    if tracking and altaz.alt.deg < args.min_altitude:
+    if tracking and alt < args.min_altitude:
       print("Altitude below minimum, stopping tracking")
       log_file.write("Altitude below minimum, stopping tracking\n")
       stop_tracking(args.device)
