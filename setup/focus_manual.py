@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import argparse
 import subprocess
 import sys
@@ -52,7 +54,7 @@ def run_star_detect_siril(this_dir, file):
     if sys.platform == 'darwin':
       SIRIL_PATH = '/Applications/Siril.app/Contents/MacOS/siril-cli'
     else:
-      SIRIL_PATH = 'siril-cli'
+      SIRIL_PATH = '/home/joydeepb/Siril-1.2.1-x86_64.AppImage'
       
     siril_commands = f"""requires 1.2.0
 load {file}
