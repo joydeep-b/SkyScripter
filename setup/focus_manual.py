@@ -5,6 +5,8 @@ import subprocess
 import sys
 import re
 import shutil
+import os
+import tempfile
 
 SIMULATE = False
 VERBOSE = False
@@ -52,7 +54,9 @@ def run_star_detect_siril(this_dir, file):
       SIRIL_PATH = '/home/joydeepb/Siril-1.2.1-x86_64.AppImage'
       
     siril_commands = f"""requires 1.2.0
-load {file}
+convert light
+calibrate_single light_00001 -bias="=2048" -debayer -cfa -equalize_cfa 
+load pp_light_00001
 findstar
 close
 """
@@ -69,9 +73,10 @@ close
         if result.returncode != 0:
             print("Error running Siril.")
             exit(1)
+        # print(result.stdout)
         # Extract the number of stars detected, and the FWHM. Sample output:
         # Found 343 Gaussian profile stars in image, channel #0 (FWHM 5.428217)
-        regex = r"Found ([0-9]+) Gaussian profile stars in image, channel #0 \(FWHM ([0-9]+\.[0-9]+)\)"
+        regex = r"Found ([0-9]+) Gaussian profile stars in image, channel #1 \(FWHM ([0-9]+\.[0-9]+)\)"
         match = re.search(regex, result.stdout)
         if not match:
             print("No match found")
@@ -102,34 +107,40 @@ def main():
     # Set up the camera
     setup_camera()
     print('Press ENTER to capture an image and analyze it, CTRL-C to quit.')
-    # Set up keyboard input to not display entered characters, and to not wait for ENTER.
-    import termios
-    import sys
-    import tty
-    fd = sys.stdin.fileno()
-    old_settings = termios.tcgetattr(fd)
-    tty.setcbreak(fd)
-    # Set up SIGINT handler to restore terminal settings.
-    import signal
-    def signal_handler(sig, frame):
-        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
-        sys.exit(0)
-    signal.signal(signal.SIGINT, signal_handler)
+    # # Set up keyboard input to not display entered characters, and to not wait for ENTER.
+    # import termios
+    # import sys
+    # import tty
+    # fd = sys.stdin.fileno()
+    # old_settings = termios.tcgetattr(fd)
+    # tty.setcbreak(fd)
+    # # Set up SIGINT handler to restore terminal settings.
+    # import signal
+    # def signal_handler(sig, frame):
+    #     termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+    #     sys.exit(0)
+    # signal.signal(signal.SIGINT, signal_handler)
 
-
-    while True:
-        if args.verbose:
-          print('Capturing image...')
-        capture_image('tmp.cr3', args.iso, args.exposure)
-        if args.verbose:
-          print('Analyzing image...')
-        num_stars, fwhm = run_star_detect_siril('.', 'tmp.cr3')
-        # Create bar graph with FWHM, ranging from 1 bar for 1.0 to 30 bars for 6.0, clipping to [1.0, 6.0].
-        bar_graph = int(max(min(40, (float(fwhm) - 1.0) * 5.0), 1.0))
-        print(f'Found %4d stars, FWHM = %5.2f %s' % (int(num_stars), float(fwhm), f'{"❚" * bar_graph}'))
-        user_input = input()
-        if user_input == 'q':
-            break
+    # Make a temporary directory to store the image.
+    
+    with tempfile.TemporaryDirectory() as tmpdirname:
+      filename = os.path.join(tmpdirname, 'tmp.cr3')
+      while True:
+          if args.verbose:
+            print('Capturing image...')
+          # Remove all files in tmpdirname.
+          for file in os.listdir(tmpdirname):
+            os.remove(os.path.join(tmpdirname, file))
+          capture_image(filename, args.iso, args.exposure)
+          if args.verbose:
+            print('Analyzing image...')
+          num_stars, fwhm = run_star_detect_siril(tmpdirname, 'tmp.cr3')
+          # Create bar graph with FWHM, ranging from 1 bar for 1.0 to 30 bars for 6.0, clipping to [1.0, 6.0].
+          bar_graph = int(max(min(40, (float(fwhm) - 1.0) * 5.0), 1.0))
+          print(f'Found %4d stars, FWHM = %5.2f %s' % (int(num_stars), float(fwhm), f'{"❚" * bar_graph}'))
+          user_input = input()
+          if user_input == 'q':
+              break
 
 if __name__ == "__main__":
     main()
