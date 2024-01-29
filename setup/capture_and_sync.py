@@ -3,6 +3,7 @@ import subprocess
 import re
 import argparse
 import sys
+import time
 
 iso = 3200
 shutter_speed = 2
@@ -124,6 +125,7 @@ def main():
         sys.exit(1)
     print(f'RA: {ra}, DEC: {dec}')
     print('Syncing mount...')
+    time.sleep(1)
     sync(args.device, ra, dec)
     print('Verifying sync...')
     verify_sync(args.device, ra, dec)

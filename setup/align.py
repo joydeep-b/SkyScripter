@@ -85,6 +85,7 @@ def extract_and_convert_coordinates_siril(output):
 def extract_and_convert_coordinates_astap(output):
     # Define the regex pattern, to match output like this:
     # Solution found: 05: 36 03.8	-05° 27 14
+    # print(output)
     regex = r"Solution found: ([0-9]+): ([0-9]+) ([0-9]+\.[0-9]+)\t([+-])([0-9]+)° ([0-9]+) ([0-9]+)"
 
     # Search for the pattern in the output
@@ -209,7 +210,9 @@ def get_coordinates(args, parser):
         coordinates = args.wcs.split()
         # Convert coordinates to RA and DEC in decimal degrees.
         ra, dec = coordinates
-        c = SkyCoord(ra, dec, unit=(units.hourangle, units.deg))
+        c = SkyCoord(ra, dec, unit=(units.deg, units.deg))
+        # print("Provided: %s %s Interpreted: %f %f" % (ra, dec, c.ra.deg, c.dec.deg))
+        # sys.exit(1)
         coordinates = c.ra.deg, c.dec.deg
     return coordinates
 
@@ -262,6 +265,7 @@ def goto(device, ra, dec):
   time.sleep(1)
   command = "indi_setprop \"%s.EQUATORIAL_EOD_COORD.RA=%f;DEC=%f\"" % (device, ra, dec)
   exec_shell(command)
+  time.sleep(1)
   tracking = False
   while not tracking:
     time.sleep(1)
@@ -309,7 +313,11 @@ def main():
         t_end = astropy.time.Time.now()
 
         error = compute_error(ra_target, dec_target, ra, dec)
-        print("RA: %9.6f, DEC: %9.6f, Error: %4.1f | Iteration time: %4.1f" % (ra, dec, error, (t_end - t_start).sec))
+        # Print RA in HH:MM:SS and DEC in DD:MM:SS, and error in arcseconds.
+        ra_hms = astropy.coordinates.Angle(ra, unit=units.hour).to_string(unit=units.hour, sep=':')
+        dec_dms = astropy.coordinates.Angle(dec, unit=units.deg).to_string(unit=units.deg, sep=':')
+        print(f"RA: {ra_hms}, DEC: {dec_dms}, Error: {error:4.1f} | Iteration time: {(t_end - t_start).sec:4.1f}")
+        # print("RA: %9.6f, DEC: %9.6f, Error: %4.1f | Iteration time: %4.1f" % (ra, dec, error, (t_end - t_start).sec))
 
         if error < args.threshold:
           complete = True

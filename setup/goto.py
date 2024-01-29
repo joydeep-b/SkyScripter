@@ -34,18 +34,13 @@ def get_wcs_coordinates(object_name):
     # Extract RA and DEC
     ra = result_table['RA'][0]
     dec = result_table['DEC'][0]
-    # print(f"RA: {ra}, DEC: {dec}")
+    print(f"SIMBAD result for \"{object_name}\" : RA {ra}, DEC {dec}")
 
     # Convert J2000 coordinates to JNow.
     c = SkyCoord(ra, dec, unit=(units.hourangle, units.deg), frame=ICRS())
-    # jnow_coord = c.transform_to(GCRS(obstime=astropy.time.Time.now()))
     jnow_coord = c.transform_to(FK5(equinox=astropy.time.Time.now()))
     
-    ra = jnow_coord.ra.to(units.hourangle)
-    dec = c.dec
-    
-    coord = SkyCoord(ra, dec, unit=(units.hourangle, units.deg))
-    return coord.ra.hour, coord.dec.deg
+    return jnow_coord.ra.hour, jnow_coord.dec.deg
 
 def indi_goto(device, ra, dec):
   command = "indi_setprop \"%s.EQUATORIAL_EOD_COORD.RA=%f;DEC=%f\"" % (device, ra, dec)
@@ -69,20 +64,22 @@ def main():
     sys.exit(1)
   if args.object is not None:
       coordinates = get_wcs_coordinates(args.object)
-      # Print WCS coordinates in 6 decimal places
-      print(f"Using WCS coordinates of '{args.object}': {coordinates}")
+      print(f"Using FK5(equinox=now) coordinates of '{args.object}': {coordinates}")
   else:
       coordinates = args.wcs.split()
       # Convert coordinates to RA and DEC in decimal degrees.
       ra, dec = coordinates
-      c = SkyCoord(ra, dec, unit=(units.hourangle, units.deg))
-      coordinates = c.ra.deg, c.dec.deg
-      print(f"Using WCS coordinates: {coordinates}")
-      sys.exit(1)
+      c = SkyCoord(ra, dec, unit=(units.hour, units.deg))
+      coordinates = c.ra.hour, c.dec.deg
+      print(f"Using coordinates: {coordinates}")
 
-  # Convert coordinates to RA and DEC in decimal degrees.
+  # Print the RA, DEC in HH:MM:SS, DD:MM:SS format.
+  c = SkyCoord(coordinates[0], coordinates[1],
+               unit=(units.hourangle, units.deg))
+  print("GoTo RA %s, DEC %s" % (c.ra.to_string(unit=units.hour, sep=':'),
+                             c.dec.to_string(unit=units.degree, sep=':')))
+  
   ra, dec = coordinates
-  # sys.exit(1)
   indi_goto(args.device, ra, dec)
 
 if __name__ == "__main__":

@@ -1,5 +1,6 @@
 #!/usr/bin/python
 
+import datetime
 import sys
 import time
 import argparse
@@ -136,6 +137,7 @@ def main():
 
   # Open the log file.
   log_file = open(args.log_file, "a")
+  log_interval = -1
   while True:
     (manual_slew, goto_slew, tracking) = get_mount_state(args.device)
     if manual_slew:
@@ -168,24 +170,29 @@ def main():
     time_to_flip_minutes = (time_to_flip % 3600) / 60
     time_to_flip_seconds = time_to_flip % 60
 
-    current_date_time = astropy.time.Time.now().iso.split('.')[0]
+    # Get current local date and time.
+    current_date_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     log_string = "%s | %s |" % (current_date_time, mount_state)
     log_string += " RA: %9.6f HA: %9.6f DEC: %9.6f |" % (ra, ha, dec)
     log_string += " Pier side: %s |" % pier_side
-    log_string += " Az: %7.3f Alt: %7.3f |" % (alt, az)
+    log_string += " Alt: %7.3f Az: %7.3f |" % (alt, az)
     log_string += " Time to flip: %02d:%02d:%02d" % \
         (time_to_flip_hours, time_to_flip_minutes, time_to_flip_seconds)
     print(log_string)
-    log_file.write(log_string + "\n")
+    if log_interval > 0:
+      log_interval -= 1
+    else:
+      log_interval = 10
+      log_file.write(log_string + "\n")
 
     if tracking and time_to_flip <= 0:
-      print("Performing meridian flip")
-      log_file.write("Performing meridian flip\n")
+      print("%s | Performing meridian flip" % current_date_time)
+      log_file.write("%s | Performing meridian flip\n" % current_date_time)
       perform_meridian_flip(args.device)
 
     if tracking and alt < args.min_altitude:
-      print("Altitude below minimum, stopping tracking")
-      log_file.write("Altitude below minimum, stopping tracking\n")
+      print("%s | Altitude below minimum, stopping tracking" % current_date_time)
+      log_file.write("%s | Altitude below minimum, stopping tracking\n" % current_date_time)
       stop_tracking(args.device)
 
     time.sleep(1)
