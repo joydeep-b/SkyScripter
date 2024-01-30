@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 
 from astroquery.simbad import Simbad 
 from astropy.coordinates import SkyCoord
@@ -34,7 +34,6 @@ def get_wcs_coordinates(object_name):
     # Extract RA and DEC
     ra = result_table['RA'][0]
     dec = result_table['DEC'][0]
-    print(f"SIMBAD result for \"{object_name}\" : RA {ra}, DEC {dec}")
 
     # Convert J2000 coordinates to JNow.
     c = SkyCoord(ra, dec, unit=(units.hourangle, units.deg), frame=ICRS())
