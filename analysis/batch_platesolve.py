@@ -260,7 +260,7 @@ if __name__ == "__main__":
         if not any(filename.lower().endswith(ext) for ext in allowed_extensions):
             continue
         if filename in prev_filenames:
-            print(f"Skipping {filename}")
+            print(f"File: {filename} [Previously solved, skipping]")
             continue
         file = args.directory + '/' + filename
         if coordinates is None:
@@ -271,7 +271,8 @@ if __name__ == "__main__":
             # print(f"RA={result[0]:.12f}, DEC={result[1]:.12f}")
             pass
         else:
-            print(f"Platesolve failed")
+            print(f"File: {filename} [Platesolve failed]")
+            continue
         num_stars, fwhm = run_star_detect_siril(current_dir, file)
         star_stats.append((int(num_stars), float(fwhm)))
         print(f"File: {filename}, RA={result[0]:.12f}, DEC={result[1]:.12f}, NumStars={num_stars}, FWHM={fwhm}")
