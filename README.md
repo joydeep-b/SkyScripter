@@ -29,16 +29,13 @@ In addition to the above, you will need the following:
 ## Capture Scripts
 
 * `batch_capture.py` - Captures a series of images with the camera, and saves them to a directory.
-## Other Utilities
+* `auto_meridian_flip.py` - Monitors the mount, and automatically performs a meridian flip when the telescope crosses the meridian.
 
-* `python focus.py` - Focus assist tool for DSLR lenses. Requires OpenCV.
-* `python batch_solve.py` - Batch plate-solving of images in a directory. Requires OpenCV and Siril.
-   Usage: `batch_platesolve.py [-d DIRECTORY] [-o OBJECT] [-w WCS] [-f FOCAL] [-c CSV]`
-  `-d DIRECTORY`: Directory containing images to platesolve
-  `-o OBJECT`: Astronomical object name, either a catalog name (e.g., "M31") or a common name (e.g., "Andromeda Galaxy")
-  `-w WCS`: WCS coordinates
-  `-f FOCAL`: Override focal length
-  `-c CSV`: CSV file to write results to
+
+## Analysis Scripts
+
+* `python batch_solve.py` - Batch plate-solving and star analysis of images in a directory, useful for extracting metrics of image quality (number of stars, FWHM) during a session. Sample graph:
+![Sample graph](sample_data/star_data_example.png)
 
 ### Notes
 
