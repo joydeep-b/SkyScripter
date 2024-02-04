@@ -178,7 +178,7 @@ def plot_star_stats(data):
 
     # Plot num_stars on the left y-axis
     color = 'tab:red'
-    ax1.set_xlabel('Data Point')
+    ax1.set_xlabel('Image number')
     ax1.set_ylabel('num_stars', color=color)
     ax1.plot(num_stars, color=color)
     ax1.tick_params(axis='y', labelcolor=color)
