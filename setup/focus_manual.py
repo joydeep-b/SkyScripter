@@ -7,6 +7,7 @@ import re
 import shutil
 import os
 import tempfile
+import time
 
 SIMULATE = False
 VERBOSE = False
@@ -126,18 +127,21 @@ def main():
     with tempfile.TemporaryDirectory() as tmpdirname:
       filename = os.path.join(tmpdirname, 'tmp.cr3')
       while True:
-          if args.verbose:
-            print('Capturing image...')
-          # Remove all files in tmpdirname.
-          for file in os.listdir(tmpdirname):
-            os.remove(os.path.join(tmpdirname, file))
-          capture_image(filename, args.iso, args.exposure)
-          if args.verbose:
-            print('Analyzing image...')
-          num_stars, fwhm = run_star_detect_siril(tmpdirname, 'tmp.cr3')
-          # Create bar graph with FWHM, ranging from 1 bar for 1.0 to 30 bars for 6.0, clipping to [1.0, 6.0].
-          bar_graph = int(max(min(40, (float(fwhm) - 1.0) * 5.0), 1.0))
-          print(f'Found %4d stars, FWHM = %5.2f %s' % (int(num_stars), float(fwhm), f'{"❚" * bar_graph}'))
+          # Repeat two times:
+          for i in range(2):
+            if args.verbose:
+              print('Capturing image...')
+            # Remove all files in tmpdirname.
+            for file in os.listdir(tmpdirname):
+              os.remove(os.path.join(tmpdirname, file))
+            capture_image(filename, args.iso, args.exposure)
+            if args.verbose:
+              print('Analyzing image...')
+            num_stars, fwhm = run_star_detect_siril(tmpdirname, 'tmp.cr3')
+            # Create bar graph with FWHM, ranging from 1 bar for 1.0 to 30 bars for 6.0, clipping to [1.0, 6.0].
+            bar_graph = int(max(min(40, (float(fwhm) - 1.0) * 5.0), 1.0))
+            print(f'Found %4d stars, FWHM = %5.2f %s' % (int(num_stars), float(fwhm), f'{"❚" * bar_graph}'))
+            time.sleep(1)
           user_input = input()
           if user_input == 'q':
               break

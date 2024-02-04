@@ -125,9 +125,10 @@ def main():
         sys.exit(1)
     print(f'RA: {ra}, DEC: {dec}')
     print('Syncing mount...')
-    time.sleep(1)
+    time.sleep(2)
     sync(args.device, ra, dec)
     print('Verifying sync...')
+    time.sleep(2)
     verify_sync(args.device, ra, dec)
     print('Done.')
 
