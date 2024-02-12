@@ -108,7 +108,7 @@ def sync(device, ra, dec):
 
 def main():
     parser = argparse.ArgumentParser(description='Capture and plate solve an image, then sync the mount')
-    parser.add_argument('-d', '--device', type=str, help='INDI device name', default='SkyAdventurer GTi')
+    parser.add_argument('-d', '--device', type=str, help='INDI device name', default='Star Adventurer GTi')
     args = parser.parse_args()
 
     print("Set tracking...")

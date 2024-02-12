@@ -37,7 +37,7 @@ def read_indi(device, propname, timeout=2):
     output = []
     for line in lines:
       # Get key-value pair. 
-      # Example:"SkyAdventurer GTi.RASTATUS.RAInitialized=Ok"
+      # Example:"Star Adventurer GTi.RASTATUS.RAInitialized=Ok"
       # Key="RAInitialized" Value="Ok"
       key = line.split("=")[0].split(".")[-1]
       value = line.split("=")[1].strip()
@@ -89,7 +89,7 @@ def main():
   parser = argparse.ArgumentParser(
       description='Set tracking details for an INDI device')
   parser.add_argument('-d', '--device', type=str, 
-                      help='INDI device name', default='SkyAdventurer GTi')
+                      help='INDI device name', default='Star Adventurer GTi')
   args = parser.parse_args()
   print("Using device %s" % args.device)
 

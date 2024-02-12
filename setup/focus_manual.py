@@ -8,6 +8,11 @@ import shutil
 import os
 import tempfile
 import time
+script_dir = os.path.dirname(__file__)
+parent_dir = os.path.dirname(script_dir)
+sys.path.append(parent_dir)
+
+from sky_scripter.lib_indi import read_indi, write_indi
 
 SIMULATE = False
 VERBOSE = False
@@ -87,6 +92,18 @@ close
     except subprocess.CalledProcessError as e:
         return None, None
 
+def adjust_focus(steps):
+    focus_value = int(read_indi('ASI EAF', 'ABS_FOCUS_POSITION.FOCUS_ABSOLUTE_POSITION'))
+    if focus_value + steps < 0:
+        print('Focus value cannot be negative.')
+        return
+    err = write_indi('ASI EAF', 'ABS_FOCUS_POSITION', ['FOCUS_ABSOLUTE_POSITION'], [focus_value + steps])
+    if err:
+        print('Error adjusting focus.')
+        return
+    print(f'New focus value: {focus_value + steps}')
+
+
 def main():
     global SIMULATE, VERBOSE
     parser = argparse.ArgumentParser(description='Manually focus a telescope using a camera and star FWHM detection')
@@ -145,6 +162,14 @@ def main():
           user_input = input()
           if user_input == 'q':
               break
+          elif user_input == '[':
+              adjust_focus(-100)
+          elif user_input == ']':
+              adjust_focus(100)
+          elif user_input == ',':
+              adjust_focus(-10)
+          elif user_input == '.':
+              adjust_focus(10)
 
 if __name__ == "__main__":
     main()

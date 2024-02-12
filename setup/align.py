@@ -144,7 +144,7 @@ def ReadIndi(device, propname, timeout=2):
     output = []
     for line in lines:
       # Get key-value pair. 
-      # Example:"SkyAdventurer GTi.RASTATUS.RAInitialized=Ok"
+      # Example:"Star Adventurer GTi.RASTATUS.RAInitialized=Ok"
       # Key="RAInitialized" Value="Ok"
       key = line.split("=")[0].split(".")[-1]
       value = line.split("=")[1].strip()
@@ -279,7 +279,7 @@ def main():
     parser.add_argument('-w', '--wcs', type=str, 
                         help='WCS coordinates (e.g., "5:35:17 -5:23:24")')
     parser.add_argument('-d', '--device', type=str, 
-                        help='INDI device name', default='SkyAdventurer GTi')
+                        help='INDI device name', default='Star Adventurer GTi')
     parser.add_argument('-t', '--threshold', type=float, 
                         help='Max align error in arcseconds', default=30)
     

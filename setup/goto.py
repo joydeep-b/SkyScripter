@@ -50,7 +50,7 @@ def main():
   parser = argparse.ArgumentParser(description='Go to an astronomical object')
   parser.add_argument('-o', '--object', type=str, help='Astronomical object name, either a catalog name (e.g., "M31") or a common name (e.g., "Andromeda Galaxy")')
   parser.add_argument('-w', '--wcs', type=str, help='WCS coordinates (e.g., "5:35:17 -5:23:24")')
-  parser.add_argument('-d', '--device', type=str, help='INDI device name', default='SkyAdventurer GTi')
+  parser.add_argument('-d', '--device', type=str, help='INDI device name', default='Star Adventurer GTi')
 
   args = parser.parse_args()
   if args.object is None and args.wcs is None:

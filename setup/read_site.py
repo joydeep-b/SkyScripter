@@ -17,7 +17,7 @@ def ReadIndi(device, propname):
 
 def main():
   parser = argparse.ArgumentParser(description='Read site details from an INDI device')
-  parser.add_argument('-d', '--device', type=str, help='INDI device name', default='SkyAdventurer GTi')
+  parser.add_argument('-d', '--device', type=str, help='INDI device name', default='Star Adventurer GTi')
   parser.add_argument('-t', '--track-status', action='store_true', help='Print tracking status')
   
   args = parser.parse_args()
