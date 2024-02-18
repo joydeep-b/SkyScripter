@@ -114,6 +114,12 @@ if (( $(echo "$SHUTTER_DECIMAL > 30" | bc -l) )); then
   t_per_image=$(echo "scale=3; 3 + $SHUTTER_DECIMAL" | bc -l)
   for (( c=1; c<=$NUM; c++ ))
   do
+    # If the .abort file exists, then exit.
+    if [ -f .abort ]; then
+      echo "Aborting capture."
+      rm .abort
+      exit 0
+    fi
     FILENAME=$(next_filename)
     t_left=$(echo "scale=3; $t_per_image * ($NUM - $c + 1)" | bc -l)
     print_time_left    
@@ -144,6 +150,12 @@ else
   t_per_image=$(echo "scale=3; 3 + $SHUTTER_DECIMAL" | bc -l)
   for (( c=1; c<=$NUM; c++ ))
   do
+    # If the .abort file exists, then exit.
+    if [ -f .abort ]; then
+      echo "Aborting capture."
+      rm .abort
+      exit 0
+    fi
     FILENAME=$(next_filename)
     t_left=$(echo "scale=3; $t_per_image * ($NUM - $c + 1)" | bc -l)
     print_time_left
