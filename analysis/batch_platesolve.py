@@ -10,6 +10,7 @@ import subprocess
 import re
 import tempfile
 import matplotlib.pyplot as plt
+import time
 
 if sys.platform == 'darwin':
   SIRIL_PATH = '/Applications/Siril.app/Contents/MacOS/Siril'
@@ -29,10 +30,10 @@ def extract_and_convert_coordinates_astap(output):
 
     # Extract matched groups
     alpha_h, alpha_m, alpha_s, delta_sign, delta_d, delta_m, delta_s = match.groups()
-    print(f"RA: {alpha_h}h{alpha_m}m{alpha_s}s, DEC: {delta_sign}{delta_d}°{delta_m}'{delta_s}")
+    # print(f"RA: {alpha_h}h{alpha_m}m{alpha_s}s, DEC: {delta_sign}{delta_d}°{delta_m}'{delta_s}")
 
-    # Convert alpha (RA) to decimal degrees
-    alpha = 180/12 * (float(alpha_h) + float(alpha_m)/60 + float(alpha_s)/3600)
+    # Convert alpha (RA) to hour angle
+    alpha = float(alpha_h) + float(alpha_m)/60 + float(alpha_s)/3600
 
     # Convert delta (DEC) to decimal degrees
     delta_multiplier = 1 if delta_sign == '+' else -1
@@ -121,24 +122,29 @@ close
 def run_plate_solve_siril(this_dir, file, wcs_coords, focal_option):
     global SIRIL_PATH
     siril_commands = f"""requires 1.2.0
-load {file}
+convertraw light -debayer -out=.
+load light_00001
 platesolve {wcs_coords} -platesolve -catalog=nomad -limitmag=10 {focal_option}
 close
 """
-    # Define the command to run
-    siril_cli_command = [SIRIL_PATH, "-d", this_dir, "-s", "-"]
-
-    # Run the command and capture output
-    try:
-        result = subprocess.run(siril_cli_command, 
-                                input=siril_commands,
-                                text=True, 
-                                capture_output=True,
-                                check=True)
-        ra, dec = extract_and_convert_coordinates_siril(result.stdout)
-        return ra, dec
-    except subprocess.CalledProcessError as e:
-        return None, None
+    # Create a temp directory for Siril to use.
+    with tempfile.TemporaryDirectory() as temp_dir:
+        # Copy the file to the temp directory.
+        temp_file = temp_dir + '/' + os.path.basename(file)
+        os.system(f"cp {file} {temp_file}")
+        # Define the command to run
+        siril_cli_command = [SIRIL_PATH, "-d", temp_dir, "-s", "-"]
+        # Run the command and capture output
+        try:
+            result = subprocess.run(siril_cli_command, 
+                                    input=siril_commands,
+                                    text=True, 
+                                    capture_output=True,
+                                    check=True)
+            ra, dec = extract_and_convert_coordinates_siril(result.stdout)
+            return ra, dec
+        except subprocess.CalledProcessError as e:
+            return None, None
 
 def run_plate_solve_astap(this_dir, file, wcs_coords, focal_option):
     ASTAP_PATH = '/Applications/ASTAP.app/Contents/MacOS/astap'
@@ -162,7 +168,7 @@ def load_prev_files(filename):
     with open(filename, 'r') as f:
         lines = f.readlines()
         for line in lines[1:]:
-            print(line)
+            # print(line)
             parts = line.split(',')
             filenames.append(parts[0])
             star_stats.append((int(parts[3]), float(parts[4])))
@@ -262,6 +268,7 @@ if __name__ == "__main__":
         if filename in prev_filenames:
             print(f"File: {filename} [Previously solved, skipping]")
             continue
+        t_start = time.time()
         file = args.directory + '/' + filename
         if coordinates is None:
           result = run_plate_solve_astap(current_dir, file, coordinates, focal_option)
@@ -275,7 +282,9 @@ if __name__ == "__main__":
             continue
         num_stars, fwhm = run_star_detect_siril(current_dir, file)
         star_stats.append((int(num_stars), float(fwhm)))
-        print(f"File: {filename}, RA={result[0]:.12f}, DEC={result[1]:.12f}, NumStars={num_stars}, FWHM={fwhm}")
+        analysis_time = time.time() - t_start
+        print(f"File: {filename}, RA={result[0]:.12f}, DEC={result[1]:.12f}, NumStars={num_stars}, FWHM={fwhm}, AnalysisTime={analysis_time:.2f}s")
+        t_end = time.time()
         if csv_file is not None:
             # Write the numbers in 6 decimal places
             csv_file.write(f"{filename}, {result[0]:.12f}, {result[1]:.12f}, {num_stars}, {fwhm}\n")

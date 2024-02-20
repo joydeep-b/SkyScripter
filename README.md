@@ -11,9 +11,16 @@ astrophotography. It builds upon several existing excellent astrophotography too
 
 ## Requirements
 In addition to the above, you will need the following:
-* A Python3 environment
-* The following Python packages: `numpy`, `astropy`, `requests`, `opencv-python`, `pyindi`, `pyserial`
-  You can install these with `pip install -r requirements.txt`
+* A Python3 environment (tested with 3.9.12 on Mac OS and 3.10.12 on Ubuntu 22.04)
+* The following Python packages: 
+    * `astroquery`
+    * `argparse`
+    * `astropy`
+    * `matplotlib`
+    * `opencv-python`
+    * `numpy` 
+  
+You can install these with `pip3 install -r requirements.txt`
 
 
 ## Setup Scripts
