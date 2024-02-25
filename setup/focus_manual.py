@@ -90,7 +90,7 @@ close
             print("No match found")
             return None, None
         num_stars, fwhm = match.groups()
-        return num_stars, fwhm
+        return int(num_stars), float(fwhm)
     except subprocess.CalledProcessError as e:
         return None, None
 
@@ -143,13 +143,21 @@ def main():
               # Remove all files in tmpdirname.
               for file in os.listdir(tmpdirname):
                   os.remove(os.path.join(tmpdirname, file))
-              capture_image(filename, args.iso, args.exposure)
+              capture_image(filename)
               if args.verbose:
                   print('Analyzing image...')
               num_stars, fwhm = run_star_detect_siril(tmpdirname, 'tmp.cr3')
-              # Create bar graph with FWHM, ranging from 1 bar for 1.0 to 30 bars for 6.0, clipping to [1.0, 6.0].
-              bar_graph = int(max(min(60, (float(fwhm) - 1.0) * 5.0), 1.0))
-              print(f'Found %4d stars, FWHM = %5.2f %s' % (int(num_stars), float(fwhm), f'{"❚" * bar_graph}'))
+              # Create bar graph with FWHM, ranging from 1 bar for 1.0 to 30
+              # bars for 6.0, clipping to [1.0, 6.0].
+              if fwhm is None:
+                  bar_graph = 0
+                  fwhm = 0
+              else:
+                  bar_graph = int(max(min(60, (float(fwhm) - 1.0) * 5.0), 1.0))
+              if num_stars is None:
+                  print('No stars found')
+                  num_stars = 0
+              print(f'Found %4d stars, FWHM = %5.2f %s' % (num_stars, fwhm, f'{"❚" * bar_graph}'))
               # time.sleep(1)
 
 if __name__ == "__main__":

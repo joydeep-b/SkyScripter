@@ -13,6 +13,7 @@ from astropy.coordinates import GCRS
 import astropy.time
 import math
 import time
+import os
 
 script_dir = os.path.dirname(__file__)
 parent_dir = os.path.dirname(script_dir)
@@ -111,6 +112,11 @@ def extract_and_convert_coordinates_astap(output):
     delta_multiplier = 1 if delta_sign == '+' else -1
     delta = delta_multiplier * (float(delta_d) + float(delta_m)/60 + float(delta_s)/3600)
 
+    # TODO: Convert J2000 coordinates to JNow.
+    c = SkyCoord(alpha, delta, unit=(units.hourangle, units.deg), frame=ICRS())
+    jnow_coord = c.transform_to(FK5(equinox=astropy.time.Time.now()))
+    print('JNow:', jnow_coord.ra.to(units.hourangle), jnow_coord.dec.deg)
+
     return alpha, delta
 
 def run_plate_solve_astap(file, wcs_coords, focal_option):
@@ -190,7 +196,6 @@ def get_wcs_coordinates(object_name):
 
     # Convert J2000 coordinates to JNow.
     c = SkyCoord(ra, dec, unit=(units.hourangle, units.deg), frame=ICRS())
-    # jnow_coord = c.transform_to(GCRS(obstime=astropy.time.Time.now()))
     jnow_coord = c.transform_to(FK5(equinox=astropy.time.Time.now()))
     
     ra = jnow_coord.ra.to(units.hourangle)
