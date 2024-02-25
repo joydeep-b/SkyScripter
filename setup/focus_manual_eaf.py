@@ -10,7 +10,7 @@ script_dir = os.path.dirname(__file__)
 parent_dir = os.path.dirname(script_dir)
 sys.path.append(parent_dir)
 
-from sky_scripter.lib_indi import adjust_focus
+from sky_scripter.lib_indi import adjust_focus, set_focus
 
 KEY_MAP = {
     'left': 2,
@@ -82,8 +82,9 @@ def update_images():
 
 def update_zoomed_image(x, y):
     global main_image, zoom_window_name, zoom_factor
-    zoomed_image = zoom_image(main_image, (x, y), zoom_factor=zoom_factor)
+    zoomed_image, laplacian, fwhm = zoom_image(main_image, (x, y), zoom_factor)
     cv2.imshow(zoom_window_name, zoomed_image)
+    return laplacian, fwhm
 
 def zoom_image(image, click_point, zoom_factor=8, window_size=(400, 400)):
     # Calculate the zoomed area dimensions
@@ -127,7 +128,7 @@ def zoom_image(image, click_point, zoom_factor=8, window_size=(400, 400)):
       print(f'Laplacian: {laplacian:9.3f} | FWHM: {fwhm:9.3f}')
     else:      
       print(f'Laplacian: {laplacian:9.3f} | FWHM: None')
-    return zoomed_img
+    return zoomed_img, laplacian, fwhm
 
 def click_event(event, x, y, flags, param):
     global main_image, zoom_window_name, zoom_location
@@ -154,6 +155,28 @@ def update_keymap():
         KEY_MAP['left'] = 81
         KEY_MAP['right'] = 83
 
+def auto_focus(device, min_focus, max_focus, step_size):
+    global main_image, zoom_location, main_window_name
+    set_focus(device, min_focus)
+    max_laplacian = 0
+    best_focus = min_focus
+    for focus in range(min_focus, max_focus + 1, step_size):
+        set_focus(device, focus)
+        capture_image()
+        main_image = display_image(main_window_name, 'tmp.jpg')
+        laplacian, fwhm = update_zoomed_image(*zoom_location)
+        print(f'Focus: {focus} | Laplacian: {laplacian:9.3f} | FWHM: {fwhm:9.3f}')
+        if laplacian > max_laplacian:
+            max_laplacian = laplacian
+            best_focus = focus
+    print(f'Best focus: {best_focus} | Max Laplacian: {max_laplacian:9.3f}')
+    set_focus(device, best_focus)
+    capture_image()
+    main_image = display_image(main_window_name, 'tmp.jpg')
+    laplacian, fwhm = update_zoomed_image(*zoom_location)
+    print(f'Final focus: {best_focus} | Laplacian: {laplacian:9.3f} | FWHM: {fwhm:9.3f}')
+    return best_focus
+    
 def main():
     global iso, aperture, shutter_speed, zoom_factor
     iso = 100
@@ -285,6 +308,13 @@ def main():
                 iso = iso * 2
             print('Current ISO: %d' % iso)
             update_images()
+
+        # "f" key: Auto focus
+        if key == 102:
+            min_focus = 5000
+            max_focus = 10000
+            step_size = 100
+            auto_focus(device, min_focus, max_focus, step_size)
 
     # Delete the temporary image file
     os.remove('tmp.jpg')
