@@ -11,6 +11,11 @@ import os
 import subprocess
 import astropy.time
 import argparse
+
+script_dir = os.path.dirname(__file__)
+parent_dir = os.path.dirname(script_dir)
+sys.path.append(parent_dir)
+
 from sky_scripter.lib_indi import goto
  
 def get_wcs_coordinates(object_name):
