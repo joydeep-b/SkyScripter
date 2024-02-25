@@ -1,4 +1,6 @@
 import subprocess
+import sys
+import time
 
 def read_indi(device, propname, timeout=2):
   # Call indi_getprop to get the property value
@@ -24,6 +26,11 @@ def read_indi(device, propname, timeout=2):
     return output
   
 def write_indi(device, propname, keys, values):
+  # If passed a single key and value, convert them to lists.
+  if not isinstance(keys, list):
+    keys = [keys]
+  if not isinstance(values, list):
+    values = [values]
   if len(keys) != len(values):
     raise ValueError("Keys and values must have the same length.")
   values_str = ""
@@ -33,5 +40,29 @@ def write_indi(device, propname, keys, values):
     values_str += "%s=%s" % (key, value)
 
   command = "indi_setprop \"%s.%s.%s\"" % (device, propname, values_str)
-  return subprocess.call(command, shell=True)
-  
+  returncode = subprocess.call(command, shell=True)
+  if returncode != 0:
+    print("Error: command '%s' returned %d" % (command, returncode))
+    sys.exit(1)
+
+def goto(device, ra, dec):
+  write_indi(device, "EQUATORIAL_EOD_COORD", ["RA", "DEC"], [ra, dec])
+
+def get_focus(device):
+  return int(read_indi(device, "ABS_FOCUS_POSITION.FOCUS_ABSOLUTE_POSITION"))
+
+def set_focus(device, value):
+  write_indi(device, "ABS_FOCUS_POSITION", "FOCUS_ABSOLUTE_POSITION", value)
+  MAX_FOCUS_ERROR = 5
+  current_value = get_focus(device)
+  while abs(current_value - value) > MAX_FOCUS_ERROR:
+    current_value = get_focus(device)
+    time.sleep(0.25)
+
+def adjust_focus(device, steps):
+  focus_value = get_focus(device)
+  if focus_value + steps < 0:
+      print('ERROR: Focus value cannot be negative. Current:%d steps:%d ' % (focus_value, steps))
+      return
+  set_focus(device, focus_value + steps)
+  print(f'New focus value: {focus_value + steps}')

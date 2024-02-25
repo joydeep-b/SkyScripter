@@ -11,18 +11,7 @@ import os
 import subprocess
 import astropy.time
 import argparse
-
-SITE_LONGITUDE=262.297595
-SITE_LATITUDE=30.266521
-SITE_ELEVATION=140.0
-
-def exec(command):
-  # print(command)
-  # Execute the command, and check the return code.
-  returncode = subprocess.call(command, shell=True)
-  if returncode != 0:
-    print("Error: command '%s' returned %d" % (command, returncode))
-    sys.exit(1)
+from sky_scripter.lib_indi import goto
  
 def get_wcs_coordinates(object_name):
     # Query the object
@@ -40,11 +29,6 @@ def get_wcs_coordinates(object_name):
     jnow_coord = c.transform_to(FK5(equinox=astropy.time.Time.now()))
     
     return jnow_coord.ra.hour, jnow_coord.dec.deg
-
-def indi_goto(device, ra, dec):
-  command = "indi_setprop \"%s.EQUATORIAL_EOD_COORD.RA=%f;DEC=%f\"" % (device, ra, dec)
-  exec("indi_setprop \"%s.ON_COORD_SET.TRACK=On\"" % device)
-  exec(command)
 
 def main():
   parser = argparse.ArgumentParser(description='Go to an astronomical object')
@@ -79,7 +63,7 @@ def main():
                              c.dec.to_string(unit=units.degree, sep=':')))
   
   ra, dec = coordinates
-  indi_goto(args.device, ra, dec)
+  goto(args.device, ra, dec)
 
 if __name__ == "__main__":
   main()

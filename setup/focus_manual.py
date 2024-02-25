@@ -12,26 +12,30 @@ script_dir = os.path.dirname(__file__)
 parent_dir = os.path.dirname(script_dir)
 sys.path.append(parent_dir)
 
-from sky_scripter.lib_indi import read_indi, write_indi
+from sky_scripter.lib_indi import get_focus, adjust_focus
 
 SIMULATE = False
 VERBOSE = False
 
-def setup_camera():
+def setup_camera(args):
     global SIMULATE, VERBOSE
     if SIMULATE:
         return
     stderr = subprocess.DEVNULL
     if VERBOSE:
       stderr = None
-    # Set the camera to JPEG mode
-    subprocess.run(['gphoto2', '--set-config', '/main/imgsettings/imageformat=RAW'], stdout=subprocess.DEVNULL)
-    # Set the camera to manual mode
-    subprocess.run(['gphoto2', '--set-config',
-                       '/main/capturesettings/autoexposuremodedial=Manual'], stdout=subprocess.DEVNULL)
+    setttings = [
+        '/main/imgsettings/imageformat=RAW', 
+        '/main/capturesettings/autoexposuremodedial=Manual',
+        'iso=%s' % args.iso,
+        'shutterspeed=%s' % args.exposure]
+    # Set the camera to RAW, manual mode, with selected exposure time and ISO.
+    subprocess.run(['gphoto2', 
+                    '--set-config'] + setttings,
+                    stdout=subprocess.DEVNULL, stderr=stderr)
     
 
-def capture_image(filename, iso, shutter_speed):
+def capture_image(filename):
     global SIMULATE, VERBOSE
     if SIMULATE:
         # Copy sample_data/NGC2244.cr3 to filename.
@@ -41,8 +45,6 @@ def capture_image(filename, iso, shutter_speed):
     if VERBOSE:
       stderr = None
     result = subprocess.run(['gphoto2',
-                              '--set-config', f'iso={iso}',
-                              '--set-config', f'shutterspeed={shutter_speed}',
                               '--capture-image-and-download',
                               '--filename', filename,
                               '--force-overwrite'], 
@@ -92,23 +94,13 @@ close
     except subprocess.CalledProcessError as e:
         return None, None
 
-def adjust_focus(steps):
-    focus_value = int(read_indi('ASI EAF', 'ABS_FOCUS_POSITION.FOCUS_ABSOLUTE_POSITION'))
-    if focus_value + steps < 0:
-        print('Focus value cannot be negative.')
-        return
-    err = write_indi('ASI EAF', 'ABS_FOCUS_POSITION', ['FOCUS_ABSOLUTE_POSITION'], [focus_value + steps])
-    if err:
-        print('Error adjusting focus.')
-        return
-    print(f'New focus value: {focus_value + steps}')
-
-
 def main():
     global SIMULATE, VERBOSE
     parser = argparse.ArgumentParser(description='Manually focus a telescope using a camera and star FWHM detection')
 
     # Optional arguments: ISO, exposure time
+    parser.add_argument('-d', '--device', type=str,
+                        help='INDI focuser device name', default='ASI EAF')
     parser.add_argument('-i', '--iso', type=int, 
                         help='ISO setting for camera', default=1600)
     parser.add_argument('-e', '--exposure', type=int, 
@@ -123,22 +115,8 @@ def main():
     SIMULATE = args.simulate
     VERBOSE = args.verbose
     # Set up the camera
-    setup_camera()
+    setup_camera(args)
     print('Press ENTER to capture an image and analyze it, CTRL-C to quit.')
-    # # Set up keyboard input to not display entered characters, and to not wait for ENTER.
-    # import termios
-    # import sys
-    # import tty
-    # fd = sys.stdin.fileno()
-    # old_settings = termios.tcgetattr(fd)
-    # tty.setcbreak(fd)
-    # # Set up SIGINT handler to restore terminal settings.
-    # import signal
-    # def signal_handler(sig, frame):
-    #     termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
-    #     sys.exit(0)
-    # signal.signal(signal.SIGINT, signal_handler)
-
     # Make a temporary directory to store the image.
     
     with tempfile.TemporaryDirectory() as tmpdirname:
@@ -148,13 +126,17 @@ def main():
           if user_input == 'q':
               sys.exit(0)
           elif user_input == '[':
-              adjust_focus(-100)
+              adjust_focus(args.device, -100)
+              print('Focus value:', get_focus(args.device))
           elif user_input == ']':
-              adjust_focus(100)
+              adjust_focus(args.device, 100)
+              print('Focus value:', get_focus(args.device))
           elif user_input == ',':
-              adjust_focus(-10)
+              adjust_focus(args.device, -10)
+              print('Focus value:', get_focus(args.device))
           elif user_input == '.':
-              adjust_focus(10)
+              adjust_focus(args.device, 10)
+              print('Focus value:', get_focus(args.device))
           else:
               if args.verbose:
                   print('Capturing image...')
