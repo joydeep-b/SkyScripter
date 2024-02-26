@@ -10,7 +10,7 @@ script_dir = os.path.dirname(__file__)
 parent_dir = os.path.dirname(script_dir)
 sys.path.append(parent_dir)
 
-from sky_scripter.lib_indi import adjust_focus, set_focus
+from sky_scripter.lib_indi import adjust_focus, set_focus, get_focus
 
 KEY_MAP = {
     'left': 2,
@@ -155,32 +155,46 @@ def update_keymap():
         KEY_MAP['left'] = 81
         KEY_MAP['right'] = 83
 
-def auto_focus(device, min_focus, max_focus, step_size):
+def auto_focus(device, initial_focus, step_size):
     global main_image, zoom_location, main_window_name
-    set_focus(device, min_focus)
+    abs_min_focus = initial_focus - 4 * step_size
+    set_focus(device, abs_min_focus)
     max_laplacian = 0
-    best_focus = min_focus
-    for focus in range(min_focus, max_focus + 1, step_size):
-        set_focus(device, focus)
-        capture_image()
-        main_image = display_image(main_window_name, 'tmp.jpg')
-        laplacian, fwhm = update_zoomed_image(*zoom_location)
-        print(f'Focus: {focus} | Laplacian: {laplacian:9.3f} | FWHM: {fwhm:9.3f}')
-        if laplacian > max_laplacian:
-            max_laplacian = laplacian
-            best_focus = focus
+    min_step_size = 10
+    best_focus = initial_focus
+    while step_size > min_step_size:
+        set_focus(device, abs_min_focus)
+        min_focus = best_focus - 2 * step_size
+        max_focus = best_focus + 2 * step_size
+        print(f'Focusing from {min_focus} to {max_focus} in steps of {step_size}')
+        for focus in range(min_focus, max_focus + 1, step_size):
+            set_focus(device, focus)
+            capture_image()
+            main_image = display_image(main_window_name, 'tmp.jpg')
+            laplacian, fwhm = update_zoomed_image(*zoom_location)
+            cv2.waitKey(1)
+            if fwhm is None:
+                fwhm = 0
+            print(f'Focus: {focus} | Laplacian: {laplacian:9.3f} | FWHM: {fwhm:9.3f}')
+            if laplacian > max_laplacian:
+                max_laplacian = laplacian
+                best_focus = focus
+        step_size = step_size // 2
     print(f'Best focus: {best_focus} | Max Laplacian: {max_laplacian:9.3f}')
+    set_focus(device, abs_min_focus)
     set_focus(device, best_focus)
     capture_image()
     main_image = display_image(main_window_name, 'tmp.jpg')
     laplacian, fwhm = update_zoomed_image(*zoom_location)
+    if fwhm is None:
+        fwhm = 0
     print(f'Final focus: {best_focus} | Laplacian: {laplacian:9.3f} | FWHM: {fwhm:9.3f}')
     return best_focus
     
 def main():
     global iso, aperture, shutter_speed, zoom_factor
     iso = 100
-    shutter_speed = '1/2000'
+    shutter_speed = '1/20'
     zoom_factor = 8
     device = 'ASI EAF'
     # create_settings_window()
@@ -221,6 +235,7 @@ def main():
     # Move the zoom window to the top left corner of the screen.
     cv2.moveWindow(zoom_window_name, 0, 0)
     
+    print('Current focus: %d' % get_focus(device))
     while True:
         key = cv2.waitKey(1)
         # if key > 0:
@@ -311,10 +326,12 @@ def main():
 
         # "f" key: Auto focus
         if key == 102:
-            min_focus = 5000
-            max_focus = 10000
+            initial_focus = get_focus(device)
             step_size = 100
-            auto_focus(device, min_focus, max_focus, step_size)
+            auto_focus(device, initial_focus, step_size)
+        
+        if key > 0:
+            print('Current focus: %d' % get_focus(device))
 
     # Delete the temporary image file
     os.remove('tmp.jpg')
