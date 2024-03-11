@@ -4,6 +4,8 @@ import subprocess
 import re
 import argparse
 import sys
+import shutil
+import logging
 from astroquery.simbad import Simbad 
 from astropy.coordinates import SkyCoord
 from astropy.coordinates import FK5
@@ -19,38 +21,22 @@ script_dir = os.path.dirname(__file__)
 parent_dir = os.path.dirname(script_dir)
 sys.path.append(parent_dir)
 
-from sky_scripter.lib_indi import get_focus, adjust_focus
+from sky_scripter.lib_indi import IndiMount
+from sky_scripter.util import exec_or_fail, init_logging, get_wcs_coordinates, run_plate_solve_astap
 
-SIMULATE = False
+SIMULATE = True
 iso = 3200
 shutter_speed = 2
 
-def exec(command):
-    # print(command)
-    # Execute the command, and check the return code.
-    returncode = subprocess.call(command, stdout=subprocess.DEVNULL)
-    if returncode != 0:
-        print("Error: command '%s' returned %d" % (command, returncode))
-        sys.exit(1)
-
-def exec_shell(command):
-    # print(command)
-    # Execute the command, and check the return code.
-    returncode = subprocess.call(command, shell=True)
-    if returncode != 0:
-        print("Error: command '%s' returned %d" % (command, returncode))
-        sys.exit(1)
-       
-
 def capture_image():
-    global iso, shutter_speed
-    if SIMULATE:
-        # Copy sample_data/NGC2244.jpg to tmp.jpg
-        exec_shell('cp sample_data/NGC2244.jpg tmp.jpg')
-        return
-    # print(f'Capturing image with iso={iso}, shutter_speed={shutter_speed}')
-    # Capture in desired iso, aperture, and shutter speed, pipe output to /dev/null.
-    exec(['gphoto2',
+  global iso, shutter_speed
+  if SIMULATE:
+    # Copy sample_data/NGC2244.jpg to tmp.jpg
+    shutil.copy('sample_data/NGC2244.jpg', 'tmp.jpg')
+    return
+  # print(f'Capturing image with iso={iso}, shutter_speed={shutter_speed}')
+  # Capture in desired iso, aperture, and shutter speed, pipe output to /dev/null.
+  exec_or_fail(['gphoto2',
           '--set-config', f'iso={iso}',
           '--set-config', '/main/imgsettings/imageformat=RAW',
           '--set-config', f'shutterspeed={shutter_speed}',
@@ -59,283 +45,103 @@ def capture_image():
           '--force-overwrite'])
 
 def setup_camera():
-    if SIMULATE:
-        return
-    # Set the camera to JPEG mode
-    exec(['gphoto2', '--set-config', '/main/imgsettings/imageformat=0'])
-    # Set the camera to manual mode
-    exec(['gphoto2', '--set-config', '/main/capturesettings/autoexposuremodedial=Manual'])
-
-def extract_and_convert_coordinates_siril(output):
-    # Define the regex pattern
-    regex = r"Image center: alpha: ([0-9]+)h([0-9]+)m([0-9]+)s, delta: ([+-])([0-9]+)°([0-9]+)'([0-9]+)"
-
-    # Search for the pattern in the output
-    match = re.search(regex, output)
-    if not match:
-        print("No match found")
-        return None, None
-
-    # Extract matched groups
-    alpha_h, alpha_m, alpha_s, delta_sign, delta_d, delta_m, delta_s = match.groups()
-    # print(f"RA: {alpha_h}h{alpha_m}m{alpha_s}s, DEC: {delta_sign}{delta_d}°{delta_m}'{delta_s}")
-
-    # Convert alpha (RA) to decimal degrees
-    alpha = 180/12 * (int(alpha_h) + int(alpha_m)/60 + int(alpha_s)/3600)
-
-    # Convert delta (DEC) to decimal degrees
-    delta_multiplier = 1 if delta_sign == '+' else -1
-    delta = delta_multiplier * (int(delta_d) + int(delta_m)/60 + int(delta_s)/3600)
-    
-    return alpha, delta
-
-def extract_and_convert_coordinates_astap(output):
-    # Define the regex pattern, to match output like this:
-    # Solution found: 05: 36 03.8	-05° 27 14
-    # print(output)
-    regex = r"Solution found: ([0-9]+): ([0-9]+) ([0-9]+\.[0-9]+)\t([+-])([0-9]+)° ([0-9]+) ([0-9]+)"
-
-    # Search for the pattern in the output
-    match = re.search(regex, output)
-    if not match:
-        print("No match found")
-        return None, None
-
-    # Extract matched groups
-    alpha_h, alpha_m, alpha_s, delta_sign, delta_d, delta_m, delta_s = match.groups()
-    # print(f"RA: {alpha_h}h{alpha_m}m{alpha_s}s, DEC: {delta_sign}{delta_d}°{delta_m}'{delta_s}")
-
-    # Convert alpha (RA) to decimal degrees
-    alpha = float(alpha_h) + float(alpha_m)/60 + float(alpha_s)/3600
-
-    # Convert delta (DEC) to decimal degrees
-    delta_multiplier = 1 if delta_sign == '+' else -1
-    delta = delta_multiplier * (float(delta_d) + float(delta_m)/60 + float(delta_s)/3600)
-
-    # TODO: Convert J2000 coordinates to JNow.
-    c = SkyCoord(alpha, delta, unit=(units.hourangle, units.deg), frame=ICRS())
-    jnow_coord = c.transform_to(FK5(equinox=astropy.time.Time.now()))
-    print('JNow:', jnow_coord.ra.to(units.hourangle), jnow_coord.dec.deg)
-
-    return alpha, delta
-
-def run_plate_solve_astap(file, wcs_coords, focal_option):
-    ASTAP_PATH = 'astap'
-    astap_cli_command = [ASTAP_PATH, "-f", file, "-r", "180"]
-    try:
-        result = subprocess.run(astap_cli_command, 
-                                text=True, 
-                                capture_output=True,
-                                check=True)
-        # print(result.stdout)
-        # print(result.stderr)
-        ra, dec = extract_and_convert_coordinates_astap(result.stdout)
-        return ra, dec
-    except subprocess.CalledProcessError as e:
-        print('ERROR: Plate solve failed')
-        print(e)
-        exit(1)
-        return None, None
+  if SIMULATE:
+    return
+  # Set the camera to JPEG mode
+  exec_or_fail(['gphoto2', '--set-config', '/main/imgsettings/imageformat=0'])
+  # Set the camera to manual mode
+  exec_or_fail(['gphoto2', '--set-config', '/main/capturesettings/autoexposuremodedial=Manual'])
 
 def set_tracking(device):
-    exec_shell("indi_setprop \"%s.TELESCOPE_TRACK_STATE.TRACK_ON=On\"" % device)
-
-def ReadIndi(device, propname, timeout=2):
-  # Call indi_getprop to get the property value
-  command = "indi_getprop -t %d \"%s.%s\"" % (timeout, device, propname)
-  # Execute the command and get the output.
-  output = subprocess.run(command, shell=True, stdout=subprocess.PIPE).stdout.decode('utf-8')
-  # Check for multiple lines of output.
-  lines = output.splitlines()
-  if len(lines) == 1:
-    # Parse the output to get the property value.
-    output = output.split("=")[1].strip()
-    return output  
-  else:
-    # Parse the output from each line to get all property values.
-    output = []
-    for line in lines:
-      # Get key-value pair. 
-      # Example:"Star Adventurer GTi.RASTATUS.RAInitialized=Ok"
-      # Key="RAInitialized" Value="Ok"
-      key = line.split("=")[0].split(".")[-1]
-      value = line.split("=")[1].strip()
-      output.append((key, value))
-    return output
-
-def verify_sync(device, ra_expected, dec_expected):
-    ra = float(ReadIndi(device, "EQUATORIAL_EOD_COORD.RA"))
-    dec = float(ReadIndi(device, "EQUATORIAL_EOD_COORD.DEC"))
-    if abs(ra - ra_expected) > 0.001 or abs(dec - dec_expected) > 0.001:
-        print("ERROR: Sync failed")
-        sys.exit(1)
-    
-def sync(device, ra, dec):
-    if SIMULATE:
-        return
-    exec_shell("indi_setprop \"%s.TELESCOPE_TRACK_STATE.TRACK_ON=On\"" % device)
-    time.sleep(1)
-    exec_shell("indi_setprop \"%s.ON_COORD_SET.SYNC=On\"" % device)
-    time.sleep(1)
-    exec_shell("indi_setprop \"%s.EQUATORIAL_EOD_COORD.RA=%f;DEC=%f\"" % (device, ra, dec))
-    time.sleep(1)
-    verify_sync(device, ra, dec)
-
-
-def get_wcs_coordinates(object_name):
-    # Query the object
-    result_table = Simbad.query_object(object_name)
-
-    if result_table is None:
-        print(f"ERROR: Unable to find object '{object_name}'")
-        sys.exit(1)
-    # Extract RA and DEC
-    ra = result_table['RA'][0]
-    dec = result_table['DEC'][0]
-    # print(f"RA: {ra}, DEC: {dec}")
-
-    # Convert J2000 coordinates to JNow.
-    c = SkyCoord(ra, dec, unit=(units.hourangle, units.deg), frame=ICRS())
-    jnow_coord = c.transform_to(FK5(equinox=astropy.time.Time.now()))
-    
-    ra = jnow_coord.ra.to(units.hourangle)
-    dec = c.dec
-    
-    coord = SkyCoord(ra, dec, unit=(units.hourangle, units.deg))
-    return coord.ra.hour, coord.dec.deg
+  exec_or_fail("indi_setprop \"%s.TELESCOPE_TRACK_STATE.TRACK_ON=On\"" % device)
 
 def get_coordinates(args, parser):
-    if args.object is None and args.wcs is None:
-        print('ERROR: No object or WCS coordinates specified')
-        parser.print_help()
-        sys.exit(1)
-    if args.object is not None and args.wcs is not None:
-        print('ERROR: Both object and WCS coordinates specified')
-        parser.print_help()
-        sys.exit(1)
-    if args.object is not None:
-        coordinates = get_wcs_coordinates(args.object)
-        # Print WCS coordinates in 6 decimal places
-        print(f"Using WCS coordinates of '{args.object}': {coordinates}")
-    else:
-        coordinates = args.wcs.split()
-        # Convert coordinates to RA and DEC in decimal degrees.
-        ra, dec = coordinates
-        c = SkyCoord(ra, dec, unit=(units.deg, units.deg))
-        # print("Provided: %s %s Interpreted: %f %f" % (ra, dec, c.ra.deg, c.dec.deg))
-        # sys.exit(1)
-        coordinates = c.ra.deg, c.dec.deg
-    return coordinates
+  if args.object is None and args.wcs is None:
+    print('ERROR: No object or WCS coordinates specified')
+    parser.print_help()
+    sys.exit(1)
+  if args.object is not None and args.wcs is not None:
+    print('ERROR: Both object and WCS coordinates specified')
+    parser.print_help()
+    sys.exit(1)
+  if args.object is not None:
+    coordinates = get_wcs_coordinates(args.object)
+    # Print WCS coordinates in 6 decimal places
+    print(f"Using WCS coordinates of '{args.object}': {coordinates}")
+  else:
+    coordinates = args.wcs.split()
+    # Convert coordinates to RA and DEC in decimal degrees.
+    ra, dec = coordinates
+    c = SkyCoord(ra, dec, unit=(units.deg, units.deg))
+    # print("Provided: %s %s Interpreted: %f %f" % (ra, dec, c.ra.deg, c.dec.deg))
+    # sys.exit(1)
+    coordinates = c.ra.deg, c.dec.deg
+  return coordinates
 
 def compute_error(ra_target, dec_target, ra, dec):
-    # Compute error in arcseconds. RA is in hours, DEC is in degrees.
-    ra_error = abs(ra_target - ra) / 24 * 360 * 3600
-    dec_error = abs(dec_target - dec) * 3600
-    return math.sqrt(ra_error**2 + dec_error**2)
-
-
-def get_mount_state(device):
-  ra_status = ReadIndi(device, "RASTATUS.*", 1)
-  de_status = ReadIndi(device, "DESTATUS.*", 1)
-
-  # If ra_status has ("RAGoto", "Ok"), or de_status has ("DEGoto", "Ok"), then the mount is running a goto slew.
-  goto_slew = False
-  for key, value in ra_status:
-    if key == "RAGoto" and value == "Ok":
-      goto_slew = True
-      break
-  for key, value in de_status:
-    if key == "DEGoto" and value == "Ok":
-      goto_slew = True
-      break
-  
-  # If not goto_slew, and ra_status has ('RARunning', 'Ok'), ('RAGoto', 'Busy'), and ('RAHighspeed', 'Busy'), then the mount is tracking.
-  tracking = False
-  if (not goto_slew) and \
-      ("RARunning", "Ok") in ra_status and \
-      ("RAGoto", "Busy") in ra_status and \
-      ("RAHighspeed", "Busy") in ra_status:
-    tracking = True
-
-  # If not goto_slew, not tracking, and ra_status has ('RARunning', 'Ok') or 
-  # de_status has ('DERunning', 'Ok'), then the mount is running a manual slew.
-  manual_slew = False
-  if (not goto_slew) and (not tracking) and \
-      (("RARunning", "Ok") in ra_status or \
-      ("DERunning", "Ok") in de_status):
-    manual_slew = True
-
-  return manual_slew, goto_slew, tracking
-
-def goto(device, ra, dec):
-  if SIMULATE:
-      return
-  exec_shell("indi_setprop \"%s.TELESCOPE_TRACK_DEFAULT.TRACK_SIDEREAL=On\"" % device)
-  time.sleep(1)
-  exec_shell("indi_setprop \"%s.ON_COORD_SET.TRACK=On\"" % device)
-  time.sleep(1)
-  command = "indi_setprop \"%s.EQUATORIAL_EOD_COORD.RA=%f;DEC=%f\"" % (device, ra, dec)
-  exec_shell(command)
-  time.sleep(1)
-  tracking = False
-  while not tracking:
-    time.sleep(1)
-    _, _, tracking = get_mount_state(device)
+  # Compute error in arcseconds. RA is in hours, DEC is in degrees.
+  ra_error = abs(ra_target - ra) / 24 * 360 * 3600
+  dec_error = abs(dec_target - dec) * 3600
+  return math.sqrt(ra_error**2 + dec_error**2)
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Go to an astronomical object and align the mount to it')
-    parser.add_argument('-o', '--object', type=str, 
-                        help='Astronomical object name, either a catalog name (e.g., "M31") or a common name (e.g., "Andromeda Galaxy")')
-    parser.add_argument('-w', '--wcs', type=str, 
-                        help='WCS coordinates (e.g., "5:35:17 -5:23:24")')
-    parser.add_argument('-d', '--device', type=str, 
-                        help='INDI device name', default='Star Adventurer GTi')
-    parser.add_argument('-t', '--threshold', type=float, 
-                        help='Max align error in arcseconds', default=30)
+  init_logging('align', alsologtostdout=True)
+
+  parser = argparse.ArgumentParser(description='Go to an astronomical object and align the mount to it')
+  parser.add_argument('-o', '--object', type=str, 
+            help='Astronomical object name, either a catalog name (e.g., "M31") or a common name (e.g., "Andromeda Galaxy")')
+  parser.add_argument('-w', '--wcs', type=str, 
+            help='WCS coordinates (e.g., "5:35:17 -5:23:24")')
+  parser.add_argument('-d', '--device', type=str, 
+            help='INDI device name', default='Star Adventurer GTi')
+  parser.add_argument('-t', '--threshold', type=float, 
+            help='Max align error in arcseconds', default=30)
+  
+  args = parser.parse_args()
+  print(f"Using device {args.device}")
+  mount = IndiMount(args.device)  
+
+  setup_camera()
+
+  ra_target, dec_target = get_coordinates(args, parser)
+  # Repeat capture, sync, goto until within threshold, or max iterations reached.
+  complete = False
+  max_iterations = 10
+  iteration = 0
+  while not complete and iteration < max_iterations:
+    iteration += 1
+    print(f"Iteration {iteration}", end=' | ', flush=True)
     
-    args = parser.parse_args()
+    t_start = astropy.time.Time.now()
 
-    setup_camera()
+    print('GoTo', end=' | ', flush=True)
+    mount.goto(ra_target, dec_target)
+    
+    print("Capture", end=' | ', flush=True)
+    capture_image()
+    
+    print('Plate solve', end=' | ', flush=True)
+    ra, dec = run_plate_solve_astap('tmp.cr3', None, None)
+    
+    print('Sync', end=' | ', flush=True)
+    mount.sync(ra, dec)
+    
+    t_end = astropy.time.Time.now()
 
-    ra_target, dec_target = get_coordinates(args, parser)
-    # Repeat capture, sync, goto until within threshold, or max iterations reached.
-    complete = False
-    max_iterations = 10
-    iteration = 0
-    while not complete and iteration < max_iterations:
-        iteration += 1
-        print(f"Iteration {iteration}", end=' | ', flush=True)
-        
-        t_start = astropy.time.Time.now()
+    error = compute_error(ra_target, dec_target, ra, dec)
+    # Print RA in HH:MM:SS and DEC in DD:MM:SS, and error in arcseconds.
+    ra_hms = astropy.coordinates.Angle(ra, unit=units.hour).to_string(unit=units.hour, sep=':')
+    dec_dms = astropy.coordinates.Angle(dec, unit=units.deg).to_string(unit=units.deg, sep=':')
+    print(f"RA: {ra_hms}, DEC: {dec_dms}, Error: {error:4.1f} | Iteration time: {(t_end - t_start).sec:4.1f}")
+    # print("RA: %9.6f, DEC: %9.6f, Error: %4.1f | Iteration time: %4.1f" % (ra, dec, error, (t_end - t_start).sec))
 
-        print('GoTo', end=' | ', flush=True)
-        goto(args.device, ra_target, dec_target)
-        
-        print("Capture", end=' | ', flush=True)
-        capture_image()
-        
-        print('Plate solve', end=' | ', flush=True)
-        ra, dec = run_plate_solve_astap('tmp.cr3', None, None)
-        
-        print('Sync', end=' | ', flush=True)
-        sync(args.device, ra, dec)
-        
-        t_end = astropy.time.Time.now()
-
-        error = compute_error(ra_target, dec_target, ra, dec)
-        # Print RA in HH:MM:SS and DEC in DD:MM:SS, and error in arcseconds.
-        ra_hms = astropy.coordinates.Angle(ra, unit=units.hour).to_string(unit=units.hour, sep=':')
-        dec_dms = astropy.coordinates.Angle(dec, unit=units.deg).to_string(unit=units.deg, sep=':')
-        print(f"RA: {ra_hms}, DEC: {dec_dms}, Error: {error:4.1f} | Iteration time: {(t_end - t_start).sec:4.1f}")
-        # print("RA: %9.6f, DEC: %9.6f, Error: %4.1f | Iteration time: %4.1f" % (ra, dec, error, (t_end - t_start).sec))
-
-        if error < args.threshold:
-          complete = True
-        elif iteration == max_iterations:
-          print("ERROR: Max iterations reached")
-          sys.exit(1)
+    if error < args.threshold:
+      complete = True
+    elif iteration == max_iterations:
+      print("ERROR: Max iterations reached")
+      sys.exit(1)
 
 
 if __name__ == '__main__':
-    main()
+  main()
