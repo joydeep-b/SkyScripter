@@ -58,6 +58,7 @@ if [ "$HELP" = true ]; then
   echo "  -h: Print this help message"
   echo -e "\nDetected cameras:"
   gphoto2 --auto-detect
+  echo "Run gphoto2 --list-config to see all available camera configuration entries."
   exit 0
 fi
 

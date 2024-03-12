@@ -9,7 +9,7 @@ from astropy.coordinates import SkyCoord, FK5, ICRS
 import astropy.units as units
 import astropy.time
 
-def init_logging(name, alsologtostdout=False):
+def init_logging(name):
   script_dir = os.path.dirname(__file__)
   logfile = os.path.join(
       script_dir,
@@ -19,17 +19,10 @@ def init_logging(name, alsologtostdout=False):
       level=logging.INFO, 
       format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
       filemode='a')
-  if not alsologtostdout:
-    return
-  # define a Handler which writes INFO messages or higher to the sys.stderr
-  console = logging.StreamHandler()
-  console.setLevel(logging.INFO)
-  # set a format which is simpler for console use
-  formatter = logging.Formatter('%(name)-12s: %(levelname)-8s: %(message)s')
-  # tell the handler to use this format
-  console.setFormatter(formatter)
-  # add the handler to the root logger
-  logging.getLogger('').addHandler(console)
+
+def print_and_log(message, level=logging.INFO):
+  print(message)
+  logging.log(level, message)
 
 def exec_or_fail(command):
   result = subprocess.run(command, capture_output=True, text=True, shell=True)
@@ -46,8 +39,8 @@ def exec_or_pass(command):
     logging.warning(result.stderr)
   return result.stdout
 
-def get_wcs_coordinates(object_name):
-    # Query the object
+def lookup_object_coordinates(object_name):
+    # Query the object from Simbad.
     result_table = Simbad.query_object(object_name)
 
     if result_table is None:
@@ -62,6 +55,29 @@ def get_wcs_coordinates(object_name):
     jnow_coord = c.transform_to(FK5(equinox=astropy.time.Time.now()))
     
     return jnow_coord.ra.hour, jnow_coord.dec.deg
+
+def parse_coordinates(args, parser):
+  if args.object is None and args.wcs is None:
+    print('ERROR: No object or WCS coordinates specified')
+    parser.print_help()
+    sys.exit(1)
+  if args.object is not None and args.wcs is not None:
+    print('ERROR: Both object and WCS coordinates specified')
+    parser.print_help()
+    sys.exit(1)
+  if args.object is not None:
+    coordinates = lookup_object_coordinates(args.object)
+    # Print WCS coordinates in 6 decimal places
+    print(f"Using WCS coordinates of '{args.object}': {coordinates}")
+  else:
+    coordinates = args.wcs.split()
+    # Convert coordinates to RA and DEC in decimal degrees.
+    ra, dec = coordinates
+    c = SkyCoord(ra, dec, unit=(units.deg, units.deg))
+    # print("Provided: %s %s Interpreted: %f %f" % (ra, dec, c.ra.deg, c.dec.deg))
+    # sys.exit(1)
+    coordinates = c.ra.deg, c.dec.deg
+  return coordinates
 
 def run_plate_solve_astap(file, astap_path='astap'):
   astap_cli_command = [astap_path, "-f", file, "-r", "180"]

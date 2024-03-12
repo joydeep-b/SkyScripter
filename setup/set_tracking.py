@@ -16,8 +16,7 @@ from sky_scripter.lib_indi import IndiMount
 from sky_scripter.util import init_logging
 
 def main():
-  logfile = os.path.join(script_dir, '..', '.logs', 'tracking-' + time.strftime("%Y-%m-%d-%H-%M-%S") + '.log')
-  init_logging(logfile)
+  init_logging('set_tracking')
 
   parser = argparse.ArgumentParser(
       description='Set tracking details for an INDI device')

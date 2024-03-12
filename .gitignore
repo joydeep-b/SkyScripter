@@ -1,3 +1,6 @@
 .DS_Store
 images
 tmp.cr3
+*.ini
+*.wcs
+__pycache__

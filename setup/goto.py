@@ -18,7 +18,7 @@ parent_dir = os.path.dirname(script_dir)
 sys.path.append(parent_dir)
 
 from sky_scripter.lib_indi import IndiMount
-from sky_scripter.util import init_logging, get_wcs_coordinates
+from sky_scripter.util import init_logging, lookup_object_coordinates
  
 # def get_wcs_coordinates(object_name):
 #     # Query the object
@@ -56,7 +56,7 @@ def main():
     parser.print_help()
     sys.exit(1)
   if args.object is not None:
-      coordinates = get_wcs_coordinates(args.object)
+      coordinates = lookup_object_coordinates(args.object)
       print(f"Using FK5(equinox=now) coordinates of '{args.object}': {coordinates}")
       logging.info(f"Using FK5(equinox=now) coordinates of '{args.object}': {coordinates}")
   else:
