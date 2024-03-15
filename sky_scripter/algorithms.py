@@ -11,7 +11,7 @@ parent_dir = os.path.dirname(script_dir)
 sys.path.append(parent_dir)
 
 from sky_scripter.lib_indi import IndiMount
-from sky_scripter.util import exec_or_fail, init_logging, parse_coordinates, run_plate_solve_astap, print_and_log
+from sky_scripter.util import exec_or_fail, init_logging, parse_coordinates, run_plate_solve_astap, print_and_log, run_star_detect_siril
 from sky_scripter.lib_gphoto import GphotoClient
 
 def align_to_object(mount, 
@@ -68,3 +68,65 @@ def align_to_object(mount,
     print("ERROR: Max iterations reached")
     logging.error("Max iterations reached")
     return False
+  
+
+def auto_focus_fine(focuser, 
+                    camera, 
+                    focus_min, 
+                    focus_max, 
+                    focus_step, 
+                    use_num_stars=False):
+  focus_results = []
+  print('Fine focus scan from %d to %d in steps of %d' % (focus_min, focus_max, focus_step))
+  focuser.set_focus(focus_min - focus_step)
+  min_fwhm = 100
+  max_num_stars = 0
+  best_focus = focus_min
+  for f in range(focus_min, focus_max + 1, focus_step):
+    focuser.set_focus(f)
+    image_file = os.path.join(os.getcwd(), 
+                              '.focus', 
+                              time.strftime("%Y-%m-%dT%H:%M:%S.RAW"))
+    camera.capture_image(image_file)
+    num_stars, fwhm = run_star_detect_siril(image_file)
+    if num_stars is not None and fwhm is not None:
+        print(f"Focus value: {f} NumStars: {num_stars} FWHM: {fwhm}")
+        focus_results.append((f, num_stars, fwhm))
+        if fwhm < min_fwhm:
+            min_fwhm = fwhm
+            if not use_num_stars:
+                best_focus = f
+        if num_stars > max_num_stars:
+            max_num_stars = num_stars
+            if use_num_stars:
+                best_focus = f
+    else:
+        print(f"Focus value: {f} No stars detected")
+  focuser.set_focus(focus_min)
+  focuser.set_focus(best_focus)
+  return best_focus, min_fwhm, focus_results
+
+def auto_focus_coarse(focuser, camera, focus_min, focus_max, focus_step):
+  focus_results = []
+  print('Coarse focus scan from %d to %d in steps of %d' % (focus_min, focus_max, focus_step))
+  focuser.set_focus(focus_min - focus_step)
+  max_num_stars = 0
+  best_focus = focus_min
+  for f in range(focus_min, focus_max + 1, focus_step):
+    focuser.set_focus(f)
+    image_file = os.path.join(os.getcwd(), 
+                              '.focus', 
+                              time.strftime("%Y-%m-%dT%H:%M:%S.RAW"))
+    camera.capture_image(image_file)
+    num_stars, fwhm = run_star_detect_siril(image_file)
+    if num_stars is not None and fwhm is not None:
+        print(f"Focus value: {f} NumStars: {num_stars} FWHM: {fwhm}")
+        focus_results.append((f, num_stars, fwhm))
+        if num_stars > max_num_stars:
+            max_num_stars = num_stars
+            best_focus = f
+    else:
+        print(f"Focus value: {f} No stars detected")
+  focuser.set_focus(focus_min)
+  focuser.set_focus(best_focus)
+  return best_focus, max_num_stars, focus_results

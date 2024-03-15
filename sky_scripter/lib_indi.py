@@ -53,21 +53,27 @@ class IndiFocuser(IndiClient):
   def get_focus(self):
     return int(self.read("ABS_FOCUS_POSITION.FOCUS_ABSOLUTE_POSITION"))
 
-  def set_focus(self, value):
+  def set_focus(self, value, max_error=5, timeout=30):
     self.write("ABS_FOCUS_POSITION", "FOCUS_ABSOLUTE_POSITION", value)
-    MAX_FOCUS_ERROR = 5
     current_value = self.get_focus()
-    while abs(current_value - value) > MAX_FOCUS_ERROR:
-      current_value = self.get_focus()
+    t_start = time.time()
+    while abs(current_value - value) > max_error and \
+        time.time() - t_start < timeout:
       time.sleep(0.25)
+      current_value = self.get_focus()
+    if abs(current_value - value) > max_error:
+      logging.error(f"Focus value not reached in the desired time. Requested: {value} Current: {current_value}, time elapsed: {time.time() - t_start}, timeout: {timeout}")
+    else:
+      logging.info(f'New focus value: {current_value}')
 
   def adjust_focus(self, steps):
     focus_value = self.get_focus()
     if focus_value + steps < 0:
-        print('ERROR: Focus value cannot be negative. Current:%d steps:%d ' % (focus_value, steps))
-        return
+      logging.error('Focus value cannot be negative. Current:%d steps:%d ' % (focus_value, steps))
+      print('ERROR: Focus value cannot be negative. Current:%d steps:%d ' % (focus_value, steps))
+      return
     self.set_focus(focus_value + steps)
-    print(f'New focus value: {focus_value + steps}')
+    logging.info(f'New focus value: {focus_value + steps}')
 
 class IndiMount(IndiClient):
   def goto(self, ra, dec):

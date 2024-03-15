@@ -4,6 +4,8 @@ import sys
 import os
 import time
 import re
+import shutil
+import tempfile
 from astroquery.simbad import Simbad 
 from astropy.coordinates import SkyCoord, FK5, ICRS
 import astropy.units as units
@@ -111,3 +113,45 @@ def run_plate_solve_astap(file, astap_path='astap'):
   delta = jnow_coord.dec.deg
 
   return alpha, delta
+
+
+def run_star_detect_siril(image_file):
+  with tempfile.TemporaryDirectory() as tmpdirname:
+    shutil.copy(image_file, tmpdirname)
+    # If MacOS, use the Siril.app version
+    if sys.platform == 'darwin':
+      SIRIL_PATH = '/Applications/Siril.app/Contents/MacOS/Siril'
+    else:
+      SIRIL_PATH = '/home/joydeepb/Siril-1.2.1-x86_64.AppImage'
+    siril_commands = f"""requires 1.2.0
+convert light
+calibrate_single light_00001 -bias="=2048" -debayer -cfa -equalize_cfa 
+load pp_light_00001
+crop 2048 1366 4096 2732
+setfindstar -radius=3 -sigma=0.5 -roundness=0.8 -focal=403.2 -pixelsize=4.39 -moffat -minbeta=1.5 -relax=on
+findstar
+close
+"""
+    # Define the command to run
+    siril_cli_command = [SIRIL_PATH, "-d", tmpdirname, "-s", "-"]
+    # Run the command and capture output
+    try:
+      result = subprocess.run(siril_cli_command, 
+                              input=siril_commands,
+                              text=True, 
+                              capture_output=True,
+                              check=True)
+      if result.returncode != 0:
+        print("Error running Siril.")
+        exit(1)
+      # print(result.stdout)
+      # Extract the number of stars detected, and the FWHM. Sample output:
+      # Found 343 Gaussian profile stars in image, channel #0 (FWHM 5.428217)
+      regex = r"Found ([0-9]+) [a-z,A-Z]* profile stars in image, channel #[0-9] \(FWHM ([0-9]+\.[0-9]+)\)"
+      match = re.search(regex, result.stdout)
+      if not match:
+        return None, None
+      num_stars, fwhm = match.groups()
+      return int(num_stars), float(fwhm)
+    except subprocess.CalledProcessError as e:
+      return None, None
