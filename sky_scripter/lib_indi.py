@@ -50,10 +50,18 @@ class IndiClient:
     exec_or_fail(command)
 
 class IndiFocuser(IndiClient):
+  def __init__(self, device, simulate=False):
+    super().__init__(device)
+    self.simulate = simulate
+
   def get_focus(self):
+    if self.simulate:
+      return 0
     return int(self.read("ABS_FOCUS_POSITION.FOCUS_ABSOLUTE_POSITION"))
 
   def set_focus(self, value, max_error=5, timeout=30):
+    if self.simulate:
+      return
     self.write("ABS_FOCUS_POSITION", "FOCUS_ABSOLUTE_POSITION", value)
     current_value = self.get_focus()
     t_start = time.time()
@@ -67,6 +75,8 @@ class IndiFocuser(IndiClient):
       logging.info(f'New focus value: {current_value}')
 
   def adjust_focus(self, steps):
+    if self.simulate:
+      return
     focus_value = self.get_focus()
     if focus_value + steps < 0:
       logging.error('Focus value cannot be negative. Current:%d steps:%d ' % (focus_value, steps))

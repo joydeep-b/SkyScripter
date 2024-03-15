@@ -8,7 +8,8 @@ from sky_scripter.util import exec_or_fail
 
 class GphotoClient:
   def __init__(self, simulate=False):
-    exec_or_fail(['gphoto2', '--auto-detect'])
+    if not simulate:
+      exec_or_fail(['gphoto2', '--auto-detect'])
     self.simulate = simulate
 
   def set_config(self, settings):

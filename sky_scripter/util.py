@@ -29,7 +29,7 @@ def print_and_log(message, level=logging.INFO):
 def exec_or_fail(command):
   result = subprocess.run(command, capture_output=True, text=True, shell=True)
   if result.returncode != 0:
-    logging.error("Error: command '%s' returned %d" % (command, result.returncode))
+    logging.error("command '%s' returned %d" % (command, result.returncode))
     logging.error(result.stderr)
     sys.exit(1)
   return result.stdout
@@ -37,7 +37,7 @@ def exec_or_fail(command):
 def exec_or_pass(command):
   result = subprocess.run(command, capture_output=True, text=True)
   if result.returncode != 0:
-    logging.warning("Warning: command '%s' returned %d.\nStderr:" % (command, result.returncode))
+    logging.warning("command '%s' returned %d.\nStderr:" % (command, result.returncode))
     logging.warning(result.stderr)
   return result.stdout
 
@@ -46,6 +46,7 @@ def lookup_object_coordinates(object_name):
     result_table = Simbad.query_object(object_name)
 
     if result_table is None:
+        logging.error(f"ERROR: Unable to find object '{object_name}'")
         print(f"ERROR: Unable to find object '{object_name}'")
         sys.exit(1)
     # Extract RA and DEC
