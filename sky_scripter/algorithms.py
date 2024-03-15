@@ -5,6 +5,8 @@ import astropy.units as units
 import logging
 import os
 import sys
+import numpy as np
+import matplotlib.pyplot as plt
 
 script_dir = os.path.dirname(__file__)
 parent_dir = os.path.dirname(script_dir)
@@ -70,63 +72,74 @@ def align_to_object(mount,
     return False
   
 
-def auto_focus_fine(focuser, 
-                    camera, 
-                    focus_min, 
-                    focus_max, 
-                    focus_step, 
-                    use_num_stars=False):
-  focus_results = []
-  print('Fine focus scan from %d to %d in steps of %d' % (focus_min, focus_max, focus_step))
-  focuser.set_focus(focus_min - focus_step)
-  min_fwhm = 100
-  max_num_stars = 0
-  best_focus = focus_min
-  for f in range(focus_min, focus_max + 1, focus_step):
-    focuser.set_focus(f)
+def auto_focus(focuser, camera, focus_min, focus_max, focus_step):
+  def measure_stars():
     image_file = os.path.join(os.getcwd(), 
                               '.focus', 
                               time.strftime("%Y-%m-%dT%H:%M:%S.RAW"))
     camera.capture_image(image_file)
     num_stars, fwhm = run_star_detect_siril(image_file)
-    if num_stars is not None and fwhm is not None:
-        print(f"Focus value: {f} NumStars: {num_stars} FWHM: {fwhm}")
-        focus_results.append((f, num_stars, fwhm))
-        if fwhm < min_fwhm:
-            min_fwhm = fwhm
-            if not use_num_stars:
-                best_focus = f
-        if num_stars > max_num_stars:
-            max_num_stars = num_stars
-            if use_num_stars:
-                best_focus = f
-    else:
-        print(f"Focus value: {f} No stars detected")
-  focuser.set_focus(focus_min)
-  focuser.set_focus(best_focus)
-  return best_focus, min_fwhm, focus_results
+    return num_stars, fwhm
+  focus_results = []
+  print_and_log('Focus scan from %d to %d in steps of %d' % \
+                (focus_min, focus_max, focus_step))
+  
+  initial_focus = focuser.get_focus()
+  _, initial_fwhm = measure_stars()
+  if initial_fwhm is None:
+    logging.error("Unable to measure initial FWHM")
+    return None, None, None
+  print_and_log(f"Initial focus value: {initial_focus} Initial FWHM: {initial_fwhm}")
+  
+  focuser.set_focus(focus_min - focus_step)
+  _, min_focuser_fwhm = measure_stars()
+  if min_focuser_fwhm is not None and min_focuser_fwhm < initial_fwhm:
+    logging.error("FWHM at focus_min - focus_step is less than initial FWHM")
+    return None, None, None
+  print_and_log(f"Focus value: {focus_min - focus_step} FWHM: {min_focuser_fwhm}")
 
-def auto_focus_coarse(focuser, camera, focus_min, focus_max, focus_step):
-  focus_results = []
-  print('Coarse focus scan from %d to %d in steps of %d' % (focus_min, focus_max, focus_step))
-  focuser.set_focus(focus_min - focus_step)
-  max_num_stars = 0
-  best_focus = focus_min
+  min_fwhm = 100
+  focus_at_min_fwhm = focus_min
   for f in range(focus_min, focus_max + 1, focus_step):
     focuser.set_focus(f)
-    image_file = os.path.join(os.getcwd(), 
-                              '.focus', 
-                              time.strftime("%Y-%m-%dT%H:%M:%S.RAW"))
-    camera.capture_image(image_file)
-    num_stars, fwhm = run_star_detect_siril(image_file)
+    num_stars, fwhm = measure_stars()
     if num_stars is not None and fwhm is not None:
-        print(f"Focus value: {f} NumStars: {num_stars} FWHM: {fwhm}")
-        focus_results.append((f, num_stars, fwhm))
-        if num_stars > max_num_stars:
-            max_num_stars = num_stars
-            best_focus = f
+      print_and_log(f"Focus value: {f} NumStars: {num_stars} FWHM: {fwhm}")
+      focus_results.append((f, num_stars, fwhm))
+      if fwhm < min_fwhm:
+        min_fwhm = fwhm
+        focus_at_min_fwhm = f
     else:
-        print(f"Focus value: {f} No stars detected")
-  focuser.set_focus(focus_min)
+      print_and_log(f"Focus value: {f} No stars detected")
+  
+  # Fit a parabola to the data.
+  X = [x[0] for x in focus_results]
+  Y = [x[2] for x in focus_results]
+  p = np.polyfit(X, Y, 2)
+  print_and_log(f"Parabola coefficients: {p}")
+  Y_fit = np.polyval(p, X)
+  minima = -p[1] / (2 * p[0])
+  print_and_log(f"Parabola minimum: {minima}")
+  best_focus = int(minima)
+  if p[0] <= 0:
+    logging.error("Parabola is concave down, focus may be outside of range.")
+    best_focus = focus_at_min_fwhm
+  else:
+    min_fwhm = np.polyval(p, minima)
+    focus_at_min_fwhm = int(minima)
+  focuser.set_focus(focus_min - focus_step)
   focuser.set_focus(best_focus)
-  return best_focus, max_num_stars, focus_results
+  plt.plot(X, Y, 'o', label='data')
+  plt.plot(X, Y_fit, label='fit')
+  plt.plot(minima, np.polyval(p, minima), 'x', label='minima', color='red', 
+           markersize=10)
+  plt.axvline(minima, color='red', linestyle='dashed')
+  plt.axhline(np.polyval(p, minima), color='red', linestyle='dashed')
+  plt.xlabel('Focus')
+  plt.ylabel('FWHM')
+  plt.legend()
+  plot_file = os.path.join(os.getcwd(), 
+                           '.focus', 
+                           time.strftime("%Y-%m-%d-%H-%M-%S-focus_plot.png"))
+  plt.savefig(plot_file)
+  return focus_at_min_fwhm, min_fwhm, focus_results
