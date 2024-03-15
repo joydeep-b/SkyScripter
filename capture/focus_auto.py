@@ -20,10 +20,8 @@ from sky_scripter.lib_gphoto import GphotoClient
 from sky_scripter.util import init_logging, run_star_detect_siril, print_and_log
 from sky_scripter.algorithms import auto_focus
 
-VERBOSE = False
 
 def main():
-  global VERBOSE
   init_logging('focus_auto')
   parser = argparse.ArgumentParser(description='Manually focus a telescope using a camera and star FWHM detection')
 
@@ -34,12 +32,9 @@ def main():
                       help='ISO setting for camera', default=1600)
   parser.add_argument('-e', '--exposure', type=int, 
                       help='Exposure time for camera', default=2)
-  parser.add_argument('-v', '--verbose', action='store_true',
-                      help='Verbose output')
 
   args = parser.parse_args()
-  
-  VERBOSE = args.verbose
+
   camera  = GphotoClient()
   camera.initialize(image_format='RAW', 
                     mode='Manual', 
