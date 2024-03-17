@@ -46,6 +46,7 @@ def main():
             help='Shutter speed in seconds', default=2)
   
   args = parser.parse_args()
+  ra_target, dec_target = parse_coordinates(args, parser)
   print(f"Using device {args.device}")
   mount = IndiMount(args.device)  
   camera = GphotoClient()
@@ -53,16 +54,11 @@ def main():
                     mode='Manual', 
                     iso=args.iso, 
                     shutter_speed=args.shutter_speed)
-
-  # Create .logs/images directory if it doesn't exist.
-  image_dir = os.path.join(os.getcwd(), '.logs', 'images')
-  os.makedirs(image_dir, exist_ok=True)
-  ra_target, dec_target = parse_coordinates(args, parser)
+  
   align_to_object(mount, 
                   camera, 
                   ra_target, dec_target, 
-                  args.threshold, 
-                  image_dir)
+                  args.threshold)
   
 
 if __name__ == '__main__':

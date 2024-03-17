@@ -11,7 +11,13 @@ from astropy.coordinates import SkyCoord, FK5, ICRS
 import astropy.units as units
 import astropy.time
 
-def init_logging(name):
+if sys.platform == 'darwin':
+  astap_path_autodetected = '/Applications/astap.app/Contents/MacOS/astap'
+else:
+  # Get the path to the astap executable from `which astap`
+  astap_path_autodetected = exec_or_fail('which astap').strip()
+
+def init_logging(name, also_to_console=False):
   script_dir = os.path.dirname(__file__)
   logfile = os.path.join(
       script_dir,
@@ -19,24 +25,32 @@ def init_logging(name):
   logging.basicConfig(
       filename=logfile, 
       level=logging.INFO, 
-      format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
+      format='%(asctime)s %(filename)-20s %(levelname)-8s %(message)s',
       filemode='a')
+  if also_to_console:
+    console = logging.StreamHandler()
+    console.setLevel(logging.INFO)
+    formatter = logging.Formatter(
+        '%(asctime)s %(filename)-12s: %(levelname)-8s %(message)s')
+    console.setFormatter(formatter)
+    logging.getLogger('').addHandler(console)
 
 def print_and_log(message, level=logging.INFO):
   print(message)
   logging.log(level, message)
 
-def exec_or_fail(command):
+def exec_or_fail(command, allowed_return_codes=[0]):
   result = subprocess.run(command, capture_output=True, text=True, shell=True)
-  if result.returncode != 0:
+  if result.returncode not in allowed_return_codes:
     logging.error("command '%s' returned %d" % (command, result.returncode))
     logging.error(result.stderr)
+    print("command '%s' returned %d" % (command, result.returncode))
     sys.exit(1)
   return result.stdout
 
-def exec_or_pass(command):
+def exec_or_pass(command, allowed_return_codes=[0]):
   result = subprocess.run(command, capture_output=True, text=True)
-  if result.returncode != 0:
+  if result.returncode not in allowed_return_codes:
     logging.warning("command '%s' returned %d.\nStderr:" % (command, result.returncode))
     logging.warning(result.stderr)
   return result.stdout
@@ -69,21 +83,25 @@ def parse_coordinates(args, parser):
     parser.print_help()
     sys.exit(1)
   if args.object is not None:
+    logging.info(f"Looking up coordinates for object '{args.object}'")
     coordinates = lookup_object_coordinates(args.object)
     # Print WCS coordinates in 6 decimal places
-    print(f"Using WCS coordinates of '{args.object}': {coordinates}")
+    c = SkyCoord(coordinates[0], coordinates[1], unit=(units.hourangle, units.deg))
+    coordinates_string = c.to_string('hmsdms', precision=0, sep=':')
+    print_and_log(f"Using WCS coordinates of '{args.object}': {coordinates_string}")
   else:
+    print_and_log(f"Using WCS coordinates: {args.wcs}")
     coordinates = args.wcs.split()
     # Convert coordinates to RA and DEC in decimal degrees.
     ra, dec = coordinates
-    c = SkyCoord(ra, dec, unit=(units.deg, units.deg))
-    # print("Provided: %s %s Interpreted: %f %f" % (ra, dec, c.ra.deg, c.dec.deg))
+    c = SkyCoord(ra, dec, unit=(units.hour, units.deg))
+    # print("Provided: %s %s Interpreted: %f %f" % (ra, dec, c.ra.hour, c.dec.deg))
     # sys.exit(1)
-    coordinates = c.ra.deg, c.dec.deg
+    coordinates = c.ra.hour, c.dec.deg
   return coordinates
 
-def run_plate_solve_astap(file, astap_path='astap'):
-  astap_cli_command = [astap_path, "-f", file, "-r", "180"]
+def run_plate_solve_astap(file, astap_path=astap_path_autodetected):
+  astap_cli_command = [astap_path + " -f " + file + " -r 180"]
   astap_output = exec_or_fail(astap_cli_command)
   # Define the regex pattern, to match output like this:
   # Solution found: 05: 36 03.8	-05° 27 14

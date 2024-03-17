@@ -6,10 +6,13 @@ import logging
 from sky_scripter.util import exec_or_fail
 
 class IndiClient:
-  def __init__(self, device):
+  def __init__(self, device, simulate=False):
     self.device = device
+    self.simulate = simulate
 
   def read(self, propname, timeout=2):
+    if self.simulate:
+      return 0
     # Call indi_getprop to get the property value
     command = "indi_getprop -t %d \"%s.%s\"" % (timeout, self.device, propname)
     # Execute the command and get the output.
@@ -33,6 +36,8 @@ class IndiClient:
       return output
     
   def write(self, propname, keys, values):
+    if self.simulate:
+      return
     # If passed a single key and value, convert them to lists.
     if not isinstance(keys, list):
       keys = [keys]
@@ -50,18 +55,10 @@ class IndiClient:
     exec_or_fail(command)
 
 class IndiFocuser(IndiClient):
-  def __init__(self, device, simulate=False):
-    super().__init__(device)
-    self.simulate = simulate
-
   def get_focus(self):
-    if self.simulate:
-      return 0
     return int(self.read("ABS_FOCUS_POSITION.FOCUS_ABSOLUTE_POSITION"))
 
   def set_focus(self, value, max_error=5, timeout=30):
-    if self.simulate:
-      return
     self.write("ABS_FOCUS_POSITION", "FOCUS_ABSOLUTE_POSITION", value)
     current_value = self.get_focus()
     t_start = time.time()
@@ -75,8 +72,6 @@ class IndiFocuser(IndiClient):
       logging.info(f'New focus value: {current_value}')
 
   def adjust_focus(self, steps):
-    if self.simulate:
-      return
     focus_value = self.get_focus()
     if focus_value + steps < 0:
       logging.error('Focus value cannot be negative. Current:%d steps:%d ' % (focus_value, steps))
@@ -106,6 +101,8 @@ class IndiMount(IndiClient):
       logging.error(f"Sync failed. Requested: {ra} {dec} Read: {ra_read} {dec_read}")
 
   def get_mount_state(self):
+    if self.simulate:
+      return False, False, True
     ra_status = self.read("RASTATUS.*", 1)
     de_status = self.read("DESTATUS.*", 1)
 
@@ -210,6 +207,22 @@ class IndiMount(IndiClient):
       return
     self.write("TELESCOPE_TRACK_MODE", mode, "On")
 
+  def get_coordinates(self):
+    ra = float(self.read("EQUATORIAL_EOD_COORD.RA"))
+    dec = float(self.read("EQUATORIAL_EOD_COORD.DEC"))
+    alt = float(self.read("HORIZONTAL_COORD.ALT"))
+    az = float(self.read("HORIZONTAL_COORD.AZ"))
+    lst = float(self.read("TIME_LST.LST"))
+    return ra, dec, alt, az, lst
+
+  def get_pier_side(self):
+    if self.read("TELESCOPE_PIER_SIDE.PIER_WEST") == "On":
+      return "West"
+    elif self.read("TELESCOPE_PIER_SIDE.PIER_EAST") == "On":
+      return "East"
+    else:
+      logging.error("Could not determine pier side")
+      return "Unknown"
 
 def read_indi(device, propname, timeout=2):
   # Call indi_getprop to get the property value

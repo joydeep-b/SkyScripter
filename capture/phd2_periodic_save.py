@@ -75,9 +75,12 @@ def save_image_loop():
 if __name__ == "__main__":
   # Parse command-line arguments: -d = save directory, -p = port, -i = IP address, -t = time between saves
   parser = argparse.ArgumentParser()
-  parser.add_argument("-d", "--directory", help="Directory to save images to", default="./phd2_images")
+  parser.add_argument("-d", "--directory", 
+                      help="Directory to save images to", 
+                      default="./phd2_images")
   parser.add_argument("-p", "--port", help="Port to connect to", default=4400)
-  parser.add_argument("-i", "--ip", help="IP address to connect to", default="localhost")
+  parser.add_argument("-i", "--ip", help="IP address to connect to",
+                      default="localhost")
   parser.add_argument("-t", "--time", help="Time between saves", default=300)
   args = parser.parse_args()
   # Set global variables
