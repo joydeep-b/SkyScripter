@@ -196,6 +196,12 @@ def signal_handler(signum, frame):
     print_and_log('Hit Ctrl-C again to terminate immediately')
   terminate_count += 1
 
+def reset_alignment_camera(alignment_camera, args):
+  alignment_camera.initialize('RAW', 'Manual', 1600, '2')
+
+def reset_capture_camera(capture_camera, args):
+  capture_camera.initialize('RAW', 'Bulb', args.iso, args.shutter_speed)
+
 def main():
   args, parser = get_args()
   init_logging('batch_capture', also_to_console=args.verbose)
@@ -207,49 +213,57 @@ def main():
   capture_dir = set_up_capture_directory(args, coordinates)
   mount = IndiMount(args.mount, simulate=args.simulate)
   focuser = IndiFocuser(args.focuser, simulate=args.simulate)
-  camera = GphotoClient(simulate=args.simulate)
-  camera.initialize('RAW', 'Bulb', args.iso, args.shutter_speed)
+  capture_camera = GphotoClient(simulate=args.simulate)
+  capture_camera.initialize('RAW', 'Bulb', args.iso, args.shutter_speed)
   alignment_camera = GphotoClient(simulate=args.simulate)
   alignment_camera.initialize('RAW', 'Manual', 1600, '2')
   phd2client = Phd2Client()
-  setup_camera(camera, args)
+  setup_camera(capture_camera, args)
   phd2client.connect()
   
   # Initial actions: Align, Start guiding, Auto focus.
   print_and_log('Running initial alignment')
+  reset_alignment_camera(alignment_camera, args)
   align_to_object(mount, alignment_camera, coordinates[0], coordinates[1], 
                   args.align_threshold)
   print_and_log('Starting guiding')
   start_guiding(phd2client)
   print_and_log('Running initial auto focus')
-  run_auto_focus(camera, focuser, args)
+  run_auto_focus(alignment_camera, focuser, args)
   t_last_focus = time.time()
 
   _, _, alt, _, _ = mount.get_coordinates()
   num_images = 0  
+  reset_capture_camera(capture_camera, args)
   while (alt > args.min_altitude or args.simulate) and not terminate:
     if need_meridian_flip(mount, args):
       print_and_log("Meridian flip needed")
       stop_guiding(phd2client)
       perform_meridian_flip(mount)
       print_and_log("Meridian flip complete")
+      reset_alignment_camera(alignment_camera, args)
       align_to_object(mount, alignment_camera, coordinates[0], coordinates[1], 
                       args.align_threshold)
       start_guiding(phd2client)
-      run_auto_focus(camera, focuser, args)
+      run_auto_focus(capture_camera, focuser, args)
       t_last_focus = time.time()
+      reset_capture_camera(capture_camera, args)
     if time.time() - t_last_focus > args.focus_interval * 60:
       print_and_log("Running auto focus")
-      run_auto_focus(camera, focuser, args)
+      reset_alignment_camera(alignment_camera, args)
+      run_auto_focus(capture_camera, focuser, args)
       t_last_focus = time.time()
+      reset_capture_camera(capture_camera, args)
     image_file = get_image_filename(capture_dir)
     # Get just the filename without the directory.
     image_file_short = os.path.basename(image_file)
     print_and_log(f"Capturing image {num_images} to {image_file_short}")
-    capture_image(camera, image_file, args)
+    capture_image(capture_camera, image_file, args)
     # TODO: Dithering
     num_images += 1
     _, _, alt, _, _ = mount.get_coordinates()
+  
+  # End of capture: Stop guiding, print summary.
   phd2client.stop_guiding()
   if terminate:
     print_and_log("Capture terminated by user")
