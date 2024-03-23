@@ -1,0 +1,11 @@
+requires 1.2.0
+
+convert light -out=../.process
+cd ../.process
+load light_00001
+
+calibrate light -dark=/Users/joydeepbiswas/Astrophotography/masters/master_bias_ISO$ISOSPEED:%d$ -flat=/Users/joydeepbiswas/Astrophotography/masters/master_flat_ISO$ISOSPEED:%d$ -cc=dark -cfa -debayer
+load pp_light_00001
+
+seqsubsky pp_light 2
+load bkg_pp_light_00001

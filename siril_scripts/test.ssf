@@ -1,0 +1,9 @@
+requires 1.2.0
+
+convert light -out=.process
+cd .process
+calibrate light -bias="=1024" -debayer -cfa -equalize_cfa
+seqsubsky pp_light 2
+register bkg_pp_light
+stack r_bkg_pp_light rej 3 3 -norm=addscale -output_norm -rgb_equal -out=result
+load result

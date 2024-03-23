@@ -1,0 +1,8 @@
+requires 1.2.0
+
+convert bias -out=process
+cd process
+
+load bias_00001
+stack bias rej 3 3 -nonorm -out=master_bias_ISO$ISOSPEED:%d$
+cd ..
