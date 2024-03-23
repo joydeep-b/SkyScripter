@@ -60,6 +60,7 @@ def compute_fwhm(image, star_location, max_val):
 def display_image(window_name, image_path):
   image = cv2.imread(image_path)
   # image_scaled = cv2.resize(image, (0, 0), fx=0.15, fy=0.15)
+  print(f'Image shape: {image.shape}')
   cv2.imshow(window_name, image)
   # Resize the window to fit the screen.
   cv2.resizeWindow(window_name, 1500, 1000)
@@ -70,6 +71,10 @@ def update_images(camera):
   with tempfile.TemporaryDirectory() as tempdir:
     image_file = os.path.join(tempdir, 'tmp.jpg')
     camera.capture_image(image_file, iso=iso)
+    # Check if the image file exists.
+    if not os.path.exists(image_file):
+      print(f'Error: Image file {image_file} not found.')
+      sys.exit(1)
     main_image = display_image(main_window_name, image_file)
     update_zoomed_image(zoom_location[0], zoom_location[1])
 

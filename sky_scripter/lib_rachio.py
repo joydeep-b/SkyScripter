@@ -31,7 +31,7 @@ class RachioClient:
 
   def get_person_info(self):
     person_id = self.get_person_id()
-    command = f'curl -X GET curl -X GET -H "Content-Type: application/json" -H "Authorization: Bearer {self.api_key}" https://api.rach.io/1/public/person/{person_id}/'
+    command = f'curl -X GET -H "Content-Type: application/json" -H "Authorization: Bearer {self.api_key}" https://api.rach.io/1/public/person/{person_id}/'
     result = exec_or_fail(command)
     return json.loads(result)
     

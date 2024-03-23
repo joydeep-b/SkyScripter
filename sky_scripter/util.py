@@ -11,11 +11,6 @@ from astropy.coordinates import SkyCoord, FK5, ICRS
 import astropy.units as units
 import astropy.time
 
-if sys.platform == 'darwin':
-  astap_path_autodetected = '/Applications/astap.app/Contents/MacOS/astap'
-else:
-  # Get the path to the astap executable from `which astap`
-  astap_path_autodetected = exec_or_fail('which astap').strip()
 
 def init_logging(name, also_to_console=False):
   script_dir = os.path.dirname(__file__)
@@ -40,13 +35,30 @@ def print_and_log(message, level=logging.INFO):
   logging.log(level, message)
 
 def exec_or_fail(command, allowed_return_codes=[0]):
+  # Concatenate the command into a single string
+  if type(command) == list:
+    command = ' '.join(command)
+  # print(f"Executing command: {command}")
   result = subprocess.run(command, capture_output=True, text=True, shell=True)
+  if result.stderr:
+    # print(f"Error running command '{command}': {result.stderr}")
+    logging.error(f"stderr from running command '{command}': {result.stderr}")
+  # print(f"stdout: {result.stdout}")
+  # print(f"stderr: {result.stderr}")
+  # print(f"returncode: {result.returncode}")
+
   if result.returncode not in allowed_return_codes:
     logging.error("command '%s' returned %d" % (command, result.returncode))
     logging.error(result.stderr)
     print("command '%s' returned %d" % (command, result.returncode))
     sys.exit(1)
   return result.stdout
+
+if sys.platform == 'darwin':
+  astap_path_autodetected = '/Applications/astap.app/Contents/MacOS/astap'
+else:
+  # Get the path to the astap executable from `which astap`
+  astap_path_autodetected = exec_or_fail('which astap').strip()
 
 def exec_or_pass(command, allowed_return_codes=[0]):
   result = subprocess.run(command, capture_output=True, text=True)

@@ -70,7 +70,7 @@ class Phd2Client:
   def start_guiding(self, timeout=360):
     guide_params = {
       "settle": {"pixels": 1.5, "time": 10, "timeout": 60},
-      "recalibrate": True
+      # "recalibrate": True
     }
     self.send_command("guide", guide_params)
     success_events = ['SettleDone']

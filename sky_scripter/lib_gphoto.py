@@ -18,7 +18,7 @@ class GphotoClient:
     command = ['gphoto2']
     for key, value in settings.items():
       command.append('--set-config')
-      command.append(f'{key}={value}')
+      command.append(f'{key}="{value}"')
     exec_or_fail(command)
 
   '''
@@ -32,12 +32,12 @@ class GphotoClient:
     self.shutter_speed = shutter_speed
     if self.simulate:
       return
-    self.set_config({'/main/imgsettings/imageformat', image_format})
-    self.set_config({'/main/capturesettings/autoexposuremodedial', mode})
+    self.set_config({'/main/imgsettings/imageformat': image_format})
+    self.set_config({'/main/capturesettings/autoexposuremodedial': mode})
     if iso is not None:
-      self.set_config({'iso', iso})
-    if shutter_speed is not None:
-      self.set_config({'shutterspeed', shutter_speed})
+      self.set_config({'iso': iso})
+    if shutter_speed is not None and mode == 'Manual':
+      self.set_config({'shutterspeed': shutter_speed})
 
   def capture_image(self, 
                     filename, 
@@ -79,12 +79,18 @@ class GphotoClient:
                   filename, 
                   '--force-overwrite']
       exec_or_fail(command)
+      # print("Captured image to", filename)
+      # print(command)
       return
     if self.mode == 'Bulb':
       # First, write the configuration to the camera.
       exec_or_fail(command)
       if type(shutter_speed) == str:
         shutter_decimal = eval(shutter_speed)
+      elif type(shutter_speed) == int or type(shutter_speed) == float:
+        shutter_decimal = shutter_speed
+      else:
+        shutter_decimal = self.shutter_speed
       # Then, capture the image using bulb mode.
       command = ['gphoto2',
                  '--set-config', 'eosremoterelease=Immediate',
@@ -92,6 +98,9 @@ class GphotoClient:
                  '--set-config', 'eosremoterelease="Release Full"',
                  '--wait-event-and-download=1s',
                  '--filename', filename,
-                 '--force-overwrite']
-
+                 '--force-overwrite'] 
+      # print(command)
+      exec_or_fail(command)
+      return
+    print("Unknown mode:", self.mode)
     

@@ -57,7 +57,8 @@ def align_to_object(mount,
         to_string(unit=units.deg, sep=':')
     print(f"RA: {ra_hms}, DEC: {dec_dms}, Error: {error:4.1f}" +
           f" | Iteration time: {(t_end - t_start).sec:4.1f}")
-    logging.info(f"Iteration {iteration} RA: {ra_hms}, DEC: {dec_dms}, " + 
+    logging.info(f"Iteration {iteration} " + 
+                 f"RA: {ra_hms:17s}, DEC: {dec_dms:17s}, " + 
                  f"Error: {error:4.1f}, " +
                  f"Iteration time: {(t_end - t_start).sec:4.1f}, " +
                  f"Filename: {filename}")
@@ -72,7 +73,7 @@ def align_to_object(mount,
     return False
   
 
-def auto_focus(focuser, camera, focus_min, focus_max, focus_step):
+def auto_focus(focuser, camera, focus_min, focus_max, focus_step, backlash=50):
   def measure_stars():
     image_file = os.path.join(os.getcwd(), 
                               '.focus', 
@@ -91,7 +92,7 @@ def auto_focus(focuser, camera, focus_min, focus_max, focus_step):
     return None, None, None
   print_and_log(f"Initial focus value: {initial_focus} Initial FWHM: {initial_fwhm}")
   
-  focuser.set_focus(focus_min - focus_step)
+  focuser.set_focus(focus_min - backlash)
   _, min_focuser_fwhm = measure_stars()
   if min_focuser_fwhm is not None and min_focuser_fwhm < initial_fwhm:
     logging.error("FWHM at focus_min - focus_step is less than initial FWHM")
@@ -127,7 +128,7 @@ def auto_focus(focuser, camera, focus_min, focus_max, focus_step):
   else:
     min_fwhm = np.polyval(p, minima)
     focus_at_min_fwhm = int(minima)
-  focuser.set_focus(focus_min - focus_step)
+  focuser.set_focus(focus_min - backlash)
   focuser.set_focus(best_focus)
   plt.plot(X, Y, 'o', label='data')
   plt.plot(X, Y_fit, label='fit')

@@ -56,7 +56,12 @@ def need_meridian_flip(mount, args):
 
 def perform_meridian_flip(mount):
   # Perform a meridian flip.
-  pass
+  ra, dec, _, _, lst = mount.get_coordinates()
+  # Intermediary step: Slew to point 3 hours west of the meridian.
+  intermediate_ra = ra + 3
+  mount.goto(intermediate_ra, dec)
+  # Then flip the mount.
+  mount.goto(ra, dec)
 
 def check_sprinklers():
   print("Checking for upcoming sprinkler events")
@@ -138,7 +143,7 @@ def get_args():
   parser.add_argument('-m', '--mount', type=str,
       help='INDI mount device name', default='Star Adventurer GTi')
   parser.add_argument('-f', '--focuser', type=str,
-      help='INDI focuser device name', default='ZWO EAF')
+      help='INDI focuser device name', default='ASI EAF')
   # Camera settings.
   parser.add_argument('-i', '--iso', type=int,
       help='ISO value', default=400)
@@ -146,18 +151,18 @@ def get_args():
       help='Shutter speed', default='90')
   # Alignment and mount limit settings.
   parser.add_argument('--align-threshold', type=float,
-      help='Alignment threshold in arcseconds', default=15)
+      help='Alignment threshold in arcseconds', default=20)
   parser.add_argument('--min-altitude', type=float,
       help='Minimum altitude for tracking', default=0)
   parser.add_argument('--meridian-flip-angle', type=float,
       help='HA limit to trigger meridian flip', default=0.2)
   # Auto focus settings.
   parser.add_argument('--focus-step-size', type=int,
-      help='Focus step size', default=100)
+      help='Focus step size', default=6)
   parser.add_argument('--focus-steps', type=int,
-      help='Number of focus steps on either side of start', default=3)
+      help='Number of focus steps on either side of start', default=7)
   parser.add_argument('--focus-interval', type=int,
-      help='Focus interval in minutes', default=60)
+      help='Focus interval in minutes', default=40)
   # Application settings.
   parser.add_argument('--simulate', action='store_true',
       help='Simulate the capture without actually taking images')
@@ -179,10 +184,19 @@ def capture_image(camera, filename, args):
     t_start = time.time()
     duration = eval(args.shutter_speed)
     while time.time() - t_start < duration:
+      time.sleep(0.1)
       terminate_string = ' [Terminating]' if terminate else ''
       print(f'\r[Remaining: {duration - (time.time() - t_start):.1f}s] {terminate_string}  ', end='', flush=True)
+    
+    # Check if a process by the name "gphoto2" is running.
+    is_gphoto_running = os.system('pgrep gphoto2 > /dev/null') == 0
+    while is_gphoto_running:
       time.sleep(0.1)
-    os.waitpid(pid, 0)
+      sys_result = os.system('pgrep gphoto2 > /dev/null')
+      is_gphoto_running = sys_result == 0
+      terminate_string = ' [Terminating]' if terminate else ''
+      print(f'\r[Remaining: {duration - (time.time() - t_start):.1f}s] {terminate_string}  ', end='', flush=True)
+
     print('\r' + ' ' * 40 + '\r', end='', flush=True)
     return
   
@@ -205,21 +219,25 @@ def reset_capture_camera(capture_camera, args):
 def main():
   args, parser = get_args()
   init_logging('batch_capture', also_to_console=args.verbose)
+  logging.info(f"Starting batch capture with arguments: {args}")
   signal.signal(signal.SIGINT, signal_handler)
   signal.signal(signal.SIGTERM, signal_handler)
 
   coordinates = parse_coordinates(args, parser)
   check_sprinklers()
   capture_dir = set_up_capture_directory(args, coordinates)
+  print("Connecting to devices")
   mount = IndiMount(args.mount, simulate=args.simulate)
   focuser = IndiFocuser(args.focuser, simulate=args.simulate)
   capture_camera = GphotoClient(simulate=args.simulate)
   capture_camera.initialize('RAW', 'Bulb', args.iso, args.shutter_speed)
   alignment_camera = GphotoClient(simulate=args.simulate)
   alignment_camera.initialize('RAW', 'Manual', 1600, '2')
+  print("Connecting to PHD2")
   phd2client = Phd2Client()
   setup_camera(capture_camera, args)
   phd2client.connect()
+  phd2client.stop_guiding()
   
   # Initial actions: Align, Start guiding, Auto focus.
   print_and_log('Running initial alignment')
@@ -245,13 +263,13 @@ def main():
       align_to_object(mount, alignment_camera, coordinates[0], coordinates[1], 
                       args.align_threshold)
       start_guiding(phd2client)
-      run_auto_focus(capture_camera, focuser, args)
+      run_auto_focus(alignment_camera, focuser, args)
       t_last_focus = time.time()
       reset_capture_camera(capture_camera, args)
     if time.time() - t_last_focus > args.focus_interval * 60:
       print_and_log("Running auto focus")
       reset_alignment_camera(alignment_camera, args)
-      run_auto_focus(capture_camera, focuser, args)
+      run_auto_focus(alignment_camera, focuser, args)
       t_last_focus = time.time()
       reset_capture_camera(capture_camera, args)
     image_file = get_image_filename(capture_dir)
