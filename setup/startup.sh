@@ -65,6 +65,9 @@ else
     fi
 fi
 
+indi_setprop "Star Adventurer GTi.GUIDE_RATE.GUIDE_RATE_WE=1.0"
+indi_setprop "Star Adventurer GTi.GUIDE_RATE.GUIDE_RATE_NS=1.0"
+
 # Call the function to set the time and location
 set_time_location
 sleep 1
