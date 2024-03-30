@@ -5,3 +5,4 @@ tmp.cr3
 *.wcs
 __pycache__
 .rachio_api_key
+siril.log
