@@ -1,12 +1,12 @@
 requires 1.2.0
 
-convert flat -out=../.process
-cd ../.process
+convert flat -out=.process
+cd .process
 
 # Calibrate Flat Frames
 calibrate flat -bias=/Users/joydeepbiswas/Astrophotography/masters/master_bias_ISO$ISOSPEED:%d$
 
 # Stack Flat Frames to pp_flat_stacked.fit
-stack pp_flat rej winsorized 3 3 -norm=mul -out=../master_flat_ISO$ISOSPEED:%d$
+stack pp_flat rej winsorized 3 3 -norm=mul -out=../../master_flat_ISO$ISOSPEED:%d$
 
 cd ..
