@@ -296,9 +296,8 @@ def main():
 
   # Initial actions: Align, Start guiding, Auto focus.
   print_and_log('Running initial alignment')
-  reset_alignment_camera(alignment_camera, args)
-  align_to_object(mount, alignment_camera, coordinates[0], coordinates[1], 
-                  args.align_threshold)
+  run_alignment(mount, alignment_camera, capture_camera, coordinates, 
+                phd2client, args)
   print_and_log_mount_state(mount, args)
   print_and_log('Starting guiding')
   start_guiding(phd2client)
