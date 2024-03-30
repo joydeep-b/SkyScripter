@@ -27,13 +27,13 @@ from sky_scripter.algorithms import auto_focus
 terminate = False
 terminate_count = 0
 
-def start_guiding(phd2client):
+def start_guiding(phd2client: Phd2Client):
   phd2client.start_guiding()
 
-def stop_guiding(phd2client):
+def stop_guiding(phd2client: Phd2Client):
   phd2client.stop_guiding()
 
-def get_image_filename(capture_dir):
+def get_image_filename(capture_dir: str):
   # Check for the first available image filename.
   for i in range(100000):
     filename = os.path.join(capture_dir, f'capture-{i:05d}.CR3')
@@ -41,20 +41,26 @@ def get_image_filename(capture_dir):
       return filename
   raise ValueError('Too many images in the capture directory')
 
-def need_meridian_flip(mount, args):
+def get_time_to_flip(mount: IndiMount, args: argparse.Namespace):
   ra, dec, _, _, lst = mount.get_coordinates()
   ha = lst - ra
   if ha > 12:
     ha -= 24
   pier_side = mount.get_pier_side()
-
   if pier_side == "East":
     time_to_flip = (12 + args.meridian_flip_angle - ha) * 3600
   else:
     time_to_flip = max(0.0, (args.meridian_flip_angle - ha) * 3600)
-  return time_to_flip < 0
+  time_to_flip_hours = int(time_to_flip // 3600)
+  time_to_flip_minutes = int((time_to_flip % 3600) // 60)
+  time_to_flip_seconds = int(time_to_flip % 60)
+  return time_to_flip, time_to_flip_hours, time_to_flip_minutes, time_to_flip_seconds
 
-def perform_meridian_flip(mount):
+def need_meridian_flip(mount: IndiMount, args: argparse.Namespace):
+  time_to_flip, _, _, _ = get_time_to_flip(mount, args)
+  return time_to_flip <= 0
+
+def perform_meridian_flip(mount: IndiMount):
   # Perform a meridian flip.
   ra, dec, _, _, lst = mount.get_coordinates()
   # Intermediary step: Slew to point 3 hours west of the meridian.
@@ -91,8 +97,7 @@ def check_sprinklers():
   if not events_found:
     print_and_log("No upcoming sprinkler events, continuing with the capture")
   else:
-    logging.warning("User override: Continuing with the capture despite sprinkler event")
-    print("Continuing with the capture despite sprinkler event")
+    print_and_log("Continuing with the capture despite sprinkler event")
 
 def set_up_capture_directory(args, coordinates):
   if args.object is not None:
@@ -104,9 +109,16 @@ def set_up_capture_directory(args, coordinates):
                  unit=(units.hourangle, units.deg))
     capture_name = c.to_string('hmsdms').replace(' ', '')
 
+  # Get current datetime
+  current_datetime = datetime.now()
+  # Subtract 8 hours
+  eight_hours_ago = current_datetime - timedelta(hours=8)
+  # Get the date in YYYY-MM-DD format
+  date_8_hours_ago = eight_hours_ago.strftime('%Y-%m-%d')
+
   capture_dir = os.path.join(os.getcwd(),
-                            time.strftime("%Y-%m-%d"), 
-                            capture_name.replace(' ', '_'))  
+                             date_8_hours_ago, 
+                             capture_name.replace(' ', '_'))  
   os.makedirs(capture_dir, exist_ok=True)
   print_and_log(f"Capture directory: {capture_dir}")
   return capture_dir
@@ -156,6 +168,9 @@ def get_args():
       help='Minimum altitude for tracking', default=0)
   parser.add_argument('--meridian-flip-angle', type=float,
       help='HA limit to trigger meridian flip', default=0.2)
+  # Dithering settings.
+  parser.add_argument('--dither-period', type=int,
+      help='Dithering period in number of images', default=10)
   # Auto focus settings.
   parser.add_argument('--focus-step-size', type=int,
       help='Focus step size', default=6)
@@ -163,6 +178,8 @@ def get_args():
       help='Number of focus steps on either side of start', default=7)
   parser.add_argument('--focus-interval', type=int,
       help='Focus interval in minutes', default=40)
+  parser.add_argument('--skip-initial-focus', action='store_true',
+      help='Skip initial focus')
   # Application settings.
   parser.add_argument('--simulate', action='store_true',
       help='Simulate the capture without actually taking images')
@@ -216,6 +233,31 @@ def reset_alignment_camera(alignment_camera, args):
 def reset_capture_camera(capture_camera, args):
   capture_camera.initialize('RAW', 'Bulb', args.iso, args.shutter_speed)
 
+def print_and_log_mount_state(mount, args):
+  current_date_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+  manual_slew, goto_slew, tracking = mount.get_mount_state()
+  if manual_slew:
+    mount_state = "Slewing "
+  elif goto_slew:
+    mount_state = "Goto    "
+  elif tracking:
+    mount_state = "Tracking"
+  else:
+    mount_state = "Idle    "
+  
+  ra, dec, alt, az, lst = mount.get_coordinates()
+  ha = lst - ra
+  pier_side = mount.get_pier_side()
+  _, time_to_flip_hours, time_to_flip_minutes, time_to_flip_seconds = \
+      get_time_to_flip(mount, args)
+  log_string = "%s | %s |" % (current_date_time, mount_state)
+  log_string += " RA: %9.6f HA: %9.6f DEC: %9.6f |" % (ra, ha, dec)
+  log_string += " Pier side: %s |" % pier_side
+  log_string += " Alt: %7.3f Az: %7.3f |" % (alt, az)
+  log_string += " Time to flip: %02d:%02d:%02d" % \
+      (time_to_flip_hours, time_to_flip_minutes, time_to_flip_seconds)
+  print_and_log(log_string)
+
 def main():
   args, parser = get_args()
   init_logging('batch_capture', also_to_console=args.verbose)
@@ -239,21 +281,25 @@ def main():
   phd2client.connect()
   phd2client.stop_guiding()
   
+
   # Initial actions: Align, Start guiding, Auto focus.
   print_and_log('Running initial alignment')
   reset_alignment_camera(alignment_camera, args)
   align_to_object(mount, alignment_camera, coordinates[0], coordinates[1], 
                   args.align_threshold)
+  print_and_log_mount_state(mount, args)
   print_and_log('Starting guiding')
   start_guiding(phd2client)
-  print_and_log('Running initial auto focus')
-  run_auto_focus(alignment_camera, focuser, args)
+  if not args.skip_initial_focus:
+    print_and_log('Running initial auto focus')
+    run_auto_focus(alignment_camera, focuser, args)
   t_last_focus = time.time()
 
   _, _, alt, _, _ = mount.get_coordinates()
-  num_images = 0  
+  num_images = 1  
   reset_capture_camera(capture_camera, args)
   while (alt > args.min_altitude or args.simulate) and not terminate:
+    print_and_log_mount_state(mount, args)
     if need_meridian_flip(mount, args):
       print_and_log("Meridian flip needed")
       stop_guiding(phd2client)
@@ -272,6 +318,12 @@ def main():
       run_auto_focus(alignment_camera, focuser, args)
       t_last_focus = time.time()
       reset_capture_camera(capture_camera, args)
+    if num_images % args.dither_period == 0:
+      print_and_log("Dithering...")
+      if phd2client.dither(pixels=4, settle_pixels=0.5, settle_timeout=60):
+        print_and_log("Dithering complete")
+      else:
+        print_and_log("Dithering failed")
     image_file = get_image_filename(capture_dir)
     # Get just the filename without the directory.
     image_file_short = os.path.basename(image_file)

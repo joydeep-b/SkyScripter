@@ -267,12 +267,12 @@ def main():
 
     # "[" key: focus closer +3
     if key == 91:
-      focuser.adjust_focus(100)
+      focuser.adjust_focus(200)
       update_images(camera)
 
     # "]" key: focus further -3
     if key == 93:
-      focuser.adjust_focus(-100)
+      focuser.adjust_focus(-200)
       update_images(camera)
 
     # "." key: focus closer +2

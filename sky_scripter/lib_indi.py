@@ -10,7 +10,7 @@ class IndiClient:
     self.device = device
     self.simulate = simulate
 
-  def read(self, propname, timeout=2):
+  def read(self, propname: str, timeout=2):
     if self.simulate:
       return 0
     # Call indi_getprop to get the property value
@@ -35,7 +35,7 @@ class IndiClient:
         output.append((key, value))
       return output
     
-  def write(self, propname, keys, values):
+  def write(self, propname: str, keys: list | str, values: list | str):
     if self.simulate:
       return
     # If passed a single key and value, convert them to lists.
@@ -71,7 +71,7 @@ class IndiFocuser(IndiClient):
     else:
       logging.info(f'New focus value: {current_value}')
 
-  def adjust_focus(self, steps):
+  def adjust_focus(self, steps: int):
     focus_value = self.get_focus()
     if focus_value + steps < 0:
       logging.error('Focus value cannot be negative. Current:%d steps:%d ' % (focus_value, steps))
@@ -90,7 +90,7 @@ class IndiMount(IndiClient):
       time.sleep(1)
       _, _, tracking = self.get_mount_state()
 
-  def sync(self, ra, dec):
+  def sync(self, ra: float, dec: float):
     self.write("TELESCOPE_TRACK_STATE", "TRACK_ON", "On")
     self.write("ON_COORD_SET", "SYNC", "On")
     self.write("EQUATORIAL_EOD_COORD", ["RA", "DEC"], [ra, dec])
@@ -198,7 +198,7 @@ class IndiMount(IndiClient):
       logging.error("Get tracking mode: unknown mode")
       return "Unknown"
     
-  def set_tracking_mode(self, mode):
+  def set_tracking_mode(self, mode: str):
     if mode not in ["TRACK_SIDEREAL", 
                     "TRACK_LUNAR", 
                     "TRACK_SOLAR", 
