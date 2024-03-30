@@ -4,3 +4,4 @@ tmp.cr3
 *.ini
 *.wcs
 __pycache__
+.rachio_api_key
