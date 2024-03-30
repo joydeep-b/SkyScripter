@@ -281,6 +281,10 @@ if __name__ == "__main__":
             print(f"File: {filename} [Platesolve failed]")
             continue
         num_stars, fwhm = run_star_detect_siril(current_dir, file)
+        if num_stars is None:
+            num_stars = 0
+        if fwhm is None:
+            fwhm = 0
         star_stats.append((int(num_stars), float(fwhm)))
         analysis_time = time.time() - t_start
         print(f"File: {filename}, RA={result[0]:.12f}, DEC={result[1]:.12f}, NumStars={num_stars}, FWHM={fwhm}, AnalysisTime={analysis_time:.2f}s")
