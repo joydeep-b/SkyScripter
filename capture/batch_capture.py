@@ -99,7 +99,7 @@ def check_sprinklers():
   else:
     print_and_log("Continuing with the capture despite sprinkler event")
 
-def set_up_capture_directory(args, coordinates):
+def set_up_capture_directory(args: argparse.Namespace, coordinates: tuple):
   if args.object is not None:
     capture_name = args.object
   elif args.wcs is not None:
@@ -123,7 +123,7 @@ def set_up_capture_directory(args, coordinates):
   print_and_log(f"Capture directory: {capture_dir}")
   return capture_dir
 
-def setup_camera(camera, args):
+def setup_camera(camera: GphotoClient, args: argparse.Namespace):
   shutter_speed_num = eval(args.shutter_speed)
   camera_mode = 'Bulb' if shutter_speed_num > 30 else 'Manual'
   camera.initialize(image_format='RAW',
@@ -131,30 +131,31 @@ def setup_camera(camera, args):
                     iso=args.iso,
                     shutter_speed=args.shutter_speed)
 
-def reset_alignment_camera(alignment_camera, args):
-  alignment_camera.initialize('RAW', 'Manual', 1600, '2')
-
-def reset_capture_camera(capture_camera, args):
-  capture_camera.initialize('RAW', 'Bulb', args.iso, args.shutter_speed)
-
-def run_auto_focus(focus_camera, capture_camera, focuser, args):
+def run_auto_focus(focus_camera: GphotoClient,
+                   capture_camera: GphotoClient,
+                   focuser: IndiFocuser,
+                   args: argparse.Namespace):
   if args.simulate:
     return
-  reset_alignment_camera(focus_camera, args)
+  focus_camera.initialize()
   current_focus = focuser.get_focus()
   focus_step = args.focus_step_size
   focus_min = current_focus - focus_step * args.focus_steps
   focus_max = current_focus + focus_step * args.focus_steps
   auto_focus(focuser, focus_camera, focus_min, focus_max, focus_step)
-  reset_capture_camera(capture_camera, args)
+  capture_camera.initialize()
 
-def run_alignment(mount, alignment_camera, capture_camera, coordinates, 
-                  phd2client, args):
+def run_alignment(mount: IndiMount,
+                  alignment_camera: GphotoClient,
+                  capture_camera: GphotoClient,
+                  coordinates: tuple,
+                  phd2client: Phd2Client,
+                  args: argparse.Namespace):
   phd2client.stop_guiding()
-  reset_alignment_camera(alignment_camera, args)
+  alignment_camera.initialize()
   align_to_object(mount, alignment_camera, coordinates[0], coordinates[1], 
                   args.align_threshold)
-  reset_capture_camera(capture_camera, args)
+  capture_camera.initialize()
   phd2client.start_guiding()
 
 def signal_handler(signum, frame):
