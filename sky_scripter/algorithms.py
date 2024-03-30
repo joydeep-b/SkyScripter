@@ -74,9 +74,11 @@ def align_to_object(mount,
   
 
 def auto_focus(focuser, camera, focus_min, focus_max, focus_step, backlash=50):
+  os.makedirs(os.path.join(os.getcwd(), '.focus', 'images'), exist_ok=True)
   def measure_stars():
     image_file = os.path.join(os.getcwd(), 
                               '.focus', 
+                              'images',
                               time.strftime("%Y-%m-%dT%H:%M:%S.RAW"))
     camera.capture_image(image_file)
     num_stars, fwhm = run_star_detect_siril(image_file)
@@ -130,6 +132,7 @@ def auto_focus(focuser, camera, focus_min, focus_max, focus_step, backlash=50):
     focus_at_min_fwhm = int(minima)
   focuser.set_focus(focus_min - backlash)
   focuser.set_focus(best_focus)
+  plt.clf()
   plt.plot(X, Y, 'o', label='data')
   plt.plot(X, Y_fit, label='fit')
   plt.plot(minima, np.polyval(p, minima), 'x', label='minima', color='red', 
