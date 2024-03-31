@@ -9,6 +9,7 @@ import sys
 import subprocess
 import re
 import tempfile
+import datetime
 import matplotlib.pyplot as plt
 import time
 
@@ -203,6 +204,18 @@ def plot_star_stats(data):
     # Show the plot
     plt.show()
 
+def get_image_capture_time(image_file):
+  command = f'exiftool -DateTimeOriginal {image_file}'
+  try:
+    output = subprocess.check_output(command, shell=True)
+  except subprocess.CalledProcessError as e:
+    print(f"Error calling exiftool: {e}")
+    os.exit(1)
+  output = output.decode('utf-8')
+  date_part = output.split(': ')[1]
+  result = datetime.datetime.strptime(date_part, '%Y:%m:%d %H:%M:%S\n')
+  return result
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Platesolve all images in a directory')
     parser.add_argument('-d', '--directory', type=str, help='Directory containing images to platesolve')
@@ -254,7 +267,7 @@ if __name__ == "__main__":
     if args.csv != '':
         csv_file = open(args.csv, 'a')
         if len(prev_filenames) == 0:
-            csv_file.write('Filename,RA,DEC,NumStars,FWHM\n')
+            csv_file.write('Filename,CaptureTime,RA,DEC,NumStars,FWHM\n')
         print(f"Writing results to {args.csv}")
     # Run platesolve on all images in the directory
     for filename in sorted(os.listdir(args.directory)):
@@ -270,6 +283,7 @@ if __name__ == "__main__":
             continue
         t_start = time.time()
         file = args.directory + '/' + filename
+        capture_time = int(get_image_capture_time(file).timestamp())
         if coordinates is None:
           result = run_plate_solve_astap(current_dir, file, coordinates, focal_option)
         else:
@@ -287,11 +301,11 @@ if __name__ == "__main__":
             fwhm = 0
         star_stats.append((int(num_stars), float(fwhm)))
         analysis_time = time.time() - t_start
-        print(f"File: {filename}, RA={result[0]:.12f}, DEC={result[1]:.12f}, NumStars={num_stars}, FWHM={fwhm}, AnalysisTime={analysis_time:.2f}s")
+        print(f"File: {filename}, CaptureTime={capture_time:10d}, RA={result[0]:.12f}, DEC={result[1]:.12f}, NumStars={num_stars}, FWHM={fwhm}, AnalysisTime={analysis_time:.2f}s")
         t_end = time.time()
         if csv_file is not None:
             # Write the numbers in 6 decimal places
-            csv_file.write(f"{filename}, {result[0]:.12f}, {result[1]:.12f}, {num_stars}, {fwhm}\n")
+            csv_file.write(f"{filename}, {capture_time:10d}, {result[0]:.12f}, {result[1]:.12f}, {num_stars}, {fwhm}\n")
         # sys.exit(1)
     # Create a 2D scatter plot of the number of stars detected vs. FWHM.
     if csv_file is not None:
