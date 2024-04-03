@@ -16,12 +16,12 @@ rsync -avz astropc:~/sky_scripter/$TODAY ~/Astrophotography
 rsync -avz astropc:~/sky_scripter/$YESTERDAY ~/Astrophotography
 
 # SkyScripter logs
-noglob scp astropc:/home/joydeepb/sky_scripter/.logs/*$TODAY* ~/Astrophotography/$TODAY/logs/
-noglob scp astropc:/home/joydeepb/sky_scripter/.logs/*$YESTERDAY* ~/Astrophotography/$YESTERDAY/logs/
+rsync -avz astropc:/home/joydeepb/sky_scripter/.logs/*$TODAY* ~/Astrophotography/$TODAY/logs/
+rsync -avz astropc:/home/joydeepb/sky_scripter/.logs/*$YESTERDAY* ~/Astrophotography/$YESTERDAY/logs/
 
 # Focus plots
-noglob scp astropc:/home/joydeepb/sky_scripter/.focus/$TODAY*focus_plot.png ~/Astrophotography/$TODAY/logs/
-noglob scp astropc:/home/joydeepb/sky_scripter/.focus/$YESTERDAY*focus_plot.png ~/Astrophotography/$YESTERDAY/logs/
+rsync -avz astropc:/home/joydeepb/sky_scripter/.focus/$TODAY*focus_plot.png ~/Astrophotography/$TODAY/logs/
+rsync -avz astropc:/home/joydeepb/sky_scripter/.focus/$YESTERDAY*focus_plot.png ~/Astrophotography/$YESTERDAY/logs/
 
 # PHD2 logs
 rsync -avz astropc:~/Documents/PHD2/*$TODAY* ~/Astrophotography/$TODAY/
