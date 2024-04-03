@@ -126,10 +126,7 @@ def set_up_capture_directory(args: argparse.Namespace, coordinates: tuple):
 def setup_camera(camera: GphotoClient, args: argparse.Namespace):
   shutter_speed_num = eval(args.shutter_speed)
   camera_mode = 'Bulb' if shutter_speed_num > 30 else 'Manual'
-  camera.initialize(image_format='RAW',
-                    mode=camera_mode,
-                    iso=args.iso,
-                    shutter_speed=args.shutter_speed)
+  camera.initialize()
 
 def run_auto_focus(focus_camera: GphotoClient,
                    capture_camera: GphotoClient,
@@ -284,10 +281,18 @@ def main():
   print("Connecting to devices")
   mount = IndiMount(args.mount, simulate=args.simulate)
   focuser = IndiFocuser(args.focuser, simulate=args.simulate)
-  capture_camera = GphotoClient(simulate=args.simulate)
-  capture_camera.initialize('RAW', 'Bulb', args.iso, args.shutter_speed)
-  alignment_camera = GphotoClient(simulate=args.simulate)
-  alignment_camera.initialize('RAW', 'Manual', 1600, '2')
+  capture_camera = GphotoClient(simulate=args.simulate, 
+                                image_format='RAW', 
+                                mode='Bulb',
+                                iso=args.iso,
+                                shutter_speed=args.shutter_speed)
+  capture_camera.initialize()
+  alignment_camera = GphotoClient(simulate=args.simulate, 
+                                  image_format='RAW', 
+                                  mode='Manual', 
+                                  iso=1600, 
+                                  shutter_speed='2')
+  alignment_camera.initialize()
   print("Connecting to PHD2")
   phd2client = Phd2Client()
   setup_camera(capture_camera, args)
@@ -304,12 +309,12 @@ def main():
   start_guiding(phd2client)
   if not args.skip_initial_focus:
     print_and_log('Running initial auto focus')
-    run_auto_focus(alignment_camera, focuser, args)
+    run_auto_focus(alignment_camera, capture_camera, focuser, args)
   t_last_focus = time.time()
 
   _, _, alt, _, _ = mount.get_coordinates()
   num_images = 1  
-  reset_capture_camera(capture_camera, args)
+  capture_camera.initialize()
   while (alt > args.min_altitude or args.simulate) and not terminate:
     print_and_log_mount_state(mount, args)
     if need_meridian_flip(mount, args):
@@ -329,7 +334,6 @@ def main():
       print_and_log("Running auto focus")
       run_auto_focus(alignment_camera, capture_camera, focuser, args)
       t_last_focus = time.time()
-      reset_capture_camera(capture_camera, args)
     if num_images % args.dither_period == 0:
       print_and_log("Dithering...")
       if phd2client.dither(pixels=4, settle_pixels=0.5, settle_timeout=60):
