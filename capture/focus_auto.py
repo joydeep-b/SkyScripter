@@ -41,11 +41,11 @@ def main():
 
   args = parser.parse_args()
 
-  camera  = GphotoClient()
-  camera.initialize(image_format='RAW', 
-                    mode='Manual', 
-                    iso=args.iso, 
-                    shutter_speed=args.exposure)
+  camera  = GphotoClient(image_format='RAW', 
+                         mode='Manual', 
+                         iso=args.iso, 
+                         shutter_speed=args.exposure)
+  camera.initialize()
   focuser = IndiFocuser(args.device)
 
   # Initial scan to detect number of stars

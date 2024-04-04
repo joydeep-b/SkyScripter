@@ -49,11 +49,11 @@ def main():
   ra_target, dec_target = parse_coordinates(args, parser)
   print(f"Using device {args.device}")
   mount = IndiMount(args.device)  
-  camera = GphotoClient()
-  camera.initialize(image_format='RAW',
-                    mode='Manual', 
-                    iso=args.iso, 
-                    shutter_speed=args.shutter_speed)
+  camera = GphotoClient(image_format='RAW',
+                        mode='Manual', 
+                        iso=args.iso, 
+                        shutter_speed=args.shutter_speed)
+  camera.initialize()
   
   align_to_object(mount, 
                   camera, 

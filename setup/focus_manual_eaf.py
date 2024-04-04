@@ -201,12 +201,13 @@ def main():
 
   zoom_factor = 8
   focuser = IndiFocuser(args.device, simulate=args.simulate)
-  camera = GphotoClient(simulate=args.simulate)
+  camera = GphotoClient('Large Fine JPEG', 
+                        'Manual', 
+                        iso=args.iso, 
+                        shutter_speed=args.exposure,
+                        simulate=args.simulate)
   iso = args.iso
-  camera.initialize(image_format='Large Fine JPEG', 
-                    mode='Manual', 
-                    iso=args.iso, 
-                    shutter_speed=args.exposure)
+  camera.initialize()
 
   zoom_location = (0, 0)
   main_image = None

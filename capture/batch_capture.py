@@ -182,7 +182,7 @@ def get_args():
   parser.add_argument('--min-altitude', type=float,
       help='Minimum altitude for tracking', default=0)
   parser.add_argument('--meridian-flip-angle', type=float,
-      help='HA limit to trigger meridian flip', default=0.2)
+      help='HA limit to trigger meridian flip', default=0.3)
   # Dithering settings.
   parser.add_argument('--dither-period', type=int,
       help='Dithering period in number of images', default=10)
@@ -327,7 +327,7 @@ def main():
       print_and_log("Alignment complete, starting guiding")
       start_guiding(phd2client)
       print_and_log("Running auto focus")
-      run_auto_focus(alignment_camera, focuser, args)
+      run_auto_focus(alignment_camera, capture_camera, focuser, args)
       t_last_focus = time.time()
       print_and_log("Resuming capture")
     if time.time() - t_last_focus > args.focus_interval * 60:
