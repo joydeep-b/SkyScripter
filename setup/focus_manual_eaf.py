@@ -258,12 +258,12 @@ def main():
 
     # Left key: focus closer +1
     if key == KEY_MAP['left']:
-      focuser.adjust_focus(10)
+      focuser.adjust_focus(5)
       update_images(camera)
     
     # Right key: focus further -1
     if key == KEY_MAP['right']:
-      focuser.adjust_focus(-10)
+      focuser.adjust_focus(-5)
       update_images(camera)
 
     # "[" key: focus closer +3
