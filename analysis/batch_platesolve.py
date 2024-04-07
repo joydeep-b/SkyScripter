@@ -172,7 +172,7 @@ def load_prev_files(filename):
             # print(line)
             parts = line.split(',')
             filenames.append(parts[0])
-            star_stats.append((int(parts[3]), float(parts[4])))
+            star_stats.append((int(parts[4]), float(parts[5])))
     return filenames, star_stats
     
 def plot_star_stats(data):
@@ -211,9 +211,13 @@ def get_image_capture_time(image_file):
   except subprocess.CalledProcessError as e:
     print(f"Error calling exiftool: {e}")
     os.exit(1)
-  output = output.decode('utf-8')
-  date_part = output.split(': ')[1]
-  result = datetime.datetime.strptime(date_part, '%Y:%m:%d %H:%M:%S\n')
+  try:
+    output = output.decode('utf-8')
+    date_part = output.split(': ')[1]
+    result = datetime.datetime.strptime(date_part, '%Y:%m:%d %H:%M:%S\n')
+  except Exception as e:
+    print(f"Error parsing date: {e}\n Output: {output}\n Command: {command}")
+    return None
   return result
 
 if __name__ == "__main__":
