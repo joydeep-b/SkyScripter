@@ -1,84 +1,57 @@
 #!/bin/bash
 set -e
 
-# If gphoto2 is not found, exit
-if ! [ -x "$(command -v gphoto2)" ]; then
-  echo 'Error: gphoto2 is not installed.' >&2
-  exit 1
-fi
+# Choice: 7 RAW + Large Fine JPEG
+echo "Image format: RAW + Large Fine JPEG"
+gphoto2 --set-config "/main/imgsettings/imageformat=7"
 
-ISO=100
-SHUTTER=1/100
-HELP=false
-NUM=1
-VIEW=false
+# Bracketing: 7 shots: -3, -2, -1, 0, +1, +2, +3
+echo "Bracketing: 7 shots: -3, -2, -1, 0, +1, +2, +3"
+gphoto2 --set-config "/main/capturesettings/aeb=3"
 
-# Read the options.
-while getopts i:s:n:h option; do
-  case "${option}" in
-    i) ISO=${OPTARG};;
-    s) SHUTTER=${OPTARG};;
-    n) NUM=${OPTARG};;
-    h) HELP=true;;
-  esac
+# ISO: 100
+echo "ISO: 100"
+gphoto2 --set-config "/main/imgsettings/iso=100"
+
+# Drive mode: Continuous high speed
+echo "Drive mode: Continuous high speed"
+gphoto2 --set-config "/main/capturesettings/drivemode=2"
+
+# Do while loop to execute indefinitely.
+COUNT=0
+NUM_IMAGES=0
+while true; do
+  echo "Count: $COUNT, Num images: $NUM_IMAGES"
+
+  # First set: nominal shutter speed = 1/250
+  echo "First set: nominal shutter speed = 1/250" 
+  gphoto2 --set-config "/main/capturesettings/shutterspeed=1/250"
+  SHUTTER_DECIMAL="2"
+  gphoto2 --set-config eosremoterelease=Immediate \
+          --wait-event=${SHUTTER_DECIMAL}s \
+          --set-config eosremoterelease="Release Full" > /dev/null
+  NUM_IMAGES=$((NUM_IMAGES + 7))
+
+  # Second set: nominal shutter speed = 1/4
+  echo "Second set: nominal shutter speed = 1/4" 
+  gphoto2 --set-config "/main/capturesettings/shutterspeed=1/4"
+  SHUTTER_DECIMAL="8"
+  gphoto2 --set-config eosremoterelease=Immediate \
+          --wait-event=${SHUTTER_DECIMAL}s \
+          --set-config eosremoterelease="Release Full" > /dev/null
+  NUM_IMAGES=$((NUM_IMAGES + 7))
+
+
+  # Third set: nominal shutter speed = 1/100
+  echo "Second set: nominal shutter speed = 1/100" 
+  gphoto2 --set-config "/main/capturesettings/shutterspeed=1/100"
+  SHUTTER_DECIMAL="2"
+  gphoto2 --set-config eosremoterelease=Immediate \
+          --wait-event=${SHUTTER_DECIMAL}s \
+          --set-config eosremoterelease="Release Full" > /dev/null
+  NUM_IMAGES=$((NUM_IMAGES + 7))
+
+  COUNT=$((COUNT + 1))
 done
 
-# Print the help message
-if [ "$HELP" = true ]; then
-  echo "Usage: batch_capture.sh [-i ISO] [-a APERTURE] [-s SHUTTER] [-n NUM]"
-  echo "  -i ISO: The ISO of the image (default: 100)"
-  echo "  -s SHUTTER: The shutter speed of the image (default: 1/100)"
-  echo "  -n: The number of images to capture (default: 1)"
-  echo "  -h: Print this help message"
-  echo -e "\nDetected cameras:"
-  gphoto2 --auto-detect
-  exit 0
-fi
-
-echo "Capturing $NUM images to camera card with ISO=$ISO and shutter=$SHUTTER"
-
-# Helper function to print time left
-print_time_left() {
-  t_left_hr=$(echo "scale=0; $t_left / 3600" | bc -l)
-  t_left_min=$(echo "scale=0; ($t_left - $t_left_hr * 3600)/60" | bc -l)
-  t_left_sec=$(echo "scale=0; ($t_left - $t_left_hr * 3600 - $t_left_min * 60)" | bc -l)
-
-  # Compute estimated time of completion.
-  t_now=$(date +%s)
-  t_complete=$(echo "scale=0; $t_now + $t_left" | bc -l | awk '{print int($1)}')
-  if [ "$(uname)" == "Darwin" ]; then
-    t_complete_hr=$(date -r $t_complete +%H | sed 's/^0*//')
-    t_complete_min=$(date -r $t_complete +%M | sed 's/^0*//')
-    t_complete_sec=$(date -r $t_complete +%S | sed 's/^0*//')
-  else
-    t_complete_hr=$(date -d @$t_complete +%H | sed 's/^0*//')
-    t_complete_min=$(date -d @$t_complete +%M | sed 's/^0*//')
-    t_complete_sec=$(date -d @$t_complete +%S | sed 's/^0*//')
-  fi
-
-  # Print status of the form 001/100 t_left: 0.000
-  printf "%3d / %3d Time left: %2.0fh %2.0fm %2.0fs;" \
-         $c $NUM $t_left_hr $t_left_min $t_left_sec
-  printf " Completion time: %02d:%02d:%02d;\n" \
-         $t_complete_hr $t_complete_min $t_complete_sec
-}
-
-gphoto2 --set-config /main/capturesettings/autoexposuremodedial=Manual \
-        --set-config /main/imgsettings/imageformat=RAW \
-        --set-config iso=$ISO \
-        --set-config shutterspeed=$SHUTTER
-
-t_start=$(date +%s.%N)
-SHUTTER_DECIMAL=$(echo "scale=3; $SHUTTER" | bc)
-t_per_image=$(echo "scale=3; 1.5 + $SHUTTER_DECIMAL" | bc -l)
-for (( c=1; c<=$NUM; c++ ))
-do
-  t_left=$(echo "scale=3; $t_per_image * ($NUM - $c + 1)" | bc -l)
-  print_time_left
-
-  gphoto2 --capture-image > /dev/null
-  
-  t_now=$(date +%s.%N)
-  t_diff=$(echo "$t_now - $t_start" | bc -l)
-  t_per_image=$(echo "scale=3; $t_diff / $c" | bc -l)
-done
+echo "Count: $COUNT, Num images: $NUM_IMAGES"
