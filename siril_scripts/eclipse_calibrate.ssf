@@ -1,0 +1,5 @@
+requires 1.2.0
+
+convert light 
+
+calibrate light -dark=/Users/joydeepbiswas/Astrophotography/masters/master_bias_ISO$ISOSPEED:%d$ -flat=/Users/joydeepbiswas/owncloud-system/Astrophotography/masters/master_flat_ISO100.fit -cc=dark -cfa -debayer
