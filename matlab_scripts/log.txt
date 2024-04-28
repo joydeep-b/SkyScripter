@@ -1,0 +1,65 @@
+Start time: 22-Apr-2024 13:33:48
+Number of images: 21
+Variance for image 1
+Variance for image 2
+Variance for image 3
+Variance for image 4
+Variance for image 5
+Variance for image 6
+Variance for image 7
+Variance for image 8
+Variance for image 9
+Variance for image 10
+Variance for image 11
+Variance for image 12
+Variance for image 13
+Variance for image 14
+Variance for image 15
+Variance for image 16
+Variance for image 17
+Variance for image 18
+Variance for image 19
+Variance for image 20
+Variance for image 21
+Weights for image 1
+Weights for image 2
+Weights for image 3
+Weights for image 4
+Weights for image 5
+Weights for image 6
+Weights for image 7
+Weights for image 8
+Weights for image 9
+Weights for image 10
+Weights for image 11
+Weights for image 12
+Weights for image 13
+Weights for image 14
+Weights for image 15
+Weights for image 16
+Weights for image 17
+Weights for image 18
+Weights for image 19
+Weights for image 20
+Weights for image 21
+Mean flux for image 1
+Mean flux for image 2
+Mean flux for image 3
+Mean flux for image 4
+Mean flux for image 5
+Mean flux for image 6
+Mean flux for image 7
+Mean flux for image 8
+Mean flux for image 9
+Mean flux for image 10
+Mean flux for image 11
+Mean flux for image 12
+Mean flux for image 13
+Mean flux for image 14
+Mean flux for image 15
+Mean flux for image 16
+Mean flux for image 17
+Mean flux for image 18
+Mean flux for image 19
+Mean flux for image 20
+Mean flux for image 21
