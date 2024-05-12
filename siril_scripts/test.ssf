@@ -2,10 +2,18 @@ requires 1.2.0
 
 calibrate light -dark=/Users/joydeepbiswas/Astrophotography/masters/master_bias_ISO$ISOSPEED:%d$ -flat=../master_flat_ISO$ISOSPEED:%d$ -cc=dark -cfa -debayer
 
-seqsubsky pp_light 2
+boxselect 6287 2237 100 100
 
-register bkg_pp_light
 
-stack r_bkg_pp_light rej 3 3 -norm=addscale -output_norm -rgb_equal -filter-fwhm=87% -out=result5
 
-load result5
+boxselect 6303 2331 35 35
+boxselect 6324 2257 35 35
+
+boxselect 6302 2333 35 35
+boxselect 6323 2261 35 35
+
+
+boxselect 6327 2253 35 35
+
+% Cropped image for comet
+boxselect 75 204 7753 5130

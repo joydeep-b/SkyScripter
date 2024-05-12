@@ -1,7 +1,7 @@
 function [stretched_image, masks, raw_images] = process(working_dir)
   if ~exist('working_dir', 'var')
-    working_dir = '../high_speed_bursts/totality_composite_01/.process';
-    % working_dir = '../totality_brackets/totality_set_12';
+    % working_dir = '../high_speed_bursts/totality_composite_01/.process';
+    working_dir = 'totality_set_05';
   end
   
   N = length(dir(sprintf('%s/pp_light_0*.fit', working_dir)));
@@ -33,14 +33,14 @@ function [stretched_image, masks, raw_images] = process(working_dir)
 
   % return
 
-  mean_image = zeros(size(images{1}));
+  mean_image = zeros(size(raw_images{1}));
   mean_flux = raw_images{1} / exposure_times(1);
   max_clip = 0.8;
   max_maxes = max(maxes);
-  r_clip = max_clip * max_maxes(1);
-  g_clip = max_clip * max_maxes(2);
-  b_clip = max_clip * max_maxes(3);
-  fprintf('Clipping values: %f %f %f\n', r_clip, g_clip, b_clip);
+  % Max value should be 2^14 - 1 = 16383.
+  clip_high = 16300;
+  % Bias = 512.
+  clip_low = 550;
   read_noise = 0.001;
   min_value = 0.001;
   conv_stddev = 9;
@@ -51,26 +51,10 @@ function [stretched_image, masks, raw_images] = process(working_dir)
   total_mask = zeros(size(raw_images{1}(:,:,1)));
   for i = 1:N
     fprintf('Computing mask for image %d\n', i);
-    if true
-      mask_r = get_mask(raw_images{i}(:,:,1), min_value, r_clip);
-      mask_g = get_mask(raw_images{i}(:,:,2), min_value, g_clip);
-      mask_b = get_mask(raw_images{i}(:,:,3), min_value, b_clip);
-      masks{i} = mask_r .* mask_g .* mask_b;
-    else
-      clipped_pixels = raw_images{i}(:,:,1) > r_clip    | ...
-                      raw_images{i}(:,:,1) < min_value | ...
-                      raw_images{i}(:,:,2) > g_clip    | ...
-                      raw_images{i}(:,:,2) < min_value | ...
-                      raw_images{i}(:,:,3) > b_clip    | ...
-                      raw_images{i}(:,:,3) < min_value;
-      % clipped_pixels = imerode(clipped_pixels, strel('disk', kernel_size));
-      clipped_pixels = 1 - conv2(double(clipped_pixels), gaussian_kernel, 'same');
-      % clipped_pixels = 1 - double(clipped_pixels);
-      % imagesc(clipped_pixels); axis image;  colorbar; drawnow;
-      masks{i} = clipped_pixels;
-    end
+    mask = get_mask(uncal_images{i}, clip_low, clip_high);
+    masks{i} = mask(:,:,1).*mask(:,:,2).*mask(:,:,3);
     total_mask = total_mask + masks{i};
-    % show(masks{i});
+    show(masks{i});
   end
   show(total_mask);
   % return

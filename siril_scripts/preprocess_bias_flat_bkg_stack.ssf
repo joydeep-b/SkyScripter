@@ -1,6 +1,6 @@
 requires 1.2.0
 
-convert light -out=../.process
+convertraw light -out=../.process
 cd ../.process
 load light_00001
 
