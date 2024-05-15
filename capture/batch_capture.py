@@ -69,6 +69,16 @@ def perform_meridian_flip(mount: IndiMount):
   # Then flip the mount.
   mount.goto(ra, dec)
 
+def confirm_abort():
+  print("Abort? (y/n)")
+  response = input()
+  if response.lower() == 'y':
+    print("Aborting the capture")
+    logging.warning("Aborting the capture")
+    sys.exit(1)
+  else:
+    logging.warning("User override: Continuing with the capture")
+
 def check_sprinklers():
   print("Checking for upcoming sprinkler events")
   rachio_client = RachioClient(get_rachio_key())
@@ -86,14 +96,7 @@ def check_sprinklers():
       events_found = True
       logging.warning(f"Sprinkler event: {event_name}, start time: {event_start_local}, end time: {event_end_local}")
       print(f"Sprinkler event to start within 12 hours: {event_name}, start time: {event_start_local}, end time: {event_end_local}")
-      print("Abort? (y/n)")
-      response = input()
-      if response.lower() == 'y':
-        print("Aborting the capture")
-        logging.warning("Aborting the capture")
-        sys.exit(1)
-      else:
-        logging.warning("User override: Continuing with the capture despite sprinkler event")
+      confirm_abort()
   if not events_found:
     print_and_log("No upcoming sprinkler events, continuing with the capture")
   else:
@@ -268,6 +271,15 @@ def print_and_log_mount_state(mount, args):
       (time_to_flip_hours, time_to_flip_minutes, time_to_flip_seconds)
   print_and_log(log_string)
 
+def check_disk_space():
+  # Minimum desired space: 20 GB
+  min_desired_space = 20 * 1024 * 1024 * 1024
+  statvfs = os.statvfs(os.getcwd())
+  free_space = statvfs.f_frsize * statvfs.f_bavail
+  if free_space < min_desired_space:
+    print_and_log(f"Low disk space: {free_space / (1024 * 1024 * 1024):.2f} GB")
+    confirm_abort()
+
 def main():
   args, parser = get_args()
   init_logging('batch_capture', also_to_console=args.verbose)
@@ -275,6 +287,7 @@ def main():
   signal.signal(signal.SIGINT, signal_handler)
   signal.signal(signal.SIGTERM, signal_handler)
 
+  check_disk_space()
   coordinates = parse_coordinates(args, parser)
   check_sprinklers()
   capture_dir = set_up_capture_directory(args, coordinates)
