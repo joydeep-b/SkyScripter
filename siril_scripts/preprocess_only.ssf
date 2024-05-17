@@ -1,6 +1,0 @@
-requires 1.2.0
-
-convert light -out=../.process
-cd ../.process
-
-calibrate light -dark=../master_dark_ISO$ISOSPEED:%d$_FOCALLEN$FOCALLEN:%d$_APERTURE$APERTURE:%d$_EXP$EXPTIME:%.3f$.fit -flat=/Users/joydeepbiswas/Astrophotography/masters/master_flat_ISO$ISOSPEED:%d$_FOCALLEN$FOCALLEN:%d$_APERTURE$APERTURE:%d$ -cc=dark -cfa -debayer
