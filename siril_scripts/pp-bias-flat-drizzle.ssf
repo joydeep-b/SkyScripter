@@ -1,8 +1,0 @@
-requires 1.2.0
-
-convertraw light -out=../.process
-cd ../.process
-load light_00001
-
-calibrate light -dark=../../masters/master_bias_ISO$ISOSPEED:%d$ -flat=../master_flat_ISO$ISOSPEED:%d$ -cc=dark -cfa
-load pp_light_00001

@@ -1,9 +1,0 @@
-requires 1.2.0
-
-# Align lights
-register pp_light
-
-# Stack calibrated lights to result.fit
-stack r_pp_light rej 3 3 -norm=addscale -output_norm -rgb_equal -filter-fwhm=90% -out=result
-
-load result

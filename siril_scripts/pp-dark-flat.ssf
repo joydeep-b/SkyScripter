@@ -1,6 +1,0 @@
-requires 1.2.0
-
-convert light -out=../.process
-cd ../.process
-
-calibrate light -dark=../../masters/master_dark_ISO$ISOSPEED:%d$_EXP$EXPTIME:%.3f$.fit -flat=../master_flat_ISO$ISOSPEED:%d -cc=dark -cfa -debayer
