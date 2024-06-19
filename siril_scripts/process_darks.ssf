@@ -4,5 +4,6 @@ convert dark -out=.process
 cd .process
 
 # Stack Dark Frames to dark_stacked.fit
-stack dark rej 3 3 -nonorm -out=../../master_dark_ISO$ISOSPEED:%d$_EXP$EXPTIME:%.3f$
+# stack dark rej 3 3 -nonorm -out=../../master_dark
+stack dark rej 3 3 -nonorm -out=../../master_dark_MODE$READMODE:%1d$_GAIN$GAIN:%2d$_OFFSET$OFFSET:%2d$_EXPTIME$EXPTIME:%3d$
 cd ..

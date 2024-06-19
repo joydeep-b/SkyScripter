@@ -1,8 +1,6 @@
 requires 1.2.0
 
-convert bias -out=.process
-cd .process
-
+convert bias -out=../.process
+cd ../.process
 load bias_00001
-stack bias rej 3 3 -nonorm -out=master_bias_ISO$ISOSPEED:%d$
-cd ..
+stack bias rej 3 3 -nonorm -out=../master_bias_MODE$READMODE:%1d$_GAIN$GAIN:%2d$_OFFSET$OFFSET:%2d$

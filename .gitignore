@@ -6,3 +6,4 @@ tmp.cr3
 __pycache__
 .rachio_api_key
 siril.log
+.vscode

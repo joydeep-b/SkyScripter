@@ -1,0 +1,8 @@
+requires 1.3.1
+
+seqsubsky pp_light 2
+
+register bkg_pp_light -2pass -noout
+
+seqapplyreg bkg_pp_light -drizzle -scale=2.0 -pixfrac=0.5 
+stack r_bkg_pp_light rej sigma 3 3 -norm=addscale -output_norm -rgb_equal -weight_from_wfwhm -out=result
