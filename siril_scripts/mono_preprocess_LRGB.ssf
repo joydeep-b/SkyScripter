@@ -1,58 +1,28 @@
 requires 1.2.0
 
-# cd .Flat/L
-# convert flat_l -out=../.process
-# cd ../.process
-# calibrate flat_l -bias=/Users/joydeepbiswas/Astrophotography/masters/master_bias_MODE$READMODE:%1d$_GAIN$GAIN:%2d$_OFFSET$OFFSET:%2d$
-# stack pp_flat_l rej winsorized 3 3 -norm=mul -out=../../master_flat_L
-# cd ../../
-
-# cd .Flat/R
-# convert flat_r -out=../.process
-# cd ../.process
-# calibrate flat_r -bias=/Users/joydeepbiswas/Astrophotography/masters/master_bias_MODE$READMODE:%1d$_GAIN$GAIN:%2d$_OFFSET$OFFSET:%2d$
-# stack pp_flat_r rej winsorized 3 3 -norm=mul -out=../../master_flat_R
-# cd ../../
-
-# cd .Flat/G
-# convert flat_g -out=../.process
-# cd ../.process
-# calibrate flat_g -bias=/Users/joydeepbiswas/Astrophotography/masters/master_bias_MODE$READMODE:%1d$_GAIN$GAIN:%2d$_OFFSET$OFFSET:%2d$
-# stack pp_flat_g rej winsorized 3 3 -norm=mul -out=../../master_flat_G
-# cd ../../
-
-# cd .Flat/B
-# convert flat_b -out=../.process
-# cd ../.process
-# calibrate flat_b -bias=/Users/joydeepbiswas/Astrophotography/masters/master_bias_MODE$READMODE:%1d$_GAIN$GAIN:%2d$_OFFSET$OFFSET:%2d$
-# stack pp_flat_b rej winsorized 3 3 -norm=mul -out=../../master_flat_B
-# cd ../../
-
 cd Light/L
 convert light_l -out=../.process
 cd ../.process
-calibrate light_l -dark=/Users/joydeepbiswas/Astrophotography/masters/master_dark_MODE$READMODE:%1d$_GAIN$GAIN:%2d$_OFFSET$OFFSET:%2d$_EXPTIME$EXPTIME:%3d$ -flat=../../Flats/master_flat_L -cc=dark 
+calibrate light_l -dark=/Users/joydeepbiswas/Astrophotography/masters/dark/master_dark_MODE$READMODE:%1d$_GAIN$GAIN:%2d$_OFFSET$OFFSET:%2d$_EXPTIME$EXPTIME:%3d$ -flat=/Users/joydeepbiswas/Astrophotography/masters/flat/master_flat_L -cc=dark
 seqsubsky pp_light_l 2
-# register bkg_pp_light_l
 register bkg_pp_light_l -2pass -noout
-seqapplyreg bkg_pp_light_l -drizzle -scale=1.0 -pixfrac=1.0
-# stack r_bkg_pp_light_l rej 3 3  -norm=addscale -output_norm -rgb_equal -filter-fwhm=90% -out=../../master_light_L
-stack r_bkg_pp_light_l rej 3 3  -norm=addscale -output_norm -rgb_equal -weight_from_wfwhm -out=../../master_light_L
+seqapplyreg bkg_pp_light_l -drizzle -scale=1.0 -pixfrac=1.0 -framing=max
+stack r_bkg_pp_light_l rej 5 5  -norm=addscale -output_norm -filter-fwhm=90% -weight_from_wfwhm -out=../../master_light_L
 cd ../../
 load master_light_L
-mirrorx 
+mirrorx
 save master_light_L
 
 cd Light/R
 convert light_r -out=../.process
 cd ../.process
-calibrate light_r -dark=/Users/joydeepbiswas/Astrophotography/masters/master_dark_MODE$READMODE:%1d$_GAIN$GAIN:%2d$_OFFSET$OFFSET:%2d$_EXPTIME$EXPTIME:%3d$ -flat=../../Flats/master_flat_R -cc=dark
+calibrate light_r -dark=/Users/joydeepbiswas/Astrophotography/masters/dark/master_dark_MODE$READMODE:%1d$_GAIN$GAIN:%2d$_OFFSET$OFFSET:%2d$_EXPTIME$EXPTIME:%3d$ -flat=/Users/joydeepbiswas/Astrophotography/masters/flat/master_flat_R -cc=dark
 seqsubsky pp_light_r 2
 # register bkg_pp_light_r
 register bkg_pp_light_r -2pass -noout
-seqapplyreg bkg_pp_light_r -drizzle -scale=1.0 -pixfrac=1.0
-# stack r_bkg_pp_light_r rej 3 3  -norm=addscale -output_norm -rgb_equal -filter-fwhm=90% -out=../../master_light_R
-stack r_bkg_pp_light_r rej 3 3  -norm=addscale -output_norm -rgb_equal -weight_from_wfwhm -out=../../master_light_R
+seqapplyreg bkg_pp_light_r -drizzle -scale=1.0 -pixfrac=1.0 -framing=max
+# stack r_bkg_pp_light_r rej 3 3  -norm=addscale -output_norm -filter-fwhm=90% -out=../../master_light_R
+stack r_bkg_pp_light_r rej 5 5  -norm=addscale -output_norm -filter-fwhm=90% -weight_from_wfwhm -out=../../master_light_R
 cd ../../
 load master_light_R
 mirrorx
@@ -61,13 +31,13 @@ save master_light_R
 cd Light/G
 convert light_g -out=../.process
 cd ../.process
-calibrate light_g -dark=/Users/joydeepbiswas/Astrophotography/masters/master_dark_MODE$READMODE:%1d$_GAIN$GAIN:%2d$_OFFSET$OFFSET:%2d$_EXPTIME$EXPTIME:%3d$ -flat=../../Flats/master_flat_G -cc=dark
+calibrate light_g -dark=/Users/joydeepbiswas/Astrophotography/masters/dark/master_dark_MODE$READMODE:%1d$_GAIN$GAIN:%2d$_OFFSET$OFFSET:%2d$_EXPTIME$EXPTIME:%3d$ -flat=/Users/joydeepbiswas/Astrophotography/masters/flat/master_flat_G -cc=dark
 seqsubsky pp_light_g 2
 # register bkg_pp_light_g
 register bkg_pp_light_g -2pass -noout
-seqapplyreg bkg_pp_light_g -drizzle -scale=1.0 -pixfrac=1.0
-# stack r_bkg_pp_light_g rej 3 3  -norm=addscale -output_norm -rgb_equal -filter-fwhm=90% -out=../../master_light_G
-stack r_bkg_pp_light_g rej 3 3  -norm=addscale -output_norm -rgb_equal -weight_from_wfwhm -out=../../master_light_G
+seqapplyreg bkg_pp_light_g -drizzle -scale=1.0 -pixfrac=1.0 -framing=max
+# stack r_bkg_pp_light_g rej 3 3  -norm=addscale -output_norm -filter-fwhm=90% -out=../../master_light_G
+stack r_bkg_pp_light_g rej 5 5  -norm=addscale -output_norm -filter-fwhm=90% -weight_from_wfwhm -out=../../master_light_G
 cd ../../
 load master_light_G
 mirrorx
@@ -76,13 +46,13 @@ save master_light_G
 cd Light/B
 convert light_b -out=../.process
 cd ../.process
-calibrate light_b -dark=/Users/joydeepbiswas/Astrophotography/masters/master_dark_MODE$READMODE:%1d$_GAIN$GAIN:%2d$_OFFSET$OFFSET:%2d$_EXPTIME$EXPTIME:%3d$ -flat=../../Flats/master_flat_B -cc=dark
+calibrate light_b -dark=/Users/joydeepbiswas/Astrophotography/masters/dark/master_dark_MODE$READMODE:%1d$_GAIN$GAIN:%2d$_OFFSET$OFFSET:%2d$_EXPTIME$EXPTIME:%3d$ -flat=/Users/joydeepbiswas/Astrophotography/masters/flat/master_flat_B -cc=dark
 seqsubsky pp_light_b 2
 # register bkg_pp_light_b
 register bkg_pp_light_b -2pass -noout
-seqapplyreg bkg_pp_light_b -drizzle -scale=1.0 -pixfrac=1.0
-# stack r_bkg_pp_light_b rej 3 3  -norm=addscale -output_norm -rgb_equal -filter-fwhm=90% -out=../../master_light_B
-stack r_bkg_pp_light_b rej 3 3  -norm=addscale -output_norm -rgb_equal -weight_from_wfwhm -out=../../master_light_B
+seqapplyreg bkg_pp_light_b -drizzle -scale=1.0 -pixfrac=1.0 -framing=max
+# stack r_bkg_pp_light_b rej 3 3  -norm=addscale -output_norm -filter-fwhm=90% -out=../../master_light_B
+stack r_bkg_pp_light_b rej 5 5  -norm=addscale -output_norm -filter-fwhm=90% -weight_from_wfwhm -out=../../master_light_B
 cd ../../
 load master_light_B
 mirrorx
@@ -94,6 +64,9 @@ seqplatesolve lrgb
 register lrgb
 rgbcomp -lum=r_lrgb_00003 r_lrgb_00004 r_lrgb_00002 r_lrgb_00001 -out=composed_lrgb
 load composed_lrgb
-subsky -rbf -samples=40 -tolerance=1.0 -smooth=0.3
+subsky 2
+# subsky -rbf -samples=40 -tolerance=1.0 -smooth=0.3
+platesolve
 spcc
 save composed_lrgb
+load composed_lrgb

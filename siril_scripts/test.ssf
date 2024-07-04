@@ -1,62 +1,13 @@
 requires 1.2.0
 
-# calibrate light -dark=/Users/joydeepbiswas/Astrophotography/masters/master_bias_ISO$ISOSPEED:%d$ -flat=../master_flat_ISO$ISOSPEED:%d$ -cc=dark -cfa -debayer
-
-# boxselect 6287 2237 100 100
-
-
-
-# boxselect 6303 2331 35 35
-# boxselect 6324 2257 35 35
-
-# boxselect 6302 2333 35 35
-# boxselect 6323 2261 35 35
-
-
-# boxselect 6327 2253 35 35
-
-# % Cropped image for comet
-# boxselect 75 204 7753 5130
-
-
-requires 1.2.0
-
-
-cd Light/.process
-stack r_bkg_pp_light_l rej 3 3  -norm=addscale -output_norm -rgb_equal -filter-fwhm=90% -weight_from_wfwhm -out=../../master_light_L
-cd ../../
-load master_light_L
-mirrorx 
-save master_light_L
-
-cd Light/.process
-stack r_bkg_pp_light_r rej 3 3  -norm=addscale -output_norm -rgb_equal -filter-fwhm=90% -weight_from_wfwhm -out=../../master_light_R
-cd ../../
-load master_light_R
-mirrorx
-save master_light_R
-
-cd Light/.process
-stack r_bkg_pp_light_g rej 3 3  -norm=addscale -output_norm -rgb_equal -filter-fwhm=90% -weight_from_wfwhm -out=../../master_light_G
-cd ../../
-load master_light_G
-mirrorx
-save master_light_G
-
-
-cd Light/.process
-stack r_bkg_pp_light_b rej 3 3  -norm=addscale -output_norm -rgb_equal -filter-fwhm=90% -weight_from_wfwhm -out=../../master_light_B
-cd ../../
-load master_light_B
-mirrorx
-save master_light_B
-
 convert lrgb -out=.process
 cd .process
 seqplatesolve lrgb
 register lrgb
-rgbcomp -lum=r_lrgb_00003 r_lrgb_00004 r_lrgb_00002 r_lrgb_00001 -out=composed_lrgb
-load composed_lrgb
-subsky -rbf -samples=40 -tolerance=1.0 -smooth=0.3
-spcc
-save composed_lrgb
+rgbcomp -lum=r_lrgb_00003 r_lrgb_00004 r_lrgb_00002 r_lrgb_00001 -out=composed_lrgb2
+load composed_lrgb2
+# subsky -rbf -samples=40 -tolerance=1.0 -smooth=0.3
+# platesolve
+# spcc
+# save composed_lrgb
+# load composed_lrgb

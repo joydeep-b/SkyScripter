@@ -1,0 +1,18 @@
+requires 1.2.0
+
+convert lrgb -out=.process
+cd .process
+seqplatesolve lrgb -force
+register lrgb
+rgbcomp -lum=r_lrgb_00003 r_lrgb_00004 r_lrgb_00002 r_lrgb_00001 -out=composed_lrgb
+load composed_lrgb
+subsky 1
+platesolve -force
+save composed_lrgb
+
+# subsky 2
+# # subsky -rbf -samples=40 -tolerance=1.0 -smooth=0.3
+# platesolve
+# spcc
+# save composed_lrgb
+# load composed_lrgb

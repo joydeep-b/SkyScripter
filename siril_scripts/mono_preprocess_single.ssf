@@ -2,9 +2,9 @@ requires 1.2.0
 
 convert light -out=../.process
 cd ../.process
-calibrate light -dark=/Users/joydeepbiswas/Astrophotography/masters/master_dark_MODE$READMODE:%1d$_GAIN$GAIN:%2d$_OFFSET$OFFSET:%2d$_EXPTIME$EXPTIME:%3d$ -flat=/Users/joydeepbiswas/Astrophotography/masters/master_flat_$FILTER:%s$ -cc=dark 
+calibrate light -dark=/Users/joydeepbiswas/Astrophotography/masters/dark/master_dark_MODE$READMODE:%1d$_GAIN$GAIN:%2d$_OFFSET$OFFSET:%2d$_EXPTIME$EXPTIME:%3d$ -flat=/Users/joydeepbiswas/Astrophotography/masters/flat/master_flat_$FILTER:%s$ -cc=dark
 seqsubsky pp_light 2
 register bkg_pp_light -2pass -noout
-seqapplyreg bkg_pp_light -drizzle -scale=1.0 -pixfrac=1.0
-stack r_bkg_pp_light rej 3 3  -norm=addscale -output_norm -rgb_equal -weight_from_wfwhm -out=../../master_light_$FILTER:%s$
+seqapplyreg bkg_pp_light -drizzle -scale=1.0 -pixfrac=1.0 -framing=max
+stack r_bkg_pp_light rej 5 5  -norm=addscale -output_norm -filter-fwhm=90% -weight_from_wfwhm -out=../../master_light_$FILTER:%s$
 # load ../../master_light_$FILTER:%s$
