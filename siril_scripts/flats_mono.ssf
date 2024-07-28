@@ -1,0 +1,6 @@
+requires 1.2.0
+
+convert flat -out=../.process
+cd ../.process
+calibrate flat -bias=/Users/joydeepbiswas/Astrophotography/masters/bias/master_bias_MODE$READMODE:%1d$_GAIN$GAIN:%2d$_OFFSET$OFFSET:%2d$
+stack pp_flat rej winsorized 3 3 -norm=mul -out=../master_flat_$FILTER:%s$

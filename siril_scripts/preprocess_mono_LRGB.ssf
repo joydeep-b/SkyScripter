@@ -1,0 +1,66 @@
+requires 1.2.0
+
+# cd Light/L
+# convert light_l -out=../.process
+# cd ../.process
+# calibrate light_l -dark=$defdark -flat=$defflat -cc=dark
+# seqsubsky pp_light_l 2
+# register bkg_pp_light_l -2pass -noout
+# seqapplyreg bkg_pp_light_l -drizzle -scale=1.0 -pixfrac=1.0 -framing=max
+# stack r_bkg_pp_light_l rej 2 2  -norm=addscale -output_norm -filter-wfwhm=90% -weight_from_wfwhm -out=../../master_light_L
+# cd ../../
+# load master_light_L
+# mirrorx
+# save master_light_L
+
+# cd Light/R
+# convert light_r -out=../.process
+# cd ../.process
+# calibrate light_r -dark=$defdark -flat=$defflat -cc=dark
+# seqsubsky pp_light_r 2
+# register bkg_pp_light_r -2pass -noout
+# seqapplyreg bkg_pp_light_r -drizzle -scale=1.0 -pixfrac=1.0 -framing=max
+# stack r_bkg_pp_light_r rej 2 2  -norm=addscale -output_norm -filter-wfwhm=90% -weight_from_wfwhm -out=../../master_light_R
+# cd ../../
+# load master_light_R
+# mirrorx
+# save master_light_R
+
+# cd Light/G
+# convert light_g -out=../.process
+# cd ../.process
+# calibrate light_g -dark=$defdark -flat=$defflat -cc=dark
+# seqsubsky pp_light_g 2
+# register bkg_pp_light_g -2pass -noout
+# seqapplyreg bkg_pp_light_g -drizzle -scale=1.0 -pixfrac=1.0 -framing=max
+# stack r_bkg_pp_light_g rej 2 2  -norm=addscale -output_norm -filter-wfwhm=90% -weight_from_wfwhm -out=../../master_light_G
+# cd ../../
+# load master_light_G
+# mirrorx
+# save master_light_G
+
+cd Light/B
+convert light_b -out=../.process
+cd ../.process
+calibrate light_b -dark=$defdark -flat=$defflat -cc=dark
+seqsubsky pp_light_b 2
+register bkg_pp_light_b -2pass -noout
+seqapplyreg bkg_pp_light_b -drizzle -scale=1.0 -pixfrac=1.0 -framing=max
+stack r_bkg_pp_light_b rej 2 2  -norm=addscale -output_norm -filter-wfwhm=90% -weight_from_wfwhm -out=../../master_light_B
+cd ../../
+load master_light_B
+mirrorx
+save master_light_B
+
+convert lrgb -out=.process
+cd .process
+seqplatesolve lrgb
+register lrgb
+rgbcomp -lum=r_lrgb_00003 r_lrgb_00004 r_lrgb_00002 r_lrgb_00001 -out=composed_lrgb
+load composed_lrgb
+subsky 2
+# subsky -rbf -samples=40 -tolerance=1.0 -smooth=0.3
+platesolve
+spcc
+save composed_lrgb
+load composed_lrgb

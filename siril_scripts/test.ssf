@@ -1,13 +1,12 @@
 requires 1.2.0
 
-convert lrgb -out=.process
-cd .process
-seqplatesolve lrgb
-register lrgb
-rgbcomp -lum=r_lrgb_00003 r_lrgb_00004 r_lrgb_00002 r_lrgb_00001 -out=composed_lrgb2
-load composed_lrgb2
-# subsky -rbf -samples=40 -tolerance=1.0 -smooth=0.3
-# platesolve
-# spcc
-# save composed_lrgb
-# load composed_lrgb
+# load composed_rgb
+boxselect 652 801 5747 3831
+crop
+subsky -rbf -samples=40 -tolerance=2.7 -smooth=0.5
+platesolve -force
+rotatePi
+subsky -rbf -samples=40 -tolerance=2.7 -smooth=0.2
+starnet  -stretch -upscale -nostarmask
+
+# subsky -rbf -samples=40 -tolerance=0.7 -smooth=0.8

@@ -5,7 +5,7 @@
 
 import csv
 from astropy.io import fits
-from datetime import datetime
+from datetime import datetime, timedelta
 from tqdm import tqdm
 
 default_values = {
@@ -79,6 +79,8 @@ def get_session_data(directory):
     # List the files in the sub-directories.
     subdirs = ['L', 'R', 'G', 'B', 'Halpha', 'OIII', 'SII']
     sessions = []
+    i = 0
+    progress = ['|', '/', '-', '\\']
     for subdir in subdirs:
         # See if the sub-directory exists.
         if not (directory / subdir).exists():
@@ -87,6 +89,8 @@ def get_session_data(directory):
         files = directory.glob(f'**/{subdir}/*.fits')
         # Use TQDM to show a progress bar.
         for file in files:
+            print(f'\r{progress[i % 4]}', end='')
+            i += 1
             # print(f'Processing {file}')
             with fits.open(file) as hdul:
                 header = hdul[0].header
@@ -107,6 +111,27 @@ def get_session_data(directory):
     sessions.sort()
     return sessions
 
+def show_totals(sessions):
+    totals = {}
+    for session in sessions:
+        if session.filter not in totals:
+            totals[session.filter] = 0
+        totals[session.filter] += int(session.number * session.duration)
+
+    for filter, total in totals.items():
+        # Look up the filter name.
+        for key, value in filter_lookup.items():
+            if value == filter:
+                filter = key
+                break
+        # Get total in hours, minutes, and seconds.
+        duration = timedelta(seconds=total)
+        print(f'{filter:5}: {total:7} seconds ({duration})')
+
+    total_hours = sum(totals.values()) / 3600
+    total_minutes = (total_hours - int(total_hours)) * 60
+    total_seconds = (total_minutes - int(total_minutes)) * 60
+    print(f'Total: {sum(totals.values()):7} seconds ({int(total_hours)}:{int(total_minutes)}:{int(total_seconds)})')
 
 def main():
     # Parse the command line arguments.
@@ -121,9 +146,8 @@ def main():
     from pathlib import Path
     directory = Path(args.dir)
     sessions = get_session_data(directory)
-
-    # Save the session data to a csv file.
     save_session_csv(sessions, args.out)
+    show_totals(sessions)
 
 if __name__ == '__main__':
     main()

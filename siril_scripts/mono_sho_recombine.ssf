@@ -1,0 +1,39 @@
+requires 1.2.0
+
+convert sho -out=.process
+cd .process
+seqplatesolve sho -force
+register sho
+
+# h = r_sho_00001
+# o = r_sho_00002
+# s = r_sho_00003
+
+# SHO
+rgbcomp r_sho_00003 r_sho_00001 r_sho_00002 -out=composed_sho
+load composed_sho
+subsky 1
+platesolve -force
+save composed_sho
+
+# HSO
+rgbcomp r_sho_00001 r_sho_00003 r_sho_00002 -out=composed_hso
+load composed_hso
+subsky 1
+platesolve -force
+save composed_hso
+
+# HOO
+rgbcomp r_sho_00001 r_sho_00002 r_sho_00002 -out=composed_hoo
+load composed_hoo
+subsky 1
+platesolve -force
+save composed_hoo
+
+
+# subsky 2
+# # subsky -rbf -samples=40 -tolerance=1.0 -smooth=0.3
+# platesolve
+# spcc
+# save composed_sho
+# load composed_sho
