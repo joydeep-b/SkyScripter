@@ -12,6 +12,8 @@ import tempfile
 import datetime
 import matplotlib.pyplot as plt
 import time
+import multiprocessing
+from functools import partial
 
 if sys.platform == 'darwin':
   SIRIL_PATH = '/Applications/Siril.app/Contents/MacOS/Siril'
@@ -44,7 +46,7 @@ def extract_and_convert_coordinates_astap(output):
 
 def extract_and_convert_coordinates_siril(output):
     # Define the regex pattern
-    regex = r"Image center: alpha: ([0-9]+)h([0-9]+)m([0-9]+)s, delta: ([+-])([0-9]+)°([0-9]+)'([0-9]+)"
+    regex = r"Image center: alpha: ([0-9]+) ([0-9]+) ([0-9\.]+), delta: ([+-])([0-9]+) ([0-9]+) ([0-9\.]+)"
 
     # Search for the pattern in the output
     match = re.search(regex, output)
@@ -57,12 +59,12 @@ def extract_and_convert_coordinates_siril(output):
     # print(f"RA: {alpha_h}h{alpha_m}m{alpha_s}s, DEC: {delta_sign}{delta_d}°{delta_m}'{delta_s}")
 
     # Convert alpha (RA) to decimal degrees
-    alpha = 180/12 * (int(alpha_h) + int(alpha_m)/60 + int(alpha_s)/3600)
+    alpha = 180/12 * (int(alpha_h) + int(alpha_m)/60 + float(alpha_s)/3600)
 
     # Convert delta (DEC) to decimal degrees
     delta_multiplier = 1 if delta_sign == '+' else -1
-    delta = delta_multiplier * (int(delta_d) + int(delta_m)/60 + int(delta_s)/3600)
-    
+    delta = delta_multiplier * (int(delta_d) + int(delta_m)/60 + float(delta_s)/3600)
+
     return alpha, delta
 
 def get_wcs_coordinates(object_name):
@@ -88,7 +90,7 @@ def get_wcs_coordinates(object_name):
 def run_star_detect_siril(this_dir, file):
     global SIRIL_PATH
     siril_commands = f"""requires 1.2.0
-convertraw light -debayer -out=.
+convert light -debayer -out=.
 load light_00001
 findstar
 close
@@ -102,9 +104,9 @@ close
         siril_cli_command = [SIRIL_PATH, "-d", temp_dir, "-s", "-"]
         # Run the command and capture output
         try:
-            result = subprocess.run(siril_cli_command, 
+            result = subprocess.run(siril_cli_command,
                                     input=siril_commands,
-                                    text=True, 
+                                    text=True,
                                     capture_output=True,
                                     check=True)
             # Extract the number of stars detected, and the FWHM. Sample output:
@@ -116,16 +118,17 @@ close
                 print("No match found")
                 return None, None
             num_stars, fwhm = match.groups()
-            return num_stars, fwhm
+            return int(num_stars), float(fwhm)
         except subprocess.CalledProcessError as e:
             return None, None
-    
+
 def run_plate_solve_siril(this_dir, file, wcs_coords, focal_option):
     global SIRIL_PATH
     siril_commands = f"""requires 1.2.0
-convertraw light -debayer -out=.
+convert light -debayer -out=.
 load light_00001
-platesolve {wcs_coords} -platesolve -catalog=nomad -limitmag=10 {focal_option}
+# platesolve {wcs_coords} -platesolve -catalog=nomad {focal_option}
+platesolve {wcs_coords}
 close
 """
     # Create a temp directory for Siril to use.
@@ -137,29 +140,32 @@ close
         siril_cli_command = [SIRIL_PATH, "-d", temp_dir, "-s", "-"]
         # Run the command and capture output
         try:
-            result = subprocess.run(siril_cli_command, 
+            result = subprocess.run(siril_cli_command,
                                     input=siril_commands,
-                                    text=True, 
+                                    text=True,
                                     capture_output=True,
                                     check=True)
+            # print(result.stdout)
+            # print(result.stderr)
             ra, dec = extract_and_convert_coordinates_siril(result.stdout)
             return ra, dec
         except subprocess.CalledProcessError as e:
+            # print(f"Error running Siril: {e}")
             return None, None
 
 def run_plate_solve_astap(this_dir, file, wcs_coords, focal_option):
     ASTAP_PATH = '/Applications/ASTAP.app/Contents/MacOS/astap'
     astap_cli_command = [ASTAP_PATH, "-f", file]
     try:
-        result = subprocess.run(astap_cli_command, 
-                                text=True, 
+        result = subprocess.run(astap_cli_command,
+                                text=True,
                                 capture_output=True,
                                 check=True)
         ra, dec = extract_and_convert_coordinates_astap(result.stdout)
         return ra, dec
     except subprocess.CalledProcessError as e:
         return None, None
-    
+
 def load_prev_files(filename):
     if not os.path.exists(filename):
         return [], []
@@ -172,13 +178,13 @@ def load_prev_files(filename):
             # print(line)
             parts = line.split(',')
             filenames.append(parts[0])
-            star_stats.append((int(parts[4]), float(parts[5])))
+            star_stats.append((float(parts[1]), int(parts[4]), float(parts[5])))
     return filenames, star_stats
-    
+
 def plot_star_stats(data):
     # print(data)
     # Unpack the data into two separate lists
-    num_stars, fwhm = zip(*data)
+    times, num_stars, fwhm = zip(*data)
 
     # Create a figure and a single subplot
     fig, ax1 = plt.subplots()
@@ -187,6 +193,8 @@ def plot_star_stats(data):
     color = 'tab:red'
     ax1.set_xlabel('Image number')
     ax1.set_ylabel('num_stars', color=color)
+    # sort num_stars in ascending order
+    num_stars = [x for x in sorted(num_stars)]
     ax1.plot(num_stars, color=color)
     ax1.tick_params(axis='y', labelcolor=color)
 
@@ -194,6 +202,8 @@ def plot_star_stats(data):
     ax2 = ax1.twinx()
     color = 'tab:blue'
     ax2.set_ylabel('FWHM', color=color)
+    # sort fwhm in ascending order
+    fwhm = [x for x in sorted(fwhm)]
     ax2.plot(fwhm, color=color)
     ax2.tick_params(axis='y', labelcolor=color)
     # Set Y axis labels to show 2 decimal places.
@@ -204,7 +214,26 @@ def plot_star_stats(data):
     # Show the plot
     plt.show()
 
-def get_image_capture_time(image_file):
+def get_fits_image_capture_time(image_file):
+    command = f'fitsheader {image_file} | grep DATE-OBS'
+    try:
+        output = subprocess.check_output(command, shell=True)
+    except subprocess.CalledProcessError as e:
+        print(f"Error calling fitsheader: {e}")
+        os.exit(1)
+    try:
+        output = output.decode('utf-8')
+        date_part = output.split('=')[1].strip()
+        # Extract only the date and time part, and convert to a datetime object.
+        re2 = re.compile(r'([0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]+)')
+        date_part = re2.search(date_part).group(1)
+        result = datetime.datetime.strptime(date_part, '%Y-%m-%dT%H:%M:%S.%f')
+    except Exception as e:
+        print(f"Error parsing date: {e}\n Output: {output}\n Command: {command}")
+        return None
+    return result
+
+def get_raw_image_capture_time(image_file):
   command = f'exiftool -DateTimeOriginal {image_file}'
   try:
     output = subprocess.check_output(command, shell=True)
@@ -219,6 +248,42 @@ def get_image_capture_time(image_file):
     print(f"Error parsing date: {e}\n Output: {output}\n Command: {command}")
     return None
   return result
+
+def get_image_capture_time(image_file):
+    # If the image is a FITS file, use fitsheader to get the capture time.
+    if image_file.lower().endswith('.fit') or image_file.lower().endswith('.fits'):
+        return get_fits_image_capture_time(image_file)
+    else:
+        return get_raw_image_capture_time(image_file)
+
+def process_file(current_dir, coordinates, focal_option, filename, star_stats, csv_file, lock):
+    # print(f"Processing {filename}")
+    t_start = time.time()
+    filename_without_path = os.path.basename(filename)
+    capture_time = int(get_image_capture_time(filename).timestamp())
+    if coordinates is None:
+        result = run_plate_solve_astap(current_dir, filename, coordinates, focal_option)
+    else:
+        result = run_plate_solve_siril(current_dir, filename, coordinates, focal_option)
+    if result[0] is not None and result[1] is not None:
+        # print(f"RA={result[0]:.12f}, DEC={result[1]:.12f}")
+        pass
+    else:
+        print(f"{filename_without_path} [Platesolve failed]")
+        return
+    num_stars, fwhm = run_star_detect_siril(current_dir, filename)
+    if num_stars is None:
+        num_stars = 0
+    if fwhm is None:
+        fwhm = 0
+    analysis_time = time.time() - t_start
+    print(f"{filename_without_path} CaptureTime={capture_time:10d}, RA={result[0]:.12f}, DEC={result[1]:.12f}, NumStars={num_stars:5d}, FWHM={fwhm:.3f}, AnalysisTime={analysis_time:.2f}s")
+    with lock:
+        star_stats.append((capture_time, int(num_stars), float(fwhm)))
+        if csv_file is not None:
+            with open(csv_file, 'a') as f:
+                f.write(f"{filename_without_path}, {capture_time:10d}, {result[0]:.12f}, {result[1]:.12f}, {num_stars}, {fwhm}\n")
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Platesolve all images in a directory')
@@ -253,7 +318,7 @@ if __name__ == "__main__":
     else:
         focal_option = ''
 
-    
+
     if coordinates is None:
         print('\nWARNING!\nBlind platesolving using ASTAP, no WCS coordinates specified, and no object name specified -- this will be slow! \nIf you know the approximate RA and DEC of the image, specify it with the -w option, or specify an object name with the -o option.\n')
 
@@ -267,52 +332,37 @@ if __name__ == "__main__":
             exit(1)
 
     current_dir = os.getcwd()
-    csv_file = None
+    csv_filename = None
     if args.csv != '':
+        csv_filename = args.csv
         csv_file = open(args.csv, 'a')
         if len(prev_filenames) == 0:
             csv_file.write('Filename,CaptureTime,RA,DEC,NumStars,FWHM\n')
         print(f"Writing results to {args.csv}")
+        csv_file.close()
+
     # Run platesolve on all images in the directory
-    for filename in sorted(os.listdir(args.directory)):
-        # Exclude system files.
-        if filename.startswith('.'):
-            continue
-        # Exclude non-image files.
-        allowed_extensions = ['.fit', '.fits', '.cr2', '.cr3', '.jpg', '.png', '.tif', '.tiff']
-        if not any(filename.lower().endswith(ext) for ext in allowed_extensions):
-            continue
+    files = sorted(os.listdir(args.directory))
+    allowed_extensions = ['.fit', '.fits', '.cr2', '.cr3', '.jpg', '.png', '.tif', '.tiff']
+    files = [f for f in files if any(f.lower().endswith(ext) for ext in allowed_extensions)]
+    files = [f for f in files if not f.startswith('.')]
+    print(f"Processing {len(files)} files in directory {args.directory}")
+
+    new_files = []
+    for filename in files:
         if filename in prev_filenames:
-            print(f"File: {filename} [Previously solved, skipping]")
-            continue
-        t_start = time.time()
-        file = args.directory + '/' + filename
-        capture_time = int(get_image_capture_time(file).timestamp())
-        if coordinates is None:
-          result = run_plate_solve_astap(current_dir, file, coordinates, focal_option)
+            print(f"{filename} [Previously solved, skipping]")
+            # remove the filename from the list of files to process
         else:
-          result = run_plate_solve_siril(current_dir, file, coordinates, focal_option)
-        if result[0] is not None and result[1] is not None:
-            # print(f"RA={result[0]:.12f}, DEC={result[1]:.12f}")
-            pass
-        else:
-            print(f"File: {filename} [Platesolve failed]")
-            continue
-        num_stars, fwhm = run_star_detect_siril(current_dir, file)
-        if num_stars is None:
-            num_stars = 0
-        if fwhm is None:
-            fwhm = 0
-        star_stats.append((int(num_stars), float(fwhm)))
-        analysis_time = time.time() - t_start
-        print(f"File: {filename}, CaptureTime={capture_time:10d}, RA={result[0]:.12f}, DEC={result[1]:.12f}, NumStars={num_stars}, FWHM={fwhm}, AnalysisTime={analysis_time:.2f}s")
-        t_end = time.time()
-        if csv_file is not None:
-            # Write the numbers in 6 decimal places
-            csv_file.write(f"{filename}, {capture_time:10d}, {result[0]:.12f}, {result[1]:.12f}, {num_stars}, {fwhm}\n")
-        # sys.exit(1)
-    # Create a 2D scatter plot of the number of stars detected vs. FWHM.
-    if csv_file is not None:
-        csv_file.close()  
+            new_files.append(filename)
+    # Append the directory to the filenames
+    files = [args.directory + '/' + f for f in new_files]
+    lock = multiprocessing.Lock()
+
+    with multiprocessing.Pool(10) as pool:
+        m = multiprocessing.Manager()
+        l = m.Lock()
+        pool.starmap(process_file, [(current_dir, coordinates, focal_option, f, star_stats, csv_filename, l) for f in files])
+
+    star_stats.sort(key=lambda x: x[0])
     plot_star_stats(star_stats)
-    

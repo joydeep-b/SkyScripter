@@ -19,7 +19,10 @@ filter_lookup = {
     'L': 4452,
     'R': 4457,
     'G': 4447,
-    'B': 4442
+    'B': 4442,
+    'H': 23761,
+    'S': 23763,
+    'O': 23762,
 }
 
 class Session:
@@ -77,7 +80,7 @@ def save_session_csv(sessions, output_file):
 
 def get_session_data(directory):
     # List the files in the sub-directories.
-    subdirs = ['L', 'R', 'G', 'B', 'Halpha', 'OIII', 'SII']
+    subdirs = ['L', 'R', 'G', 'B', 'H', 'O', 'S']
     sessions = []
     i = 0
     progress = ['|', '/', '-', '\\']
