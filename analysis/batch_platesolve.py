@@ -231,11 +231,12 @@ def process_file(current_dir, coordinates, focal_option, filename, results, bad_
         return
     analysis_time = time.time() - t_start
     print(f"{filename_without_path} CaptureTime={capture_time:10d}, RA={ra:.12f}, DEC={dec:.12f}, NumStars={num_stars:5d}, FWHM={fwhm:.3f}, AnalysisTime={analysis_time:.2f}s")
-    with lock:
-        results.append((filename_without_path, capture_time, ra, dec, num_stars, fwhm))
-        if csv_file is not None:
-            with open(csv_file, 'a') as f:
-                f.write(f"{filename_without_path}, {capture_time:10d}, {ra:.12f}, {dec:.12f}, {num_stars}, {fwhm}\n")
+    lock.acquire()
+    results.append((filename_without_path, capture_time, ra, dec, num_stars, fwhm))
+    if csv_file is not None:
+        with open(csv_file, 'a') as f:
+            f.write(f"{filename_without_path}, {capture_time:10d}, {ra:.12f}, {dec:.12f}, {num_stars}, {fwhm}\n")
+    lock.release()
 
 def filter_subs(results, min_num_stars, max_fwhm):
     culled_files = [x[0] for x in results if x[4] < min_num_stars or x[5] > max_fwhm]
@@ -246,6 +247,16 @@ def filter_subs(results, min_num_stars, max_fwhm):
     for f in culled_files:
         print(f, end=' ')
     print()
+
+def sort_and_save_csv(filename):
+    lines = load_prev_files(filename)
+    lines.sort(key=lambda x: x[1])
+    with open(filename, 'w') as f:
+        f.write('Filename,CaptureTime,RA,DEC,NumStars,FWHM\n')
+        for line in lines:
+            f.write(f"{line[0]},{line[1]},{line[2]},{line[3]},{line[4]},{line[5]}\n")
+    return lines
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Platesolve all images in a directory')
@@ -327,12 +338,12 @@ if __name__ == "__main__":
             print(f, end=' ')
         print()
 
-    # Sort the results by capture time.
-    results.sort(key=lambda x: x[1])
+    results = sort_and_save_csv(args.csv)
+
     filter_subs(results, args.min_num_stars, args.max_fwhm)
 
-    num_stars = [x[4] for x in results]
-    fwhm = [x[5] for x in results]
+    num_stars = [x[4] for x in results[1:]]
+    fwhm = [x[5] for x in results[1:]]
     # print(num_stars)
     # print(fwhm)
     plot_star_stats(num_stars, fwhm, args.min_num_stars, args.max_fwhm)
