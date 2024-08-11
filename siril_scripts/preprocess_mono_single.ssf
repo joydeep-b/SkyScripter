@@ -11,3 +11,7 @@ seqapplyreg bkg_pp_light -drizzle -scale=1.0 -pixfrac=1.0
 # stack r_bkg_pp_light rej 5 5  -norm=addscale -output_norm -filter-fwhm=90% -weight_from_wfwhm -out=../../master_light_$FILTER:%s$
 stack r_bkg_pp_light rej 3 3  -norm=addscale -output_norm -weight_from_wfwhm -out=../../master_light_$FILTER:%s$
 # load ../../master_light_$FILTER:%s$
+
+# Alphabetical order of filters:
+# 1 2 3 4 5 6
+# B G H L O R
