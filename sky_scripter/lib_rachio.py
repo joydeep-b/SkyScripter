@@ -34,11 +34,11 @@ class RachioClient:
     command = f'curl -X GET -H "Content-Type: application/json" -H "Authorization: Bearer {self.api_key}" https://api.rach.io/1/public/person/{person_id}/'
     result = exec_or_fail(command)
     return json.loads(result)
-    
+
   def get_first_device(self):
     person_info = self.get_person_info()
     return person_info['devices'][0]
-  
+
   def get_upcoming_schedule(self, hours_ahead=24):
     json_data = {
       "device_id": self.device['id'],
@@ -55,13 +55,13 @@ class RachioClient:
     self.person_id = self.get_person_id()
     self.device = self.get_first_device()
     logging.info(f"Rachio API Key: {api_key} Person ID: {self.person_id}, Device ID: {self.device['id']}")
-    
+
 def main():
   init_logging('rachio')
   parser = argparse.ArgumentParser(description='Rachio client')
-  parser.add_argument('-a', '--hours-ahead', type=int, default=24, 
+  parser.add_argument('-a', '--hours-ahead', type=int, default=24,
                       help='Hours ahead to fetch the schedule')
-  parser.add_argument('-j', '--json', action='store_true', 
+  parser.add_argument('-j', '--json', action='store_true',
                       help='Print the JSON response')
   args = parser.parse_args()
 
@@ -81,7 +81,7 @@ def main():
     print(f'  Duration: {event_end - event_start}')
     if args.json:
       print(json.dumps(event, indent=2))
-  
-    
+
+
 if __name__ == '__main__':
   main()
