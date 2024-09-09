@@ -266,7 +266,7 @@ if __name__ == "__main__":
     parser.add_argument('-f', '--focal', type=str, help='Override focal length', default='')
     parser.add_argument('-c', '--csv', type=str, help='CSV file to write results to', default='')
     parser.add_argument('-s', '--min-num-stars', type=int, help='Minimum number of stars for filtering', default=0)
-    parser.add_argument('-m', '--max-fwhm', type=float, help='Maximum FWHM for filtering', default=10)
+    parser.add_argument('-m', '--max-fwhm', type=float, help='Maximum FWHM for filtering', default=3)
     args = parser.parse_args()
     coordinates = None
     if args.directory is None:
