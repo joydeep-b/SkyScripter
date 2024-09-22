@@ -1,13 +1,9 @@
-requires 1.2.0
+requires 1.3.0
 
-convert light -out=../.process
-cd ../.process
-calibrate light -dark=/Users/joydeepbiswas/Astrophotography/masters/dark/master_dark_MODE$READMODE:%1d$_GAIN$GAIN:%2d$_OFFSET$OFFSET:%2d$_EXPTIME$EXPTIME:%3d$ -flat=/Users/joydeepbiswas/Astrophotography/masters/flat/master_flat_$FILTER:%s$ -cc=dark
-seqsubsky pp_light 2 -tolerance=100 -nodither
-register bkg_pp_light -2pass -noout
-seqapplyreg bkg_pp_light -drizzle -scale=1.0 -pixfrac=1.0 -framing=min
-# seqapplyreg bkg_pp_light -drizzle -scale=1.0 -pixfrac=1.0 -framing=max
-# seqapplyreg bkg_pp_light -drizzle -scale=2.0 -pixfrac=0.5 -framing=min
-# stack r_bkg_pp_light rej 5 5  -norm=addscale -output_norm -filter-fwhm=90% -weight_from_wfwhm -out=../../master_light_$FILTER:%s$
-# stack r_bkg_pp_light rej 3 3  -norm=addscale -output_norm -weight_from_wfwhm -out=../../master_light_$FILTER:%s$
-# stack r_bkg_pp_light rej 5 5  -norm=addscale -output_norm -filter-wfwhm=90% -weight_from_wfwhm -out=../../master_light_$FILTER:%s$
+convert sho -out=.process
+cd .process
+seqplatesolve sho -force
+set32bits
+register sho -noout -2pass
+seqapplyreg sho -framing=min
+

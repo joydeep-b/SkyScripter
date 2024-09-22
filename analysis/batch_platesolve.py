@@ -114,7 +114,7 @@ close
                                     input=siril_commands,
                                     text=True,
                                     capture_output=True,
-                                    check=True)
+                                    check=False)
             # Extract the number of stars detected, and the FWHM. Sample output:
             # Found 343 Gaussian profile stars in image, channel #1 (FWHM 5.428217)
             regex = r"Found ([0-9]+) Gaussian profile stars in image, channel #[0-2] \(FWHM ([0-9]+\.[0-9]+)\)"
@@ -128,7 +128,7 @@ close
             ra, dec = extract_and_convert_coordinates_siril(result.stdout)
             return int(num_stars), float(fwhm), ra, dec
         except subprocess.CalledProcessError as e:
-            # print(f"Error running Siril: {e}")
+            print(f"Error running Siril: {e}")
             return None, None, None, None
 
 def load_prev_files(filename):

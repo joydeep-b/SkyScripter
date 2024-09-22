@@ -9,12 +9,6 @@ register sho
 # o = r_sho_00002
 # s = r_sho_00003
 
-# SHO
-rgbcomp r_sho_00003 r_sho_00001 r_sho_00002 -out=composed_sho
-load composed_sho
-subsky 1
-platesolve -force
-save composed_sho
 
 # HSO
 rgbcomp r_sho_00001 r_sho_00003 r_sho_00002 -out=composed_hso
@@ -29,6 +23,13 @@ load composed_hoo
 subsky 1
 platesolve -force
 save composed_hoo
+
+# SHO
+rgbcomp r_sho_00003 r_sho_00001 r_sho_00002 -out=composed_sho
+load composed_sho
+subsky 1
+platesolve -force
+save composed_sho
 
 
 # subsky 2
