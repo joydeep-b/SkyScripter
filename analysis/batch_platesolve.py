@@ -95,7 +95,7 @@ def findstar_and_platesolve_siril(wcs_coords: str, file: str)  -> (tuple[int, fl
         platesolve_command = f'platesolve {wcs_coords}'
     siril_commands = f"""requires 1.2.0
 convert light -out=.
-calibrate_single light_00001 -dark=/Users/joydeepbiswas/Astrophotography/masters/dark/master_dark_MODE$READMODE:%1d$_GAIN$GAIN:%2d$_OFFSET$OFFSET:%2d$_EXPTIME$EXPTIME:%3d$ -flat=/Users/joydeepbiswas/Astrophotography/masters/flat/master_flat_$FILTER:%s$ -cc=dark
+calibrate_single light_00001 -dark=/Users/joydeepbiswas/Astrophotography/masters/dark/master_dark_MODE$READMODE:%1d$_GAIN$GAIN:%2d$_OFFSET$OFFSET:%2d$_EXPTIME$EXPTIME:%3d$_TEMP$CCD-TEMP:%d$ -flat=/Users/joydeepbiswas/Astrophotography/masters/flat/master_flat_$FILTER:%s$ -cc=dark
 load pp_light_00001
 findstar
 {platesolve_command}
@@ -128,6 +128,7 @@ close
             ra, dec = extract_and_convert_coordinates_siril(result.stdout)
             return int(num_stars), float(fwhm), ra, dec
         except subprocess.CalledProcessError as e:
+            # print(f"Error running Siril: {e}")
             return None, None, None, None
 
 def load_prev_files(filename):
