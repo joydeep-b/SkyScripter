@@ -5,5 +5,5 @@ cd .process
 
 # Stack Dark Frames to dark_stacked.fit
 # stack dark rej 3 3 -nonorm -out=../../master_dark
-stack dark rej 3 3 -nonorm -out=../../master_dark_MODE$READMODE:%1d$_GAIN$GAIN:%2d$_OFFSET$OFFSET:%2d$_EXPTIME$EXPTIME:%3d$
+stack dark rej 3 3 -nonorm -out=../../master_dark_MODE$READMODE:%1d$_GAIN$GAIN:%2d$_OFFSET$OFFSET:%2d$_EXPTIME$EXPTIME:%3d$_TEMP$CCD-TEMP:%d$
 cd ..
