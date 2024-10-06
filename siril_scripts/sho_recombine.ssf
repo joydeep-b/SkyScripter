@@ -3,7 +3,8 @@ requires 1.2.0
 convert sho -out=.process
 cd .process
 seqplatesolve sho -force
-register sho
+register sho -2pass -noout
+seqapplyreg sho -framing=min
 
 # h = r_sho_00001
 # o = r_sho_00002
@@ -11,18 +12,18 @@ register sho
 
 
 # HSO
-rgbcomp r_sho_00001 r_sho_00003 r_sho_00002 -out=composed_hso
-load composed_hso
-subsky 1
-platesolve -force
-save composed_hso
+# rgbcomp r_sho_00001 r_sho_00003 r_sho_00002 -out=composed_hso
+# load composed_hso
+# subsky 1
+# platesolve -force
+# save composed_hso
 
 # HOO
-rgbcomp r_sho_00001 r_sho_00002 r_sho_00002 -out=composed_hoo
-load composed_hoo
-subsky 1
-platesolve -force
-save composed_hoo
+# rgbcomp r_sho_00001 r_sho_00002 r_sho_00002 -out=composed_hoo
+# load composed_hoo
+# subsky 1
+# platesolve -force
+# save composed_hoo
 
 # SHO
 rgbcomp r_sho_00003 r_sho_00001 r_sho_00002 -out=composed_sho
