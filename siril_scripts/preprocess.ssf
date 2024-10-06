@@ -4,7 +4,7 @@ convert light -out=../.process
 cd ../.process
 
 # set16bits
-calibrate light -dark=/Users/joydeepbiswas/Astrophotography/masters/dark/master_dark_MODE$READMODE:%1d$_GAIN$GAIN:%2d$_OFFSET$OFFSET:%2d$_EXPTIME$EXPTIME:%3d$_TEMP$CCD-TEMP:%d$ -flat=/Users/joydeepbiswas/Astrophotography/masters/flat/master_flat_$FILTER:%s$ -cc=dark
+calibrate light -dark=$defdark -flat=$defflat -cc=dark
 
 # seqsubsky pp_light 2 -tolerance=100
 # register bkg_pp_light -2pass -noout

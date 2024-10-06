@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 import time
 import multiprocessing
 from functools import partial
+import numpy as np
 
 if sys.platform == 'darwin':
   SIRIL_PATH = '/Applications/Siril.app/Contents/MacOS/Siril'
@@ -52,7 +53,7 @@ def extract_and_convert_coordinates_siril(output):
     match = re.search(regex, output)
     if not match:
         print("No match found")
-        return None, None
+        return None, None, None
 
     # Extract matched groups
     alpha_h, alpha_m, alpha_s, delta_sign, delta_d, delta_m, delta_s = match.groups()
@@ -65,7 +66,16 @@ def extract_and_convert_coordinates_siril(output):
     delta_multiplier = 1 if delta_sign == '+' else -1
     delta = delta_multiplier * (int(delta_d) + int(delta_m)/60 + float(delta_s)/3600)
 
-    return alpha, delta
+    # Now find the angle, it will be in the folloing format:
+    # "Up is +359.40 deg CounterclockWise wrt. N"
+    regex = r"Up is ([+-]?[0-9]+\.[0-9]+) deg CounterclockWise wrt. N"
+    match = re.search(regex, output)
+    if not match:
+        print("No match found for angle")
+        return alpha, delta, None
+    angle = float(match.group(1))
+
+    return alpha, delta, angle
 
 def get_wcs_coordinates(object_name):
     # Query the object
@@ -95,7 +105,7 @@ def findstar_and_platesolve_siril(wcs_coords: str, file: str)  -> (tuple[int, fl
         platesolve_command = f'platesolve {wcs_coords}'
     siril_commands = f"""requires 1.2.0
 convert light -out=.
-calibrate_single light_00001 -dark=/Users/joydeepbiswas/Astrophotography/masters/dark/master_dark_MODE$READMODE:%1d$_GAIN$GAIN:%2d$_OFFSET$OFFSET:%2d$_EXPTIME$EXPTIME:%3d$_TEMP$CCD-TEMP:%d$ -flat=/Users/joydeepbiswas/Astrophotography/masters/flat/master_flat_$FILTER:%s$ -cc=dark
+calibrate_single light_00001 -dark=$defdark -flat=$defflat -cc=dark
 load pp_light_00001
 findstar
 {platesolve_command}
@@ -122,14 +132,17 @@ close
             match = re.search(regex, result.stdout)
             if not match:
                 print("No stars found")
+                print(result.stdout)
                 num_stars, fwhm = None, None
             else:
                 num_stars, fwhm = match.groups()
-            ra, dec = extract_and_convert_coordinates_siril(result.stdout)
-            return int(num_stars), float(fwhm), ra, dec
+            ra, dec, angle = extract_and_convert_coordinates_siril(result.stdout)
+            if num_stars is None or fwhm is None or ra is None or dec is None or angle is None:
+                return None, None, None, None, None
+            return int(num_stars), float(fwhm), ra, dec, angle
         except subprocess.CalledProcessError as e:
             print(f"Error running Siril: {e}")
-            return None, None, None, None
+            return None, None, None, None, None
 
 def load_prev_files(filename):
     if not os.path.exists(filename):
@@ -140,8 +153,8 @@ def load_prev_files(filename):
         for line in lines[1:]:
             # print(line)
             parts = line.split(',')
-            # Note: Row format is: Filename,CaptureTime,RA,DEC,NumStars,FWHM
-            prev_results.append((parts[0], int(parts[1]), float(parts[2]), float(parts[3]), int(parts[4]), float(parts[5])))
+            # Note: Row format is: Filename,CaptureTime,RA,DEC,Angle,NumStars,FWHM
+            prev_results.append((parts[0], int(parts[1]), float(parts[2]), float(parts[3]), float(parts[4]), int(parts[5]), float(parts[6])))
     return prev_results
 
 def plot_star_stats(num_stars, fwhm, min_num_stars, max_fwhm):
@@ -225,18 +238,18 @@ def process_file(current_dir, coordinates, focal_option, filename, results, bad_
     t_start = time.time()
     filename_without_path = os.path.basename(filename)
     capture_time = int(get_image_capture_time(filename).timestamp())
-    num_stars, fwhm, ra, dec = findstar_and_platesolve_siril(coordinates, filename)
-    if num_stars is None or fwhm is None or ra is None or dec is None:
+    num_stars, fwhm, ra, dec, angle = findstar_and_platesolve_siril(coordinates, filename)
+    if num_stars is None or fwhm is None or ra is None or dec is None or angle is None:
         print(f"{filename_without_path} [Image analysis failed]")
         bad_files.append(filename_without_path)
         return
     analysis_time = time.time() - t_start
-    print(f"{filename_without_path} CaptureTime={capture_time:10d}, RA={ra:.12f}, DEC={dec:.12f}, NumStars={num_stars:5d}, FWHM={fwhm:.3f}, AnalysisTime={analysis_time:.2f}s")
+    print(f"{filename_without_path} CaptureTime={capture_time:10d}, RA={ra:.12f}, DEC={dec:.12f}, Angle={angle:7.2f}, NumStars={num_stars:5d}, FWHM={fwhm:.3f}, AnalysisTime={analysis_time:.2f}s")
     lock.acquire()
-    results.append((filename_without_path, capture_time, ra, dec, num_stars, fwhm))
+    results.append((filename_without_path, capture_time, ra, dec, angle, num_stars, fwhm))
     if csv_file is not None:
         with open(csv_file, 'a') as f:
-            f.write(f"{filename_without_path}, {capture_time:10d}, {ra:.12f}, {dec:.12f}, {num_stars}, {fwhm}\n")
+            f.write(f"{filename_without_path}, {capture_time:10d}, {ra:.12f}, {dec:.12f}, {angle:7.2f}, {num_stars}, {fwhm}\n")
     lock.release()
 
 def filter_subs(results, min_num_stars, max_fwhm):
@@ -253,10 +266,41 @@ def sort_and_save_csv(filename):
     lines = load_prev_files(filename)
     lines.sort(key=lambda x: x[1])
     with open(filename, 'w') as f:
-        f.write('Filename,CaptureTime,RA,DEC,NumStars,FWHM\n')
+        f.write('Filename,CaptureTime,RA,DEC,Angle,NumStars,FWHM\n')
         for line in lines:
-            f.write(f"{line[0]},{line[1]},{line[2]},{line[3]},{line[4]},{line[5]}\n")
+            f.write(f"{line[0]},{line[1]},{line[2]},{line[3]},{line[4]},{line[5]},{line[6]}\n")
     return lines
+
+
+def plot_angles(angles):
+    # Create a unit circle
+    circle = plt.Circle((0, 0), 1, color='lightblue', fill=False)
+
+    fig, ax = plt.subplots()
+    # ax.add_artist(circle)
+
+    # Set limits for the unit circle
+    ax.set_xlim([-1.1, 1.1])
+    ax.set_ylim([-1.1, 1.1])
+
+    # Draw lines corresponding to the angles
+    for angle in angles:
+        radians = np.radians(angle)
+        x = np.cos(radians)  # x coordinate
+        y = np.sin(radians)  # y coordinate
+        # ax.plot([0, x], [0, y], label=f'{angle}°')
+        ax.plot([0, x], [0, y])
+
+    # Setting aspect ratio to equal for the unit circle
+    ax.set_aspect('equal')
+
+    # Adding labels and title
+    ax.set_title('Distribution of Angles')
+    # ax.legend(loc='upper right', bbox_to_anchor=(1.15, 1.05))
+
+    # Show the plot
+    plt.grid(True)
+    plt.show()
 
 
 if __name__ == "__main__":
@@ -342,9 +386,11 @@ if __name__ == "__main__":
     results = sort_and_save_csv(args.csv)
 
     filter_subs(results, args.min_num_stars, args.max_fwhm)
+    angles = [x[4] for x in results]
+    plot_angles(angles)
 
-    num_stars = [x[4] for x in results[1:]]
-    fwhm = [x[5] for x in results[1:]]
+    num_stars = [x[5] for x in results[1:]]
+    fwhm = [x[6] for x in results[1:]]
     # print(num_stars)
     # print(fwhm)
     plot_star_stats(num_stars, fwhm, args.min_num_stars, args.max_fwhm)

@@ -46,7 +46,7 @@ class Session:
 
     def __str__(self):
         datestr = self.date.strftime('%Y-%m-%d')
-        return f'{datestr},{self.filter},{self.number},{self.duration},{self.gain},{self.sensorCooling},{self.darks},{self.flats},{self.bias},{self.bortle},{self.temperature}'
+        return f'{datestr},{self.filter},{self.number:04},{self.duration:06.1f},{self.gain},{self.sensorCooling:02},{self.darks},{self.flats},{self.bias},{self.bortle},{self.temperature:04.2f}'
 
     # Add an increment oparator to increment the number of images taken.
     def __iadd__(self, other):
@@ -114,6 +114,13 @@ def get_session_data(directory):
     sessions.sort()
     return sessions
 
+def seconds_to_hms(seconds):
+    hours = seconds // 3600
+    seconds -= hours * 3600
+    minutes = seconds // 60
+    seconds -= minutes * 60
+    return hours, minutes, seconds
+
 def show_totals(sessions):
     totals = {}
     for session in sessions:
@@ -128,13 +135,12 @@ def show_totals(sessions):
                 filter = key
                 break
         # Get total in hours, minutes, and seconds.
-        duration = timedelta(seconds=total)
-        print(f'{filter:5}: {total:7} seconds ({duration})')
+        # duration = timedelta(seconds=total)
+        h, m, s = seconds_to_hms(total)
+        print(f'{filter:5}: {total:7} seconds ({h:3}:{m:02}:{s:02})')
 
-    total_hours = sum(totals.values()) / 3600
-    total_minutes = (total_hours - int(total_hours)) * 60
-    total_seconds = (total_minutes - int(total_minutes)) * 60
-    print(f'Total: {sum(totals.values()):7} seconds ({int(total_hours)}:{int(total_minutes)}:{int(total_seconds)})')
+    h, m, s = seconds_to_hms(sum(totals.values()))
+    print(f'Total: {sum(totals.values()):7} seconds ({h:3}:{m:02}:{s:02})')
 
 def main():
     # Parse the command line arguments.
