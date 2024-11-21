@@ -2,5 +2,6 @@ requires 1.2.0
 
 convert flat -out=../.process
 cd ../.process
-calibrate flat -bias=$defbias
+# calibrate flat -bias=$defbias
+calibrate flat -dark=../../master_dark_MODE5_GAIN56_OFFSET20_EXPTIME0.80_TEMP6.fit -cc=dark
 stack pp_flat rej winsorized 3 3 -norm=mul -out=../master_flat_$FILTER:%s$

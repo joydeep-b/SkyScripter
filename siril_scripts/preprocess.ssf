@@ -3,25 +3,25 @@ requires 1.3.0
 convert light -out=../.process
 cd ../.process
 
-# set16bits
+# defdark: /home/joydeepb/Astrophotography/masters/dark/master_dark_MODE$READMODE:%1d$_GAIN$GAIN:%2d$_OFFSET$OFFSET:%2d$_EXPTIME$EXPTIME:%3d$_TEMP$CCD-TEMP:%d$
+# defflat: /home/joydeepb/Astrophotography/masters/flat/master_flat_$FILTER:%s$
 calibrate light -dark=$defdark -flat=$defflat -cc=dark
 
 # seqsubsky pp_light 2 -tolerance=100
-# register bkg_pp_light -2pass -noout
+# register bkg_pp_light -2pass
 # seqapplyreg bkg_pp_light -drizzle -scale=1.5 -pixfrac=0.66 -framing=min
-# set32bits
 # stack r_bkg_pp_light rej 5 5  -norm=addscale -output_norm -filter-wfwhm=90% -weight_from_wfwhm -out=../../master_light_$FILTER:%s$
 
-# register pp_light -2pass -noout
+# register pp_light -2pass
 # seqapplyreg pp_light -drizzle -scale=1.0 -pixfrac=0.9 -framing=min
-# set32bits
 # stack r_pp_light rej 5 5  -norm=addscale -output_norm -filter-wfwhm=90% -weight_from_wfwhm -out=../../master_light_$FILTER:%s$
 
-register pp_light -2pass -noout
+# seqplatesolve pp_light -disto=5 -force
+register pp_light -2pass
 # seqapplyreg pp_light -drizzle -scale=1.5 -pixfrac=0.6 -framing=cog
-seqapplyreg pp_light -drizzle -scale=1 -pixfrac=1 -framing=cog
-# set32bits
-stack r_pp_light rej 5 5  -norm=addscale -output_norm -filter-wfwhm=90% -weight_from_wfwhm -out=../../master_light_$FILTER:%s$
+seqapplyreg pp_light -drizzle -scale=1 -pixfrac=0.9 -framing=cog
+# stack r_pp_light rej 5 5  -norm=addscale -output_norm -filter-wfwhm=90% -weight_from_wfwhm -out=../../master_light_$FILTER:%s$
+stack r_pp_light rej 5 5  -norm=addscale -output_norm -weight_from_wfwhm -out=../../master_light_$FILTER:%s$
 
 # Alphabetical order of filters
 # 1 2 3 4 5 6 7

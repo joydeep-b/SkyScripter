@@ -3,22 +3,15 @@ requires 1.3.0
 convert light -out=../.process
 cd ../.process
 
-set16bits
-calibrate light -dark=/Users/joydeepbiswas/Astrophotography/masters/dark/master_dark_MODE$READMODE:%1d$_GAIN$GAIN:%2d$_OFFSET$OFFSET:%2d$_EXPTIME$EXPTIME:%3d$_TEMP$CCD-TEMP:%d$ -flat=/Users/joydeepbiswas/Astrophotography/masters/flat/master_flat_$FILTER:%s$ -cc=dark
+calibrate light -dark=$defdark -flat=$defflat -cc=dark
 
-seqsubsky pp_light 2 -tolerance=100
-register bkg_pp_light -2pass -noout
-
-# seqapplyreg bkg_pp_light -drizzle -scale=1.5 -pixfrac=0.6 -framing=min
-# set32bits
-# stack r_bkg_pp_light rej 5 5  -norm=addscale -output_norm -filter-wfwhm=90% -weight_from_wfwhm -out=../../master_light_$FILTER:%s$
+seqsubsky pp_light 2 -tolerance=0.8
+register bkg_pp_light -2pass
 
 seqapplyreg bkg_pp_light -drizzle -scale=1.0 -pixfrac=0.9 -framing=min
-set32bits
 stack r_bkg_pp_light rej 5 5  -norm=addscale -output_norm -weight_from_wfwhm -out=../../master_light_$FILTER:%s$
 
 # seqapplyreg pp_light -drizzle -scale=1.5 -pixfrac=0.6 -framing=min
-# set32bits
 # stack r_pp_light rej 5 5  -norm=addscale -output_norm -filter-wfwhm=90% -weight_from_wfwhm -out=../../master_light_$FILTER:%s$
 
 # Alphabetical order of filters

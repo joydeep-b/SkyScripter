@@ -3,7 +3,7 @@ requires 1.2.0
 convert sho -out=.process
 cd .process
 seqplatesolve sho -force
-register sho -2pass -noout
+register sho -2pass
 seqapplyreg sho -framing=min
 
 # h = r_sho_00001
