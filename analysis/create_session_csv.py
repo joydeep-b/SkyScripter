@@ -29,7 +29,7 @@ class Session:
     def __init__(self, date, filter, duration, gain, sensorCooling, darks, flats, bias, bortle, temperature):
         self.date = date
         self.filter = filter_lookup[filter]
-        self.number = 0
+        self.number = 1
         self.duration = duration
         self.gain = gain
         self.sensorCooling = int(sensorCooling +0.5)
