@@ -3,7 +3,7 @@
 ********************************************************************
 PixInsight XML Process Serialization Module - XPSM 1.0
 ********************************************************************
-Generated on 2024-10-06T11:48:45.419Z
+Generated on 2024-11-19T20:09:01.233Z
 PixInsight Core 1.8.9-3 (x64)
 Copyright (c) 2003-2024 Pleiades Astrophoto
 ********************************************************************
@@ -134,7 +134,7 @@ Copyright (c) 2003-2024 Pleiades Astrophoto
       <parameter id="outputDirectory"></parameter>
    </instance>
    <instance class="PixelMath" version="256" id="StarRecombine_instance">
-      <parameter id="expression">starless + 2.5 * stars^1.2</parameter>
+      <parameter id="expression">~((~stars)*(~starless))</parameter>
       <parameter id="expression1"></parameter>
       <parameter id="expression2"></parameter>
       <parameter id="expression3"></parameter>
@@ -152,7 +152,7 @@ Copyright (c) 2003-2024 Pleiades Astrophoto
       <parameter id="truncate" value="true"/>
       <parameter id="truncateLower" value="0"/>
       <parameter id="truncateUpper" value="1"/>
-      <parameter id="createNewImage" value="false"/>
+      <parameter id="createNewImage" value="true"/>
       <parameter id="showNewImage" value="true"/>
       <parameter id="newImageId"></parameter>
       <parameter id="newImageWidth" value="0"/>
@@ -753,6 +753,95 @@ Copyright (c) 2003-2024 Pleiades Astrophoto
       <parameter id="generateProtectionMasks" value="false"/>
       <parameter id="gridSamplingDelta" value="16"/>
    </instance>
+   <instance class="PixelMath" version="256" id="comet_bg_overlay_instance">
+      <parameter id="expression">bg_stack1</parameter>
+      <parameter id="expression1">0.68*O+0.32*H</parameter>
+      <parameter id="expression2">0.8*O+0.2*H</parameter>
+      <parameter id="expression3"></parameter>
+      <parameter id="useSingleExpression" value="true"/>
+      <parameter id="symbols"></parameter>
+      <parameter id="clearImageCacheAndExit" value="false"/>
+      <parameter id="cacheGeneratedImages" value="false"/>
+      <parameter id="generateOutput" value="true"/>
+      <parameter id="singleThreaded" value="false"/>
+      <parameter id="optimization" value="true"/>
+      <parameter id="use64BitWorkingImage" value="false"/>
+      <parameter id="rescale" value="false"/>
+      <parameter id="rescaleLower" value="0"/>
+      <parameter id="rescaleUpper" value="1"/>
+      <parameter id="truncate" value="true"/>
+      <parameter id="truncateLower" value="0"/>
+      <parameter id="truncateUpper" value="1"/>
+      <parameter id="createNewImage" value="false"/>
+      <parameter id="showNewImage" value="true"/>
+      <parameter id="newImageId">HOO</parameter>
+      <parameter id="newImageWidth" value="0"/>
+      <parameter id="newImageHeight" value="0"/>
+      <parameter id="newImageAlpha" value="false"/>
+      <parameter id="newImageColorSpace" value="RGB"/>
+      <parameter id="newImageSampleFormat" value="SameAsTarget"/>
+      <table id="outputData" rows="0"/>
+   </instance>
+   <instance class="PixelMath" version="256" id="comet_bg_mask_instance">
+      <parameter id="expression">1/(1+exp((y()-y_start)/delta_y))</parameter>
+      <parameter id="expression1"></parameter>
+      <parameter id="expression2"></parameter>
+      <parameter id="expression3"></parameter>
+      <parameter id="useSingleExpression" value="true"/>
+      <parameter id="symbols">y_start=6000,
+delta_y=500</parameter>
+      <parameter id="clearImageCacheAndExit" value="false"/>
+      <parameter id="cacheGeneratedImages" value="false"/>
+      <parameter id="generateOutput" value="true"/>
+      <parameter id="singleThreaded" value="false"/>
+      <parameter id="optimization" value="true"/>
+      <parameter id="use64BitWorkingImage" value="false"/>
+      <parameter id="rescale" value="false"/>
+      <parameter id="rescaleLower" value="0"/>
+      <parameter id="rescaleUpper" value="1"/>
+      <parameter id="truncate" value="true"/>
+      <parameter id="truncateLower" value="0"/>
+      <parameter id="truncateUpper" value="1"/>
+      <parameter id="createNewImage" value="false"/>
+      <parameter id="showNewImage" value="true"/>
+      <parameter id="newImageId"></parameter>
+      <parameter id="newImageWidth" value="0"/>
+      <parameter id="newImageHeight" value="0"/>
+      <parameter id="newImageAlpha" value="false"/>
+      <parameter id="newImageColorSpace" value="SameAsTarget"/>
+      <parameter id="newImageSampleFormat" value="SameAsTarget"/>
+      <table id="outputData" rows="0"/>
+   </instance>
+   <instance class="PixelMath" version="256" id="Process29_instance">
+      <parameter id="expression">1/(1+exp((y()-y_start)/delta_y))</parameter>
+      <parameter id="expression1"></parameter>
+      <parameter id="expression2"></parameter>
+      <parameter id="expression3"></parameter>
+      <parameter id="useSingleExpression" value="true"/>
+      <parameter id="symbols">y_start=5500,
+delta_y=500</parameter>
+      <parameter id="clearImageCacheAndExit" value="false"/>
+      <parameter id="cacheGeneratedImages" value="false"/>
+      <parameter id="generateOutput" value="true"/>
+      <parameter id="singleThreaded" value="false"/>
+      <parameter id="optimization" value="true"/>
+      <parameter id="use64BitWorkingImage" value="false"/>
+      <parameter id="rescale" value="false"/>
+      <parameter id="rescaleLower" value="0"/>
+      <parameter id="rescaleUpper" value="1"/>
+      <parameter id="truncate" value="true"/>
+      <parameter id="truncateLower" value="0"/>
+      <parameter id="truncateUpper" value="1"/>
+      <parameter id="createNewImage" value="false"/>
+      <parameter id="showNewImage" value="true"/>
+      <parameter id="newImageId"></parameter>
+      <parameter id="newImageWidth" value="0"/>
+      <parameter id="newImageHeight" value="0"/>
+      <parameter id="newImageAlpha" value="false"/>
+      <parameter id="newImageColorSpace" value="SameAsTarget"/>
+      <parameter id="newImageSampleFormat" value="SameAsTarget"/>
+      <table id="outputData" rows="0"/>
+   </instance>
    <icon id="STF" instance="STF_instance" xpos="1536" ypos="8" workspace="Workspace01"/>
    <icon id="VerticalMirror" instance="VerticalMirror_instance" xpos="1536" ypos="40" workspace="Workspace01"/>
    <icon id="StarX" instance="StarX_instance" xpos="1536" ypos="200" workspace="Workspace01"/>
@@ -778,5 +867,8 @@ Copyright (c) 2003-2024 Pleiades Astrophoto
    <icon id="HDRMultiScaleTf" instance="HDRMultiScaleTf_instance" xpos="1536" ypos="712" workspace="Workspace01"/>
    <icon id="ImageIntegration" instance="ImageIntegration_instance" xpos="1536" ypos="776" workspace="Workspace01"/>
    <icon id="LRGBCombination" instance="LRGBCombination_instance" xpos="1536" ypos="680" workspace="Workspace01"/>
-   <icon id="GradientCorrection" instance="GradientCorrection_instance" xpos="1536" ypos="856" workspace="Workspace01"/>
+   <icon id="GradientCorrection" instance="GradientCorrection_instance" xpos="1536" ypos="808" workspace="Workspace01"/>
+   <icon id="comet_bg_overlay" instance="comet_bg_overlay_instance" xpos="1536" ypos="872" workspace="Workspace01"/>
+   <icon id="comet_bg_mask" instance="comet_bg_mask_instance" xpos="1536" ypos="840" workspace="Workspace01"/>
+   <icon id="Process29" instance="Process29_instance" xpos="1568" ypos="928" workspace="Workspace01"/>
 </xpsm>
