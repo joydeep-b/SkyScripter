@@ -30,7 +30,8 @@ convert light -out={process_dir}
 cd {process_dir}
 calibrate light -dark=$defdark -flat=$defflat -cc=dark
 register pp_light -2pass
-seqapplyreg pp_light -drizzle -scale=1 -pixfrac=0.9 -framing=min
+# seqapplyreg pp_light -drizzle -scale=1 -pixfrac=0.9 -framing=min
+seqapplyreg pp_light -drizzle -scale=1 -pixfrac=0.9 -framing=cog
 """
   siril_cli_command = [SIRIL_PATH, "-d", indir, "-s", "-"]
   try:
@@ -60,8 +61,7 @@ def create_sub_stack(process_dir, outdir, stack_size):
   # Copy the first stack_size files from process_dir to stacking_dir
   r_pp_files = list(Path(process_dir).glob('r_pp*.fit'))
   r_pp_files.sort()
-  for i in range(stack_size):
-    # Make a symlink to the file in the stacking dir
+  for i in range(1, len(r_pp_files)):
     os.symlink(r_pp_files[i], os.path.join(stacking_dir, r_pp_files[i].name))
   # Run the stacking script
   stacking_script = f"""requires 1.3.5
@@ -121,7 +121,8 @@ def get_noise_stats(starless_dir):
   starless_files.sort()
   # (x, y, w, h) = (5013, 3129, 462, 298)
   # (x, y, w, h) = (5013, 3129, 16, 16)
-  (x, y, w, h) = (3216, 1338, 108, 57)
+  # (x, y, w, h) = (3216, 1338, 108, 57)
+  (x, y, w, h) = (3036, 3027, 134, 93)
   # Go through each of them, run a Siril script to select a box with parameters x, y, w, h. Then run
   # the stat command.
   stats = []
@@ -177,6 +178,9 @@ def plot_stats(stack_sizes, stats, outdir):
   # Create a line plot of snr vs. stack size. Display the plot and save it to outdir.
   import matplotlib.pyplot as plt
   import numpy as np
+  if len(stack_sizes) != len(stats):
+    print(f"Error: stack_sizes and stats have different lengths: {len(stack_sizes)} vs. {len(stats)}")
+    return
   # Order of stats: (f, mean, median, sigma, min, max, bgnoise, bg)
   bgnoise = [s[6] for s in stats]
   # SNR = (mean - min) / bgnoise
@@ -225,7 +229,6 @@ def main():
 
   if not args.graph:
     calibrate_images(args.indir, process_dir)
-
     for s in stack_sizes:
       print(f"Creating sub-stack of size {s}")
       create_sub_stack(process_dir, outdir, s)
@@ -234,7 +237,7 @@ def main():
 
   stats = get_noise_stats(os.path.join(outdir, '.starless'))
   plot_stats(stack_sizes, stats, outdir)
-  cleanup(outdir)
+  # cleanup(outdir)
 
 if __name__ == "__main__":
   main()
