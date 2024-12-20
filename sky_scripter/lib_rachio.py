@@ -57,6 +57,7 @@ class RachioClient:
     logging.info(f"Rachio API Key: {api_key} Person ID: {self.person_id}, Device ID: {self.device['id']}")
 
 def main():
+  print('Checking for upcoming Rachio events...')
   init_logging('rachio')
   parser = argparse.ArgumentParser(description='Rachio client')
   parser.add_argument('-a', '--hours-ahead', type=int, default=24,
@@ -81,6 +82,16 @@ def main():
     print(f'  Duration: {event_end - event_start}')
     if args.json:
       print(json.dumps(event, indent=2))
+  # If there are upcoming events, print a warning in blinking red text.
+  BLINK = "\033[5m"
+  BOLD = "\033[1m"
+  RED = "\033[31m"
+  GREEN = "\033[32m"
+  RESET = "\033[0m"
+  if len(upcoming_schedule['entries']) > 0:
+    print(f'{BLINK}{BOLD}{RED}WARNING: Sprinkler events found!{RESET}')
+  else:
+    print(f'{GREEN}No upcoming sprinkler events found.{RESET}')
 
 
 if __name__ == '__main__':

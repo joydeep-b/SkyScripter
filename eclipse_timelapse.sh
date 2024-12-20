@@ -1,1 +1,0 @@
-capture/eclipse_timelapse.sh
