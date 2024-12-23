@@ -23,19 +23,19 @@ class IndiClient:
     if len(lines) == 1:
       # Parse the output to get the property value.
       output = output.split("=")[1].strip()
-      return output  
+      return output
     else:
       # Parse the output from each line to get all property values.
       output = []
       for line in lines:
-        # Get key-value pair. 
+        # Get key-value pair.
         # Example:"SkyAdventurer GTi.RASTATUS.RAInitialized=Ok"
         # Key="RAInitialized" Value="Ok"
         key = line.split("=")[0].split(".")[-1]
         value = line.split("=")[1].strip()
         output.append((key, value))
       return output
-    
+
   def write(self, propname: str, keys: list | str, values: list | str):
     if self.simulate:
       return
@@ -81,6 +81,70 @@ class IndiFocuser(IndiClient):
     self.set_focus(focus_value + steps)
     logging.info(f'New focus value: {focus_value + steps}')
 
+class IndiCamera(IndiClient):
+  def set_gain(self, value):
+    self.write("CCD_EXPOSURE_GAIN", "VALUE", value)
+
+  def get_mode(self):
+    return int(self.read("READ_MODE.MODE"))
+
+  def get_gain(self):
+    return int(self.read("CCD_GAIN.GAIN"))
+
+  def get_offset(self):
+    return int(self.read("CCD_OFFSET.OFFSET"))
+
+  def set_mode(self, mode):
+    self.write("READ_MODE", "MODE", mode)
+
+  def set_gain(self, gain):
+    self.write("CCD_GAIN", "GAIN", gain)
+
+  def set_offset(self, offset):
+    self.write("CCD_OFFSET", "OFFSET", offset)
+
+  def get_filter_names(self):
+    # There should be 7 filter slots, numbered 1-7, with names FILTER_NAME.FILTER_SLOT_NAME_1, etc.
+    filter_names = []
+    for i in range(1, 8):
+      filter_name = self.read(f"FILTER_NAME.FILTER_SLOT_NAME_{i}")
+      if filter_name:
+        filter_names.append(filter_name)
+    return filter_names
+
+  def change_filter(self, filter_name):
+    filter_names = self.get_filter_names()
+    if filter_name not in filter_names:
+      logging.error(f"Filter {filter_name} not found in filter wheel")
+      return
+    filter_index = filter_names.index(filter_name) + 1
+    logging.info(f"Changing filter to {filter_name} (index {filter_index})")
+    self.write("FILTER_SLOT", "FILTER_SLOT_VALUE", filter_index)
+    timeout = 60
+    t_start = time.time()
+    while time.time() - t_start < timeout:
+      current_filter = int(self.read("FILTER_SLOT.FILTER_SLOT_VALUE"))
+      logging.info(f"Current filter: {current_filter}")
+      if current_filter == filter_index:
+        logging.info(f"Filter change successful, completed in {time.time() - t_start:.3f} seconds")
+        return
+      time.sleep(1)
+    logging.error(f"Filter change timed out after {timeout} seconds")
+
+  def get_humidity(self):
+    return float(self.read("CCD_HUMIDITY.HUMIDITY"))
+
+  def get_temperature(self):
+    return float(self.read("CCD_TEMPERATURE.CCD_TEMPERATURE_VALUE"))
+
+  def set_temperature(self, temperature):
+    logging.info(f"Setting temperature to {temperature}")
+    self.write("CCD_TEMPERATURE", "CCD_TEMPERATURE_VALUE", temperature)
+
+  def cooler_off(self):
+    logging.info("Turning cooler off")
+    self.write("CCD_COOLER", "COOLER_OFF", "On")
+
 class IndiMount(IndiClient):
   def goto(self, ra, dec):
     self.write("ON_COORD_SET", "TRACK", "On")
@@ -117,7 +181,7 @@ class IndiMount(IndiClient):
       if key == "DEGoto" and value == "Ok":
         goto_slew = True
         break
-    
+
     # If not goto_slew, and ra_status has ('RARunning', 'Ok'), ('RAGoto', 'Busy'), and ('RAHighspeed', 'Busy'), then the mount is tracking.
     tracking = False
     if (not goto_slew) and \
@@ -126,7 +190,7 @@ class IndiMount(IndiClient):
         ("RAHighspeed", "Busy") in ra_status:
       tracking = True
 
-    # If not goto_slew, not tracking, and ra_status has ('RARunning', 'Ok') or 
+    # If not goto_slew, not tracking, and ra_status has ('RARunning', 'Ok') or
     # de_status has ('DERunning', 'Ok'), then the mount is running a manual slew.
     manual_slew = False
     if (not goto_slew) and (not tracking) and \
@@ -153,16 +217,16 @@ class IndiMount(IndiClient):
   def stop_tracking(self):
     self.write("TELESCOPE_TRACK_STATE", "TRACK_OFF", "On")
 
-  def get_tracking_mode(self) -> Literal["TRACK_SIDEREAL", 
-                                         "TRACK_LUNAR", 
-                                         "TRACK_SOLAR", 
-                                         "TRACK_CUSTOM", 
+  def get_tracking_mode(self) -> Literal["TRACK_SIDEREAL",
+                                         "TRACK_LUNAR",
+                                         "TRACK_SOLAR",
+                                         "TRACK_CUSTOM",
                                          "Unknown"]:
     sidereal_tracking = self.read("TELESCOPE_TRACK_MODE.TRACK_SIDEREAL")
     lunar_tracking = self.read("TELESCOPE_TRACK_MODE.TRACK_LUNAR")
     solar_tracking = self.read("TELESCOPE_TRACK_MODE.TRACK_SOLAR")
     custom_tracking = self.read("TELESCOPE_TRACK_MODE.TRACK_CUSTOM")
-    
+
     if sidereal_tracking == "On":
       return "TRACK_SIDEREAL"
     elif lunar_tracking == "On":
@@ -174,15 +238,15 @@ class IndiMount(IndiClient):
     else:
       logging.error("Get tracking mode: unknown mode")
       return "Unknown"
-    
-  def set_tracking_mode(self, 
+
+  def set_tracking_mode(self,
                         mode: Literal["TRACK_SIDEREAL",
                                       "TRACK_LUNAR",
                                       "TRACK_SOLAR",
                                       "TRACK_CUSTOM"]):
-    if mode not in ["TRACK_SIDEREAL", 
-                    "TRACK_LUNAR", 
-                    "TRACK_SOLAR", 
+    if mode not in ["TRACK_SIDEREAL",
+                    "TRACK_LUNAR",
+                    "TRACK_SOLAR",
                     "TRACK_CUSTOM"]:
       logging.error("Set tracking mode: unknown mode")
       return

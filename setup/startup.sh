@@ -1,7 +1,7 @@
 #!/bin/bash
 
-SITE_LONGITUDE=262.297595
-SITE_LATITUDE=30.266521
+SITE_LONGITUDE=360-97.702354
+SITE_LATITUDE=30.266485
 SITE_ELEVATION=140.0
 
 # Function to set time and location.
@@ -22,59 +22,62 @@ set_time_location() {
 
   indi_setprop "ZWO AM5.TIME_UTC.UTC=$CURRENT_UTC_TIME;OFFSET=$UTC_OFFSET_HOURS_DECIMAL"
   # echo "ZWO AM5.TIME_UTC.UTC=$CURRENT_UTC_TIME;OFFSET=$UTC_OFFSET_HOURS_DECIMAL"
-}    
+}
+
+# Connect to mount
+connect_mount() {
+  echo "Connecting to mount"
+  indi_setprop "ZWO AM5.CONNECTION.CONNECT=On"
+  retcode=$?
+  if [ "$retcode" -ne 0 ]; then
+      echo "Failed to connect to mount"
+      exit 1
+  fi
+  echo "Mount connected"
+}
+
+# Connect to focuser
+connect_focuser() {
+  echo "Connecting to focuser"
+  indi_setprop "ZWO EAF.CONNECTION.CONNECT=On"
+  retcode=$?
+  if [ "$retcode" -ne 0 ]; then
+      echo "Failed to connect to focuser"
+      exit 1
+  fi
+  echo "Focuser connected"
+}
+
+# Connect both the imaging (QHY 268M) and guiding (ASI 120MM) cameras.
+connect_cameras() {
+  echo "Connecting to QHY 268M camera"
+  indi_setprop "QHY CCD QHY268M-b93fd94.CONNECTION.CONNECT=On"
+  retcode=$?
+  if [ "$retcode" -ne 0 ]; then
+      echo "Failed to connect to camera"
+      exit 1
+  fi
+  echo "Connected to ASI 120MM camera"
+  indi_setprop "ZWO CCD ASI120MM Mini.CONNECTION.CONNECT=On"
+  retcode=$?
+  if [ "$retcode" -ne 0 ]; then
+      echo "Failed to connect to camera"
+      exit 1
+  fi
+  echo "Cameras connected"
+}
 
 INDI_RUNNING=$(pgrep indiserver)
 if [ -z "$INDI_RUNNING" ]; then
     echo "Starting INDI server"
-    screen -mdS indi indiserver indi_lx200am5 indi_asi_focuser
+    screen -mdS indi indiserver indi_lx200am5 indi_asi_focuser indi_qhy_ccd indi_asi_ccd
     sleep 1
-    echo "Connecting to mount"
-    indi_setprop "ZWO AM5.CONNECTION.CONNECT=On"    
-    retcode=$?
-    if [ "$retcode" -ne 0 ]; then
-        echo "Failed to connect to mount"
-        exit 1
-    fi
-    echo "Mount connected"
-    sleep 1
-    echo "Connecting to focuser"
-    indi_setprop "ASI EAF.CONNECTION.CONNECT=On"
-    retcode=$?
-    if [ "$retcode" -ne 0 ]; then
-        echo "Failed to connect to focuser"
-        exit 1
-    fi
-    echo "Focuser connected"
 else
     echo "INDI server already running"
-    CONNECTED=$(indi_getprop "ZWO AM5.CONNECTION.CONNECT" | grep -o "CONNECT=On")
-    if [ -z "$CONNECTED" ]; then
-        echo "Connecting to mount"
-        indi_setprop "ZWO AM5.CONNECTION.CONNECT=On"
-        retcode=$?
-        if [ "$retcode" -ne 0 ]; then
-            echo "Failed to connect to mount"
-            exit 1
-        fi
-        echo "Mount connected"
-    else
-        echo "Mount already connected"
-    fi
-    CONNECTED=$(indi_getprop "ASI EAF.CONNECTION.CONNECT" | grep -o "CONNECT=On")
-    if [ -z "$CONNECTED" ]; then
-        echo "Connecting to focuser"
-        indi_setprop "ASI EAF.CONNECTION.CONNECT=On"
-        retcode=$?
-        if [ "$retcode" -ne 0 ]; then
-            echo "Failed to connect to focuser"
-            exit 1
-        fi
-        echo "Focuser connected"
-    else
-        echo "Focuser already connected"
-    fi
 fi
+connect_mount
+connect_focuser
+connect_cameras
 
 indi_setprop "ZWO AM5.GUIDE_RATE.RATE=1.0"
 
