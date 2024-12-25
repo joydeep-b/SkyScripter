@@ -107,21 +107,19 @@ def set_up_capture_directory(args: argparse.Namespace, coordinates: tuple):
     capture_name = args.object
   elif args.wcs is not None:
     # Use WCS coordinates as the capture name.
-    c = SkyCoord(coordinates[0], 
-                 coordinates[1], 
+    c = SkyCoord(coordinates[0],
+                 coordinates[1],
                  unit=(units.hourangle, units.deg))
     capture_name = c.to_string('hmsdms').replace(' ', '')
+  else:
+    print("Unable to determine the capture name")
+    sys.exit(1)
 
-  # Get current datetime
-  current_datetime = datetime.now()
-  # Subtract 8 hours
-  eight_hours_ago = current_datetime - timedelta(hours=8)
-  # Get the date in YYYY-MM-DD format
-  date_8_hours_ago = eight_hours_ago.strftime('%Y-%m-%d')
-
-  capture_dir = os.path.join(os.getcwd(),
-                             date_8_hours_ago, 
-                             capture_name.replace(' ', '_'))  
+  # Get the user's home directory.
+  home_dir = os.path.expanduser("~")
+  capture_dir = os.path.join(home_dir,
+                             'Pictures',
+                             capture_name.replace(' ', '_'))
   os.makedirs(capture_dir, exist_ok=True)
   print_and_log(f"Capture directory: {capture_dir}")
   return capture_dir
@@ -153,7 +151,7 @@ def run_alignment(mount: IndiMount,
                   args: argparse.Namespace):
   phd2client.stop_guiding()
   alignment_camera.initialize()
-  align_to_object(mount, alignment_camera, coordinates[0], coordinates[1], 
+  align_to_object(mount, alignment_camera, coordinates[0], coordinates[1],
                   args.align_threshold)
   capture_camera.initialize()
   phd2client.start_guiding()
@@ -165,9 +163,9 @@ def signal_handler(signum, frame):
 def get_args():
   parser = argparse.ArgumentParser(description='Automated batch capture of a target')
   # Target to image.
-  parser.add_argument('-o', '--object', type=str, 
+  parser.add_argument('-o', '--object', type=str,
       help='Astronomical object name, either a catalog name (e.g., "M31") or a common name (e.g., "Andromeda Galaxy")')
-  parser.add_argument('-w', '--wcs', type=str, 
+  parser.add_argument('-w', '--wcs', type=str,
       help='WCS coordinates (e.g., "5:35:17 -5:23:24")')
   # Hardware configuration.
   parser.add_argument('-m', '--mount', type=str,
@@ -203,7 +201,7 @@ def get_args():
       help='Simulate the capture without actually taking images')
   parser.add_argument('-v', '--verbose', action='store_true',
       help='Print verbose messages')
-  
+
   return parser.parse_args(), parser
 
 def capture_image(camera, filename, args):
@@ -222,7 +220,7 @@ def capture_image(camera, filename, args):
       time.sleep(0.1)
       terminate_string = ' [Terminating]' if terminate else ''
       print(f'\r[Remaining: {duration - (time.time() - t_start):.1f}s] {terminate_string}  ', end='', flush=True)
-    
+
     # Check if a process by the name "gphoto2" is running.
     is_gphoto_running = os.system('pgrep gphoto2 > /dev/null') == 0
     while is_gphoto_running:
@@ -234,7 +232,7 @@ def capture_image(camera, filename, args):
 
     print('\r' + ' ' * 40 + '\r', end='', flush=True)
     return
-  
+
 def signal_handler(signum, frame):
   global terminate, terminate_count
   terminate = True
@@ -257,7 +255,7 @@ def print_and_log_mount_state(mount, args):
     mount_state = "Tracking"
   else:
     mount_state = "Idle    "
-  
+
   ra, dec, alt, az, lst = mount.get_coordinates()
   ha = lst - ra
   pier_side = mount.get_pier_side()
@@ -294,16 +292,16 @@ def main():
   print("Connecting to devices")
   mount = IndiMount(args.mount, simulate=args.simulate)
   focuser = IndiFocuser(args.focuser, simulate=args.simulate)
-  capture_camera = GphotoClient(simulate=args.simulate, 
-                                image_format='RAW', 
+  capture_camera = GphotoClient(simulate=args.simulate,
+                                image_format='RAW',
                                 mode='Bulb',
                                 iso=args.iso,
                                 shutter_speed=args.shutter_speed)
   capture_camera.initialize()
-  alignment_camera = GphotoClient(simulate=args.simulate, 
-                                  image_format='RAW', 
-                                  mode='Manual', 
-                                  iso=1600, 
+  alignment_camera = GphotoClient(simulate=args.simulate,
+                                  image_format='RAW',
+                                  mode='Manual',
+                                  iso=1600,
                                   shutter_speed='2')
   alignment_camera.initialize()
   print("Connecting to PHD2")
@@ -311,11 +309,11 @@ def main():
   setup_camera(capture_camera, args)
   phd2client.connect()
   phd2client.stop_guiding()
-  
+
 
   # Initial actions: Align, Start guiding, Auto focus.
   print_and_log('Running initial alignment')
-  run_alignment(mount, alignment_camera, capture_camera, coordinates, 
+  run_alignment(mount, alignment_camera, capture_camera, coordinates,
                 phd2client, args)
   print_and_log_mount_state(mount, args)
   print_and_log('Starting guiding')
@@ -326,7 +324,7 @@ def main():
   t_last_focus = time.time()
 
   _, _, alt, _, _ = mount.get_coordinates()
-  num_images = 1  
+  num_images = 1
   capture_camera.initialize()
   while (alt > args.min_altitude or args.simulate) and not terminate:
     print_and_log_mount_state(mount, args)
@@ -335,7 +333,7 @@ def main():
       stop_guiding(phd2client)
       perform_meridian_flip(mount)
       print_and_log("Meridian flip complete, running alignment")
-      run_alignment(mount, alignment_camera, capture_camera, coordinates, 
+      run_alignment(mount, alignment_camera, capture_camera, coordinates,
                     phd2client, args)
       print_and_log("Alignment complete, starting guiding")
       start_guiding(phd2client)
@@ -360,15 +358,15 @@ def main():
     # TODO: Dithering
     num_images += 1
     _, _, alt, _, _ = mount.get_coordinates()
-  
+
   # End of capture: Stop guiding, print summary.
   phd2client.stop_guiding()
   if terminate:
     print_and_log("Capture terminated by user")
   elif alt <= args.min_altitude:
     print_and_log("Altitude limit reached, capture stopped")
-  
-    
+
+
 
 if __name__ == '__main__':
   main()

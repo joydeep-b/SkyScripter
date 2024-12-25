@@ -7,3 +7,5 @@ __pycache__
 .rachio_api_key
 siril.log
 .vscode
+indi_cam_client/indi_cam_client
+indi_cam_client/test_client

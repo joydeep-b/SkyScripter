@@ -4,11 +4,12 @@ SITE_LONGITUDE=360-97.702354
 SITE_LATITUDE=30.266485
 SITE_ELEVATION=140.0
 
+
 # Function to set time and location.
 set_time_location() {
   echo "Setting time and location"
   indi_setprop "ZWO AM5.GEOGRAPHIC_COORD.LAT=$SITE_LATITUDE;LONG=$SITE_LONGITUDE;ELEV=$SITE_ELEVATION"
-  sleep 1
+  # sleep 3
   # Get the current time in UTC in format 2024-01-21T18:38:23
   CURRENT_UTC_TIME=$(date -u +"%Y-%m-%dT%H:%M:%S")
   echo "Current UTC time: $CURRENT_UTC_TIME"
@@ -20,8 +21,21 @@ set_time_location() {
   UTC_OFFSET_HOURS_DECIMAL=$(echo "scale=1; $UTC_OFFSET_HOURS + $UTC_OFFSET_MINUTES / 60" | bc)
   echo "UTC offset: $UTC_OFFSET_HOURS_DECIMAL"
 
-  indi_setprop "ZWO AM5.TIME_UTC.UTC=$CURRENT_UTC_TIME;OFFSET=$UTC_OFFSET_HOURS_DECIMAL"
-  # echo "ZWO AM5.TIME_UTC.UTC=$CURRENT_UTC_TIME;OFFSET=$UTC_OFFSET_HOURS_DECIMAL"
+  # Repeat Up to 10 times until there is no error code.
+  for i in {1..10}
+  do
+    indi_setprop "ZWO AM5.TIME_UTC.UTC=$CURRENT_UTC_TIME;OFFSET=$UTC_OFFSET_HOURS_DECIMAL"
+    retcode=$?
+    if [ "$retcode" -eq 0 ]; then
+        break
+    fi
+    echo "Failed to set time and location. Retrying..."
+    sleep 1
+  done
+  if [ "$retcode" -ne 0 ]; then
+      echo "Failed to set time and location"
+      exit 1
+  fi
 }
 
 # Connect to mount
