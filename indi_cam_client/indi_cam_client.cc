@@ -19,6 +19,9 @@ DEFINE_int32(port, 7624, "INDI server port");
 DEFINE_string(device, "QHY CCD QHY268M-b93fd94", "INDI device name");
 DEFINE_string(ccd_blob_name, "CCD1", "Name of the CCD blob property");
 DEFINE_double(exposure, 1.0, "Exposure time in seconds");
+DEFINE_int32(mode, 0, "CCD read mode");
+DEFINE_int32(gain, 0, "CCD gain");
+DEFINE_int32(offset, 0, "CCD offset");
 // Program settings.
 DEFINE_int32(timeout, 4, "Timeout in seconds while waiting for INDI properties");
 DEFINE_string(output, "image.fits", "Output filename");
@@ -34,6 +37,24 @@ public:
     }
     if (strcmp(property.getName(), "CCD_EXPOSURE") == 0) {
       exposureElement = property.getNumber();
+    } else if (strcmp(property.getName(), "READ_MODE") == 0) {
+      INDI::PropertyViewNumber* nvp = property.getNumber();
+      INDI::WidgetViewNumber* wvn = nvp->at(0);
+      if (FLAGS_v > 0) printf("Setting read mode to %d\n", FLAGS_mode);
+      wvn->value = FLAGS_mode;
+      sendNewNumber(nvp);
+    } else if (strcmp(property.getName(), "CCD_GAIN") == 0) {
+      INDI::PropertyViewNumber* nvp = property.getNumber();
+      INDI::WidgetViewNumber* wvn = nvp->at(0);
+      if (FLAGS_v > 0) printf("Setting gain to %d\n", FLAGS_gain);
+      wvn->value = FLAGS_gain;
+      sendNewNumber(nvp);
+    } else if (strcmp(property.getName(), "CCD_OFFSET") == 0) {
+      INDI::PropertyViewNumber* nvp = property.getNumber();
+      INDI::WidgetViewNumber* wvn = nvp->at(0);
+      if (FLAGS_v > 0) printf("Setting offset to %d\n", FLAGS_offset);
+      wvn->value = FLAGS_offset;
+      sendNewNumber(nvp);
     }
   }
 
@@ -43,7 +64,6 @@ public:
       INDI::WidgetViewNumber* wvn = nvp->at(0);
       printf("CCD_EXPOSURE = %7.3f\n", wvn->value);
     }
-
     if (property.getType() == INDI_BLOB) {
       INDI::PropertyViewBlob* bvp = property.getBLOB();
       if (strcmp(bvp->name, FLAGS_ccd_blob_name.c_str()) != 0) {
@@ -68,16 +88,35 @@ public:
       fwrite(bp->blob, bp->bloblen, 1, fp);
       fclose(fp);
       exit(0);
+    } else if (property.getType() == INDI_NUMBER) {
+      INDI::PropertyViewNumber* nvp = property.getNumber();
+      INDI::WidgetViewNumber* wvn = nvp->at(0);
+      if (FLAGS_v > 1) printf("Received number %s = %f\n", property.getName(), wvn->value);
+      if (strcmp(property.getName(), "READ_MODE") == 0) {
+        mode = wvn->value;
+      } else if (strcmp(property.getName(), "CCD_GAIN") == 0) {
+        gain = wvn->value;
+      } else if (strcmp(property.getName(), "CCD_OFFSET") == 0) {
+        offset = wvn->value;
+      }
     }
   }
 
   void CaptureImage() {
     int timeout = 10 * FLAGS_timeout;
-    for (int i = 0; !exposureElement && i < timeout; i++) {
+    bool ready = exposureElement &&
+        mode == FLAGS_mode &&
+        gain == FLAGS_gain &&
+        offset == FLAGS_offset;
+    for (int i = 0; !ready && i < timeout; i++) {
       usleep(1e5);
+      ready = exposureElement &&
+          mode == FLAGS_mode &&
+          gain == FLAGS_gain &&
+          offset == FLAGS_offset;
     }
-    if (!exposureElement) {
-      std::cerr << "Timeout waiting for exposure element" << std::endl;
+    if (!ready) {
+      std::cerr << "ERROR: Timeout waiting to update device properties" << std::endl;
       exit(1);
     }
     INDI::WidgetViewNumber* wvn = exposureElement->at(0);
@@ -92,6 +131,9 @@ public:
 
 private:
   INDI::PropertyViewNumber* exposureElement = nullptr;
+  int mode = -1;
+  int gain = -1;
+  int offset = -1;
 };
 
 int main(int argc, char** argv) {
