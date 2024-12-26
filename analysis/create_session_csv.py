@@ -111,6 +111,7 @@ def get_session_data(directory):
                     sessions[index] += 1
                 else:
                     sessions.append(session)
+    print('\r', end='')
     sessions.sort()
     return sessions
 
