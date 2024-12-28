@@ -126,9 +126,10 @@ starnet -stretch -nostarmask
 
 def get_bg(f):
   # # Manually selected area of interest with dark background in S II image.
-  # (x, y, w, h) = (1165, 997, 117, 83)
+  (x, y, w, h) = (1165, 997, 117, 83)
+  # (x, y, w, h) = (3297, 580, 30, 50)
   # Manually selected area of interest with dark background in Ha image.
-  (x, y, w, h) = (5826, 3672, 44, 26)
+  # (x, y, w, h) = (5826, 3672, 44, 26)
   script = f"""requires 1.3.5
 load {f}
 boxselect {x} {y} {w} {h}
@@ -149,11 +150,12 @@ stat
     m = re.search(r'Mean: ([0-9.]+), Median: ([0-9.]+), Sigma: ([0-9.]+), Min: ([0-9.]+), Max: ([0-9.]+), bgnoise: ([0-9.]+)', result.stdout)
     if m:
       bg = float(m.group(2))
+      bgnoise = float(m.group(3))
       # print(f"{f.name}: Background value: {bg}")
     else:
       print(f"Error parsing output of stat command for {f}")
       sys.exit(1)
-    return bg
+    return bg, bgnoise
   except subprocess.CalledProcessError as e:
     print(f"Error running Siril: {e}")
     sys.exit(1)
@@ -162,11 +164,12 @@ def get_noise_stats(starless_dir):
   global STRETCH
   # Get list of all "starless_*.fit" files in starless_dir
   starless_files = list(Path(starless_dir).glob('starless_*.fit'))
+  # starless_files = list(Path(starless_dir).glob('stack_*.fit'))
   starless_files.sort()
   # # Manually selected area of interest with faint nebulosity in S II image.
-  # (x, y, w, h) = (2712, 2252, 73, 53)
+  (x, y, w, h) = (2712, 2252, 73, 53)
   # Manually selected area of interest with faint nebulosity in Ha image.
-  (x, y, w, h) = (3729, 2964, 74, 52)
+  # (x, y, w, h) = (3729, 2964, 74, 52)
   # Go through each of them, run a Siril script to select a box with parameters x, y, w, h. Then run
   # the stat command.
   stats = []
@@ -196,12 +199,13 @@ stat
         sigma = float(m.group(3))
         min = float(m.group(4))
         max = float(m.group(5))
-        bgnoise = float(m.group(6))
-        bg = get_bg(f)
-        print(f"{f.name}: Mean: {mean:5.2f}, Median: {median}, Sigma: {sigma}, Min: {min}, Max: {max}, bgnoise: {bgnoise} bg: {bg}")
+        # bgnoise = float(m.group(6))
+        bg, bgnoise = get_bg(f)
+        snr = (mean - bg) / sigma
+        print(f"{f.name}: Mean: {mean:5.2f}, Median: {median}, Sigma: {sigma}, Min: {min}, Max: {max}, bgnoise: {bgnoise} bg: {bg} SNR: {snr:.2f}")
       else:
         print(f"Error parsing output of stat command for {f}")
-      stats.append((f, mean, median, sigma, min, max, bgnoise, bg))
+      stats.append((f, mean, median, sigma, min, max, bgnoise, bg, snr))
     except subprocess.CalledProcessError as e:
       print(f"Error running Siril: {e}")
       sys.exit(1)
@@ -218,11 +222,11 @@ def plot_stats(stack_sizes, stats, outdir, label):
   if len(stack_sizes) != len(stats):
     print(f"Error: stack_sizes and stats have different lengths: {len(stack_sizes)} vs. {len(stats)}")
     return
-  # Order of stats: (f, mean, median, sigma, min, max, bgnoise, bg)
+  # Order of stats: (f, mean, median, sigma, min, max, bgnoise, bg, SNR)
   bgnoise = [s[6] for s in stats]
   noise = [s[3] for s in stats]
   # snr = (mean - bg) / sigma
-  snr = [(s[1] - s[7]) / s[3] for s in stats]
+  snr = [(s[8]) for s in stats]
   # colors = plt.cm.viridis(np.linspace(0, 1, 3))
   colors = plt.cm.tab10(np.arange(3))
 

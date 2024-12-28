@@ -9,3 +9,6 @@ siril.log
 .vscode
 indi_cam_client/indi_cam_client
 indi_cam_client/test_client
+build
+bin
+
