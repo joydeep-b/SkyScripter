@@ -3,8 +3,8 @@
 ********************************************************************
 PixInsight XML Process Serialization Module - XPSM 1.0
 ********************************************************************
-Generated on 2024-12-24T18:09:37.227Z
-PixInsight Core 1.9.0 (x64)
+Generated on 2024-12-30T18:43:12.208Z
+PixInsight Core 1.9.1 (x64)
 Copyright (c) 2003-2024 Pleiades Astrophoto
 ********************************************************************
 -->
@@ -391,14 +391,13 @@ Copyright (c) 2003-2024 Pleiades Astrophoto
       <parameter id="invert" value="false"/>
    </instance>
    <instance class="BlurXTerminator" version="256" id="BlurX_instance">
-      <time start="2024-12-21T15:23:38.907Z" span="12.619662"/>
       <parameter id="ai_file">BlurXTerminator.4.mlpackage</parameter>
       <parameter id="correct_only" value="false"/>
       <parameter id="correct_first" value="false"/>
       <parameter id="nonstellar_then_stellar" value="false"/>
       <parameter id="lum_only" value="false"/>
-      <parameter id="sharpen_stars" value="0.50"/>
-      <parameter id="adjust_halos" value="0.00"/>
+      <parameter id="sharpen_stars" value="0.24"/>
+      <parameter id="adjust_halos" value="-0.00"/>
       <parameter id="nonstellar_psf_diameter" value="0.00"/>
       <parameter id="auto_nonstellar_psf" value="true"/>
       <parameter id="sharpen_nonstellar" value="0.50"/>
@@ -1078,13 +1077,322 @@ Copyright (c) 2003-2024 Pleiades Astrophoto
          <parameter id="useRGBWorkingSpace" value="false"/>
       </instance>
    </instance>
+   <instance class="PixelMath" version="256" id="HSS_instance">
+      <parameter id="expression">h</parameter>
+      <parameter id="expression1">k*s+(1-k)*h</parameter>
+      <parameter id="expression2">s</parameter>
+      <parameter id="expression3"></parameter>
+      <parameter id="useSingleExpression" value="false"/>
+      <parameter id="symbols">k=0.8</parameter>
+      <parameter id="clearImageCacheAndExit" value="false"/>
+      <parameter id="cacheGeneratedImages" value="false"/>
+      <parameter id="generateOutput" value="true"/>
+      <parameter id="singleThreaded" value="false"/>
+      <parameter id="optimization" value="true"/>
+      <parameter id="use64BitWorkingImage" value="false"/>
+      <parameter id="rescale" value="false"/>
+      <parameter id="rescaleLower" value="0"/>
+      <parameter id="rescaleUpper" value="1"/>
+      <parameter id="truncate" value="true"/>
+      <parameter id="truncateLower" value="0"/>
+      <parameter id="truncateUpper" value="1"/>
+      <parameter id="createNewImage" value="true"/>
+      <parameter id="showNewImage" value="true"/>
+      <parameter id="newImageId"></parameter>
+      <parameter id="newImageWidth" value="0"/>
+      <parameter id="newImageHeight" value="0"/>
+      <parameter id="newImageAlpha" value="false"/>
+      <parameter id="newImageColorSpace" value="RGB"/>
+      <parameter id="newImageSampleFormat" value="SameAsTarget"/>
+      <table id="outputData" rows="0"/>
+   </instance>
+   <instance class="ScreenTransferFunction" version="256" id="STF1_instance">
+      <table id="STF" rows="4">
+         <tr>
+            <td id="c0" value="0.00000"/>
+            <td id="c1" value="1.00000"/>
+            <td id="m" value="0.00093"/>
+            <td id="r0" value="0.00000"/>
+            <td id="r1" value="1.00000"/>
+         </tr>
+         <tr>
+            <td id="c0" value="0.00000"/>
+            <td id="c1" value="1.00000"/>
+            <td id="m" value="0.00093"/>
+            <td id="r0" value="0.00000"/>
+            <td id="r1" value="1.00000"/>
+         </tr>
+         <tr>
+            <td id="c0" value="0.00000"/>
+            <td id="c1" value="1.00000"/>
+            <td id="m" value="0.00093"/>
+            <td id="r0" value="0.00000"/>
+            <td id="r1" value="1.00000"/>
+         </tr>
+         <tr>
+            <td id="c0" value="0.00000"/>
+            <td id="c1" value="1.00000"/>
+            <td id="m" value="0.50000"/>
+            <td id="r0" value="0.00000"/>
+            <td id="r1" value="1.00000"/>
+         </tr>
+      </table>
+      <parameter id="interaction" value="Grayscale"/>
+   </instance>
+   <instance class="DynamicBackgroundExtraction" version="256" id="DBE1_instance">
+      <table id="data" rows="0"/>
+      <parameter id="numberOfChannels" value="3"/>
+      <parameter id="derivativeOrder" value="2"/>
+      <parameter id="smoothing" value="0.250"/>
+      <parameter id="ignoreWeights" value="false"/>
+      <parameter id="modelId"></parameter>
+      <parameter id="modelWidth" value="0"/>
+      <parameter id="modelHeight" value="0"/>
+      <parameter id="downsample" value="2"/>
+      <parameter id="modelSampleFormat" value="f32"/>
+      <parameter id="targetCorrection" value="Subtract"/>
+      <parameter id="normalize" value="true"/>
+      <parameter id="discardModel" value="true"/>
+      <parameter id="replaceTarget" value="true"/>
+      <parameter id="correctedImageId"></parameter>
+      <parameter id="correctedImageSampleFormat" value="SameAsTarget"/>
+      <table id="samples" rows="0"/>
+      <parameter id="imageWidth" value="4944"/>
+      <parameter id="imageHeight" value="3284"/>
+      <parameter id="symmetryCenterX" value="0.500000"/>
+      <parameter id="symmetryCenterY" value="0.500000"/>
+      <parameter id="tolerance" value="10.000"/>
+      <parameter id="shadowsRelaxation" value="3.000"/>
+      <parameter id="minSampleFraction" value="0.050"/>
+      <parameter id="defaultSampleRadius" value="10"/>
+      <parameter id="samplesPerRow" value="30"/>
+      <parameter id="minWeight" value="0.750"/>
+      <parameter id="sampleColor" value="4292927712"/>
+      <parameter id="selectedSampleColor" value="4278255360"/>
+      <parameter id="selectedSampleFillColor" value="0"/>
+      <parameter id="badSampleColor" value="4294901760"/>
+      <parameter id="badSampleFillColor" value="2164195328"/>
+      <parameter id="axisColor" value="4292927712"/>
+   </instance>
+   <instance class="HistogramTransformation" version="256" id="Hist1_instance">
+      <table id="H" rows="5">
+         <tr>
+            <td id="c0" value="0.00000000"/>
+            <td id="m" value="0.50000000"/>
+            <td id="c1" value="1.00000000"/>
+            <td id="r0" value="0.00000000"/>
+            <td id="r1" value="1.00000000"/>
+         </tr>
+         <tr>
+            <td id="c0" value="0.00000000"/>
+            <td id="m" value="0.50000000"/>
+            <td id="c1" value="1.00000000"/>
+            <td id="r0" value="0.00000000"/>
+            <td id="r1" value="1.00000000"/>
+         </tr>
+         <tr>
+            <td id="c0" value="0.00000000"/>
+            <td id="m" value="0.50000000"/>
+            <td id="c1" value="1.00000000"/>
+            <td id="r0" value="0.00000000"/>
+            <td id="r1" value="1.00000000"/>
+         </tr>
+         <tr>
+            <td id="c0" value="0.00000000"/>
+            <td id="m" value="0.50000000"/>
+            <td id="c1" value="1.00000000"/>
+            <td id="r0" value="0.00000000"/>
+            <td id="r1" value="1.00000000"/>
+         </tr>
+         <tr>
+            <td id="c0" value="0.00000000"/>
+            <td id="m" value="0.50000000"/>
+            <td id="c1" value="1.00000000"/>
+            <td id="r0" value="0.00000000"/>
+            <td id="r1" value="1.00000000"/>
+         </tr>
+      </table>
+   </instance>
+   <instance class="GeneralizedHyperbolicStretch" version="256" id="GHS1_instance">
+      <time start="2024-11-30T19:53:30.313Z" span="0.039708459"/>
+      <parameter id="stretchType" value="ST_GeneralisedHyperbolic"/>
+      <parameter id="stretchChannel" value="SC_RGB"/>
+      <parameter id="inverse" value="false"/>
+      <parameter id="stretchFactor" value="0.000"/>
+      <parameter id="localIntensity" value="0.000"/>
+      <parameter id="symmetryPoint" value="0.000000"/>
+      <parameter id="highlightProtection" value="1.000000"/>
+      <parameter id="shadowProtection" value="0.000000"/>
+      <parameter id="blackPoint" value="0.000000"/>
+      <parameter id="whitePoint" value="1.000000"/>
+      <parameter id="colourBlend" value="1.000"/>
+      <parameter id="clipType" value="CT_RGBBlend"/>
+      <parameter id="useRGBWorkingSpace" value="false"/>
+   </instance>
+   <instance class="ColorCalibration" version="256" id="ColorCalibration1_instance">
+      <parameter id="whiteReferenceViewId"></parameter>
+      <parameter id="whiteLow" value="0.0000000"/>
+      <parameter id="whiteHigh" value="0.9000000"/>
+      <parameter id="whiteUseROI" value="false"/>
+      <parameter id="whiteROIX0" value="0"/>
+      <parameter id="whiteROIY0" value="0"/>
+      <parameter id="whiteROIX1" value="0"/>
+      <parameter id="whiteROIY1" value="0"/>
+      <parameter id="structureDetection" value="true"/>
+      <parameter id="structureLayers" value="5"/>
+      <parameter id="noiseLayers" value="1"/>
+      <parameter id="manualWhiteBalance" value="false"/>
+      <parameter id="manualRedFactor" value="1.0000"/>
+      <parameter id="manualGreenFactor" value="1.0000"/>
+      <parameter id="manualBlueFactor" value="1.0000"/>
+      <parameter id="backgroundReferenceViewId"></parameter>
+      <parameter id="backgroundLow" value="0.0000000"/>
+      <parameter id="backgroundHigh" value="0.1000000"/>
+      <parameter id="backgroundUseROI" value="false"/>
+      <parameter id="backgroundROIX0" value="0"/>
+      <parameter id="backgroundROIY0" value="0"/>
+      <parameter id="backgroundROIX1" value="0"/>
+      <parameter id="backgroundROIY1" value="0"/>
+      <parameter id="outputWhiteReferenceMask" value="false"/>
+      <parameter id="outputBackgroundReferenceMask" value="false"/>
+   </instance>
+   <instance class="BackgroundNeutralization" version="256" id="BkgNeutralization1_instance">
+      <parameter id="backgroundReferenceViewId"></parameter>
+      <parameter id="backgroundLow" value="0.0000000"/>
+      <parameter id="backgroundHigh" value="0.1000000"/>
+      <parameter id="useROI" value="false"/>
+      <parameter id="roiX0" value="0"/>
+      <parameter id="roiY0" value="0"/>
+      <parameter id="roiX1" value="0"/>
+      <parameter id="roiY1" value="0"/>
+      <parameter id="mode" value="RescaleAsNeeded"/>
+      <parameter id="targetBackground" value="0.0010000"/>
+   </instance>
+   <instance class="GeneralizedHyperbolicStretch" version="256" id="GHS2_instance">
+      <time start="2024-11-30T19:53:30.313Z" span="0.039708459"/>
+      <parameter id="stretchType" value="ST_GeneralisedHyperbolic"/>
+      <parameter id="stretchChannel" value="SC_RGB"/>
+      <parameter id="inverse" value="false"/>
+      <parameter id="stretchFactor" value="0.000"/>
+      <parameter id="localIntensity" value="0.000"/>
+      <parameter id="symmetryPoint" value="0.000000"/>
+      <parameter id="highlightProtection" value="1.000000"/>
+      <parameter id="shadowProtection" value="0.000000"/>
+      <parameter id="blackPoint" value="0.000000"/>
+      <parameter id="whitePoint" value="1.000000"/>
+      <parameter id="colourBlend" value="1.000"/>
+      <parameter id="clipType" value="CT_RGBBlend"/>
+      <parameter id="useRGBWorkingSpace" value="false"/>
+   </instance>
+   <instance class="NoiseXTerminator" version="256" id="NoiseX1_instance">
+      <parameter id="ai_file">NoiseXTerminator.2.mlpackage</parameter>
+      <parameter id="denoise" value="0.41"/>
+      <parameter id="detail" value="0.36"/>
+   </instance>
+   <instance class="NoiseXTerminator" version="256" id="NoiseX2_instance">
+      <time start="2024-12-28T12:08:39.910Z" span="3.8362904"/>
+      <parameter id="ai_file">NoiseXTerminator.2.mlpackage</parameter>
+      <parameter id="denoise" value="0.41"/>
+      <parameter id="detail" value="0.36"/>
+   </instance>
+   <instance class="LinearFit" version="256" id="LinearFit1_instance">
+      <parameter id="referenceViewId">h</parameter>
+      <parameter id="rejectLow" value="0.000000"/>
+      <parameter id="rejectHigh" value="0.920000"/>
+   </instance>
+   <instance class="ColorCalibration" version="256" id="Process42_instance">
+      <time start="2024-12-28T12:05:51.560Z" span="0.33803783"/>
+      <parameter id="whiteReferenceViewId"></parameter>
+      <parameter id="whiteLow" value="0.0000000"/>
+      <parameter id="whiteHigh" value="0.9000000"/>
+      <parameter id="whiteUseROI" value="false"/>
+      <parameter id="whiteROIX0" value="0"/>
+      <parameter id="whiteROIY0" value="0"/>
+      <parameter id="whiteROIX1" value="0"/>
+      <parameter id="whiteROIY1" value="0"/>
+      <parameter id="structureDetection" value="false"/>
+      <parameter id="structureLayers" value="5"/>
+      <parameter id="noiseLayers" value="1"/>
+      <parameter id="manualWhiteBalance" value="true"/>
+      <parameter id="manualRedFactor" value="1.0000"/>
+      <parameter id="manualGreenFactor" value="0.9100"/>
+      <parameter id="manualBlueFactor" value="0.9100"/>
+      <parameter id="backgroundReferenceViewId"></parameter>
+      <parameter id="backgroundLow" value="0.0000000"/>
+      <parameter id="backgroundHigh" value="0.1000000"/>
+      <parameter id="backgroundUseROI" value="false"/>
+      <parameter id="backgroundROIX0" value="0"/>
+      <parameter id="backgroundROIY0" value="0"/>
+      <parameter id="backgroundROIX1" value="0"/>
+      <parameter id="backgroundROIY1" value="0"/>
+      <parameter id="outputWhiteReferenceMask" value="false"/>
+      <parameter id="outputBackgroundReferenceMask" value="false"/>
+   </instance>
+   <instance class="PixelMath" version="256" id="rgb_stars_instance">
+      <parameter id="expression">~((~(rgb_stars^k))*(~hss))</parameter>
+      <parameter id="expression1"></parameter>
+      <parameter id="expression2"></parameter>
+      <parameter id="expression3"></parameter>
+      <parameter id="useSingleExpression" value="true"/>
+      <parameter id="symbols">k=1</parameter>
+      <parameter id="clearImageCacheAndExit" value="false"/>
+      <parameter id="cacheGeneratedImages" value="false"/>
+      <parameter id="generateOutput" value="true"/>
+      <parameter id="singleThreaded" value="false"/>
+      <parameter id="optimization" value="true"/>
+      <parameter id="use64BitWorkingImage" value="false"/>
+      <parameter id="rescale" value="false"/>
+      <parameter id="rescaleLower" value="0"/>
+      <parameter id="rescaleUpper" value="1"/>
+      <parameter id="truncate" value="true"/>
+      <parameter id="truncateLower" value="0"/>
+      <parameter id="truncateUpper" value="1"/>
+      <parameter id="createNewImage" value="true"/>
+      <parameter id="showNewImage" value="true"/>
+      <parameter id="newImageId"></parameter>
+      <parameter id="newImageWidth" value="0"/>
+      <parameter id="newImageHeight" value="0"/>
+      <parameter id="newImageAlpha" value="false"/>
+      <parameter id="newImageColorSpace" value="SameAsTarget"/>
+      <parameter id="newImageSampleFormat" value="SameAsTarget"/>
+      <table id="outputData" rows="0"/>
+   </instance>
+   <instance class="PixelMath" version="256" id="hss_stars_instance">
+      <parameter id="expression">~((~(hss_stars^k))*(~hss))</parameter>
+      <parameter id="expression1"></parameter>
+      <parameter id="expression2"></parameter>
+      <parameter id="expression3"></parameter>
+      <parameter id="useSingleExpression" value="true"/>
+      <parameter id="symbols">k=1</parameter>
+      <parameter id="clearImageCacheAndExit" value="false"/>
+      <parameter id="cacheGeneratedImages" value="false"/>
+      <parameter id="generateOutput" value="true"/>
+      <parameter id="singleThreaded" value="false"/>
+      <parameter id="optimization" value="true"/>
+      <parameter id="use64BitWorkingImage" value="false"/>
+      <parameter id="rescale" value="false"/>
+      <parameter id="rescaleLower" value="0"/>
+      <parameter id="rescaleUpper" value="1"/>
+      <parameter id="truncate" value="true"/>
+      <parameter id="truncateLower" value="0"/>
+      <parameter id="truncateUpper" value="1"/>
+      <parameter id="createNewImage" value="true"/>
+      <parameter id="showNewImage" value="true"/>
+      <parameter id="newImageId"></parameter>
+      <parameter id="newImageWidth" value="0"/>
+      <parameter id="newImageHeight" value="0"/>
+      <parameter id="newImageAlpha" value="false"/>
+      <parameter id="newImageColorSpace" value="SameAsTarget"/>
+      <parameter id="newImageSampleFormat" value="SameAsTarget"/>
+      <table id="outputData" rows="0"/>
+   </instance>
    <icon id="STF" instance="STF_instance" xpos="1544" ypos="8" workspace="Workspace01"/>
    <icon id="VerticalMirror" instance="VerticalMirror_instance" xpos="1544" ypos="40" workspace="Workspace01"/>
    <icon id="StarX" instance="StarX_instance" xpos="1544" ypos="232" workspace="Workspace01"/>
    <icon id="NoiseX" instance="NoiseX_instance" xpos="1544" ypos="264" workspace="Workspace01"/>
    <icon id="GHS" instance="GHS_instance" xpos="1544" ypos="296" workspace="Workspace01"/>
    <icon id="SPCC" instance="SPCC_instance" xpos="1544" ypos="168" workspace="Workspace01"/>
-   <icon id="StarRecombine" instance="StarRecombine_instance" xpos="1544" ypos="328" workspace="Workspace01"/>
+   <icon id="StarRecombine" instance="StarRecombine_instance" xpos="1544" ypos="328" workspace="Workspace03"/>
    <icon id="SCNR" instance="SCNR_instance" xpos="1544" ypos="360" workspace="Workspace01"/>
    <icon id="Hist" instance="Hist_instance" xpos="1544" ypos="392" workspace="Workspace01"/>
    <icon id="DynamicCrop" instance="DynamicCrop_instance" xpos="1544" ypos="424" workspace="Workspace01"/>
@@ -1108,4 +1416,18 @@ Copyright (c) 2003-2024 Pleiades Astrophoto
    <icon id="MSGC" instance="MSGC_instance" xpos="1544" ypos="136" workspace="Workspace01"/>
    <icon id="RGBPlusHa" instance="RGBPlusHa_instance" xpos="1544" ypos="920" workspace="Workspace01"/>
    <icon id="M33_fg_stretch" instance="M33_fg_stretch_instance" xpos="1544" ypos="952" workspace="Workspace01"/>
+   <icon id="HSS" instance="HSS_instance" xpos="1584" ypos="8" workspace="Workspace02"/>
+   <icon id="STF1" instance="STF1_instance" xpos="1584" ypos="40" workspace="Workspace02"/>
+   <icon id="DBE1" instance="DBE1_instance" xpos="1584" ypos="104" workspace="Workspace02"/>
+   <icon id="Hist1" instance="Hist1_instance" xpos="1584" ypos="72" workspace="Workspace02"/>
+   <icon id="GHS1" instance="GHS1_instance" xpos="1584" ypos="136" workspace="Workspace02"/>
+   <icon id="ColorCalibration1" instance="ColorCalibration1_instance" xpos="1544" ypos="208" workspace="Workspace02"/>
+   <icon id="BkgNeutralization1" instance="BkgNeutralization1_instance" xpos="1544" ypos="248" workspace="Workspace02"/>
+   <icon id="GHS2" instance="GHS2_instance" xpos="1592" ypos="464" workspace="Workspace03"/>
+   <icon id="NoiseX1" instance="NoiseX1_instance" xpos="1560" ypos="280" workspace="Workspace03"/>
+   <icon id="NoiseX2" instance="NoiseX2_instance" xpos="1560" ypos="280" workspace="Workspace02"/>
+   <icon id="LinearFit1" instance="LinearFit1_instance" xpos="1568" ypos="352" workspace="Workspace02"/>
+   <icon id="Process42" instance="Process42_instance" xpos="1568" ypos="600" workspace="Workspace02"/>
+   <icon id="rgb_stars" instance="rgb_stars_instance" xpos="1536" ypos="568" workspace="Workspace03"/>
+   <icon id="hss_stars" instance="hss_stars_instance" xpos="1536" ypos="648" workspace="Workspace03"/>
 </xpsm>
