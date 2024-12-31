@@ -234,13 +234,32 @@ def plot_stats(stack_sizes, stats, outdir, label):
   ax1.set_xlabel('Stack size')
   ax1.set_ylabel('SNR')
   plt.plot(stack_sizes, snr, marker='x', color=colors[0])
+
+  # Find the best fit for the SNR curve by optimizing the parameters of the curve.
+  # The curve is of the form y = a * x^b + c
+  # where x is the stack size, y is the SNR, and a, b, c are the parameters to be optimized.
+  # The curve is fitted to the data using the least squares method.
+  def func(x, a, b, c):
+    return a * np.power(x, b) + c
+  from scipy.optimize import curve_fit
+  popt, pcov = curve_fit(func, stack_sizes, snr)
+  # Add a text box with the optimized parameters near the curve.
+  plt.text(0.1, 0.2, f'SNR = {popt[0]:.2f} * N^{popt[1]:.2f} + {popt[2]:.2f}', transform=ax1.transAxes, fontsize=9, verticalalignment='top')
+
+  plt.plot(stack_sizes, func(stack_sizes, *popt), 'r-', label=f'fit: a={popt[0]:.2f}, b={popt[1]:.2f}')
+  for desired_snr in [10, 12, 14, 16, 18]:
+    desired_stack_size = ((desired_snr - popt[2]) / popt[0]) ** (1/popt[1])
+    print(f"Desired stack size for SNR={desired_snr:02f}: {desired_stack_size:.0f}")
+
+
   ax2 = ax1.twinx()
   ax2.set_ylabel('BG/FG Noise')
   ax2.plot(stack_sizes, bgnoise, marker='x', color=colors[1])
   ax2.plot(stack_sizes, noise, marker='x', color=colors[2])
 
+
   # Add a joint legend for both lines
-  fig.legend(['SNR', 'BG Noise', 'FG Noise'], loc=[0.7, 0.5])
+  fig.legend(['SNR', 'SNR Fit', 'BG Noise', 'FG Noise'], loc=[0.7, 0.5])
   plt.grid()
   # plt.plot(stack_sizes, bgnoise, marker='x')
   # for i, txt in enumerate(snr):
@@ -251,6 +270,54 @@ def plot_stats(stack_sizes, stats, outdir, label):
   # Save the plot to outdir
   plt.savefig(os.path.join(outdir, f"snr_vs_stack_{label}_{"stretch" if STRETCH else "nostretch"}.png"))
   # plt.show()
+
+def generate_gif(stack_sizes, outdir):
+  # Create a list of the starless files.
+  starless_fits = [f"starless_stack_{s:04d}.fit" for s in stack_sizes]
+  starless_dir = os.path.join(outdir, '.starless')
+  # Use Siril to rescale and save the starless images as PNGs.
+  png_files = [os.path.join(starless_dir, f"starless_stack_{s:04d}.png") for s in stack_sizes]
+  for f, png_file in zip(starless_fits, png_files):
+    png_file_without_ext = os.path.splitext(png_file)[0]
+    print(f"Creating PNG file: {png_file}")
+    script = f"""requires 1.3.5
+load {f}
+resample -height=800 -interp=area
+autostretch
+savepng {png_file_without_ext}
+"""
+    siril_cli_command = [SIRIL_PATH, "-d", starless_dir, "-s", "-"]
+    try:
+      result = subprocess.run(siril_cli_command,
+                              input=script,
+                              text=True,
+                              capture_output=True)
+      if result.returncode != 0:
+        print("Error running Siril.")
+        print(f"stdout:\n{result.stdout}")
+        print(f"stderr:\n{result.stderr}")
+        sys.exit(1)
+    except subprocess.CalledProcessError as e:
+      print(f"Error running Siril: {e}")
+      sys.exit(1)
+  # Use ImageMagick to create a gif from the PNGs.
+  # gif_file = os.path.join(outdir, 'starless.gif')
+  # convert_command = ['convert'] + png_files + [gif_file]
+  gif_file = os.path.join(outdir, 'starless.mov')
+  convert_command = ['magick'] + png_files + [gif_file]
+  print(f"Convert command: {convert_command}")
+  try:
+    result = subprocess.run(convert_command,
+                            text=True,
+                            capture_output=True)
+    if result.returncode != 0:
+      print("Error running convert.")
+      print(f"stdout:\n{result.stdout}")
+      print(f"stderr:\n{result.stderr}")
+      sys.exit(1)
+  except subprocess.CalledProcessError as e:
+    print(f"Error running convert: {e}")
+    sys.exit(1)
 
 def main():
   global STRETCH
@@ -283,10 +350,11 @@ def main():
     create_starless(stack_sizes, outdir)
 
   stats = get_noise_stats(os.path.join(outdir, '.starless'))
-  # Label is the name of the input directory
   label = os.path.basename(args.indir)
   plot_stats(stack_sizes, stats, outdir, label)
-  # cleanup(outdir)
+  # generate_gif(stack_sizes, outdir)
+
+  cleanup(outdir)
 
 if __name__ == "__main__":
   main()
