@@ -23,7 +23,7 @@ DEFINE_int32(mode, 0, "CCD read mode");
 DEFINE_int32(gain, 0, "CCD gain");
 DEFINE_int32(offset, 0, "CCD offset");
 // Program settings.
-DEFINE_int32(timeout, 4, "Timeout in seconds while waiting for INDI properties");
+DEFINE_int32(timeout, 1, "Timeout in seconds while waiting for INDI properties");
 DEFINE_string(output, "image.fits", "Output filename");
 DEFINE_int32(v, 0, "Verbosity level");
 

@@ -16,9 +16,9 @@ from sky_scripter.lib_indi import IndiMount
 from sky_scripter.util import exec_or_fail, init_logging, parse_coordinates, run_plate_solve_astap, print_and_log, run_star_detect_siril
 from sky_scripter.lib_gphoto import GphotoClient
 
-def align_to_object(mount, 
-                    camera, 
-                    ra_target, dec_target, 
+def align_to_object(mount,
+                    camera,
+                    ra_target, dec_target,
                     threshold,
                     max_iterations=10):
   image_dir = os.path.join(os.getcwd(), '.align')
@@ -28,11 +28,11 @@ def align_to_object(mount,
     ra_error = abs(ra_target - ra) / 24 * 360 * 3600
     dec_error = abs(dec_target - dec) * 3600
     return math.sqrt(ra_error**2 + dec_error**2)
-  
+
   def image_filename():
     return os.path.join(
-        image_dir, 
-        'align-' + time.strftime("%Y-%m-%d-%H-%M-%S") + '.CR3')
+        image_dir,
+        'align-' + time.strftime("%Y-%m-%d-%H-%M-%S") + '.fits')
   # Repeat capture, sync, goto until within threshold, or max iterations reached.
   iteration = 0
   while iteration < max_iterations:
@@ -57,8 +57,8 @@ def align_to_object(mount,
         to_string(unit=units.deg, sep=':')
     print(f"RA: {ra_hms}, DEC: {dec_dms}, Error: {error:4.1f}" +
           f" | Iteration time: {(t_end - t_start).sec:4.1f}")
-    logging.info(f"Iteration {iteration} " + 
-                 f"RA: {ra_hms:17s}, DEC: {dec_dms:17s}, " + 
+    logging.info(f"Iteration {iteration} " +
+                 f"RA: {ra_hms:17s}, DEC: {dec_dms:17s}, " +
                  f"Error: {error:4.1f}, " +
                  f"Iteration time: {(t_end - t_start).sec:4.1f}, " +
                  f"Filename: {filename}")
@@ -71,13 +71,13 @@ def align_to_object(mount,
     print("ERROR: Max iterations reached")
     logging.error("Max iterations reached")
     return False
-  
+
 
 def auto_focus(focuser, camera, focus_min, focus_max, focus_step, backlash=50):
   os.makedirs(os.path.join(os.getcwd(), '.focus', 'images'), exist_ok=True)
   def measure_stars():
-    image_file = os.path.join(os.getcwd(), 
-                              '.focus', 
+    image_file = os.path.join(os.getcwd(),
+                              '.focus',
                               'images',
                               time.strftime("%Y-%m-%dT%H:%M:%S.RAW"))
     camera.capture_image(image_file)
@@ -86,14 +86,14 @@ def auto_focus(focuser, camera, focus_min, focus_max, focus_step, backlash=50):
   focus_results = []
   print_and_log('Focus scan from %d to %d in steps of %d' % \
                 (focus_min, focus_max, focus_step))
-  
+
   initial_focus = focuser.get_focus()
   _, initial_fwhm = measure_stars()
   if initial_fwhm is None:
     logging.error("Unable to measure initial FWHM")
     return None, None, None
   print_and_log(f"Initial focus value: {initial_focus} Initial FWHM: {initial_fwhm}")
-  
+
   focuser.set_focus(focus_min - backlash)
   _, min_focuser_fwhm = measure_stars()
   if min_focuser_fwhm is not None and min_focuser_fwhm < initial_fwhm:
@@ -114,7 +114,7 @@ def auto_focus(focuser, camera, focus_min, focus_max, focus_step, backlash=50):
         focus_at_min_fwhm = f
     else:
       print_and_log(f"Focus value: {f} No stars detected")
-  
+
   # Fit a parabola to the data.
   X = [x[0] for x in focus_results]
   Y = [x[2] for x in focus_results]
@@ -135,15 +135,15 @@ def auto_focus(focuser, camera, focus_min, focus_max, focus_step, backlash=50):
   plt.clf()
   plt.plot(X, Y, 'o', label='data')
   plt.plot(X, Y_fit, label='fit')
-  plt.plot(minima, np.polyval(p, minima), 'x', label='minima', color='red', 
+  plt.plot(minima, np.polyval(p, minima), 'x', label='minima', color='red',
            markersize=10)
   plt.axvline(minima, color='red', linestyle='dashed')
   plt.axhline(np.polyval(p, minima), color='red', linestyle='dashed')
   plt.xlabel('Focus')
   plt.ylabel('FWHM')
   plt.legend()
-  plot_file = os.path.join(os.getcwd(), 
-                           '.focus', 
+  plot_file = os.path.join(os.getcwd(),
+                           '.focus',
                            time.strftime("%Y-%m-%d-%H-%M-%S-focus_plot.png"))
   plt.savefig(plot_file)
   return focus_at_min_fwhm, min_fwhm, focus_results

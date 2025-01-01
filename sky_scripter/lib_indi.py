@@ -1,7 +1,12 @@
+import os
 import subprocess
 import sys
 import time
 import logging
+from astropy.coordinates import SkyCoord, EarthLocation, AltAz
+from astropy.time import Time
+import astropy.units as u
+
 from typing import Tuple, Literal
 
 from sky_scripter.util import exec_or_fail
@@ -82,26 +87,22 @@ class IndiFocuser(IndiClient):
     logging.info(f'New focus value: {focus_value + steps}')
 
 class IndiCamera(IndiClient):
-  def set_gain(self, value):
-    self.write("CCD_EXPOSURE_GAIN", "VALUE", value)
+  def __init__(self, device, simulate = False):
+    super().__init__(device, simulate)
+    # Get the location of this file.
+    current_path = os.path.dirname(os.path.realpath(__file__))
+    # Get the path to the indi_cam_client executable: it is in the same directory as this script.
+    self.indi_cam_client = os.path.join(current_path, "..", "indi_cam_client", "indi_cam_client")
+    self.mode = 5
+    self.gain = 56
+    self.offset = 20
+    self.exposure = 120
 
-  def get_mode(self):
-    return int(self.read("READ_MODE.MODE"))
-
-  def get_gain(self):
-    return int(self.read("CCD_GAIN.GAIN"))
-
-  def get_offset(self):
-    return int(self.read("CCD_OFFSET.OFFSET"))
-
-  def set_mode(self, mode):
-    self.write("READ_MODE", "MODE", mode)
-
-  def set_gain(self, gain):
-    self.write("CCD_GAIN", "GAIN", gain)
-
-  def set_offset(self, offset):
-    self.write("CCD_OFFSET", "OFFSET", offset)
+  def set_capture_settings(self, mode, gain, offset, exposure):
+    self.mode = mode
+    self.gain = gain
+    self.offset = offset
+    self.exposure = exposure
 
   def get_filter_names(self):
     # There should be 7 filter slots, numbered 1-7, with names FILTER_NAME.FILTER_SLOT_NAME_1, etc.
@@ -146,6 +147,16 @@ class IndiCamera(IndiClient):
     self.write("CCD_COOLER", "COOLER_OFF", "On")
 
 class IndiMount(IndiClient):
+  def park(self):
+    self.write("TELESCOPE_PARK", "PARK", "On")
+    while self.read("TELESCOPE_PARK.PARK") != "On":
+      time.sleep(1)
+
+  def unpark(self):
+    self.write("TELESCOPE_PARK", "UNPARK", "On")
+    while self.read("TELESCOPE_PARK.UNPARK") != "On":
+      time.sleep(1)
+
   def goto(self, ra, dec):
     self.write("ON_COORD_SET", "TRACK", "On")
     time.sleep(1)
@@ -164,41 +175,6 @@ class IndiMount(IndiClient):
     dec_read = float(self.read("EQUATORIAL_EOD_COORD.DEC"))
     if abs(ra - ra_read) > 0.001 or abs(dec - dec_read) > 0.001:
       logging.error(f"Sync failed. Requested: {ra} {dec} Read: {ra_read} {dec_read}")
-
-  def get_mount_state(self) -> Tuple[bool, bool, bool]:
-    if self.simulate:
-      return False, False, True
-    ra_status = self.read("RASTATUS.*", 1)
-    de_status = self.read("DESTATUS.*", 1)
-
-    # If ra_status has ("RAGoto", "Ok"), or de_status has ("DEGoto", "Ok"), then the mount is running a goto slew.
-    goto_slew = False
-    for key, value in ra_status:
-      if key == "RAGoto" and value == "Ok":
-        goto_slew = True
-        break
-    for key, value in de_status:
-      if key == "DEGoto" and value == "Ok":
-        goto_slew = True
-        break
-
-    # If not goto_slew, and ra_status has ('RARunning', 'Ok'), ('RAGoto', 'Busy'), and ('RAHighspeed', 'Busy'), then the mount is tracking.
-    tracking = False
-    if (not goto_slew) and \
-        ("RARunning", "Ok") in ra_status and \
-        ("RAGoto", "Busy") in ra_status and \
-        ("RAHighspeed", "Busy") in ra_status:
-      tracking = True
-
-    # If not goto_slew, not tracking, and ra_status has ('RARunning', 'Ok') or
-    # de_status has ('DERunning', 'Ok'), then the mount is running a manual slew.
-    manual_slew = False
-    if (not goto_slew) and (not tracking) and \
-        (("RARunning", "Ok") in ra_status or \
-        ("DERunning", "Ok") in de_status):
-      manual_slew = True
-
-    return manual_slew, goto_slew, tracking
 
   def get_tracking_state(self) -> Literal["TRACK_ON", "TRACK_OFF", "Unknown"]:
     track_state_on = self.read("TELESCOPE_TRACK_STATE.TRACK_ON")
@@ -252,13 +228,36 @@ class IndiMount(IndiClient):
       return
     self.write("TELESCOPE_TRACK_MODE", mode, "On")
 
-  def get_coordinates(self) -> Tuple[float, float, float, float, float]:
+  def get_ra_dec(self) -> Tuple[float, float]:
     ra = float(self.read("EQUATORIAL_EOD_COORD.RA"))
     dec = float(self.read("EQUATORIAL_EOD_COORD.DEC"))
-    alt = float(self.read("HORIZONTAL_COORD.ALT"))
-    az = float(self.read("HORIZONTAL_COORD.AZ"))
-    lst = float(self.read("TIME_LST.LST"))
-    return ra, dec, alt, az, lst
+    return ra, dec
+
+  def get_alt_az(self) -> Tuple[float, float]:
+    ra, dec = self.get_ra_dec()
+    obs_time = Time.now()
+    lat = float(self.read("GEOGRAPHIC_COORD.LAT"))
+    lon = float(self.read("GEOGRAPHIC_COORD.LONG"))
+    elevation = float(self.read("GEOGRAPHIC_COORD.ELEV"))
+
+    # Create EarthLocation object for the observer
+    location = EarthLocation(lat=lat*u.deg, lon=lon*u.deg, height=elevation*u.m)
+
+    # Create a SkyCoord object for the RA/Dec
+    # Assumes RA is in hours, dec is in degrees
+    sky_coord = SkyCoord(ra=ra*u.hourangle, dec=dec*u.deg, frame='icrs')
+
+    # Create AltAz frame for the given time and location
+    altaz_frame = AltAz(obstime=obs_time, location=location)
+
+    # Transform the SkyCoord (RA/Dec) into AltAz
+    altaz_coord = sky_coord.transform_to(altaz_frame)
+
+    # Extract altitude and azimuth in degrees
+    alt = altaz_coord.alt.degree
+    az  = altaz_coord.az.degree
+
+    return alt, az
 
   def get_pier_side(self) -> Literal["West", "East", "Unknown"]:
     if self.read("TELESCOPE_PIER_SIDE.PIER_WEST") == "On":
@@ -268,3 +267,45 @@ class IndiMount(IndiClient):
     else:
       logging.error("Could not determine pier side")
       return "Unknown"
+
+  def get_lst(self):
+    """
+    Compute the Local Sidereal Time (LST) for the current time at a given location.
+
+    Parameters
+    ----------
+    longitude_deg : float
+        Longitude in degrees (East is positive, West is negative).
+    latitude_deg : float, optional
+        Latitude in degrees (North is positive, South is negative).
+        Default is 0.0 (equator).
+
+    Returns
+    -------
+    lst_hours : float
+        Local sidereal time in hours (0 to 24).
+    """
+    longitude_deg = float(self.read("GEOGRAPHIC_COORD.LONG"))
+    latitude_deg = float(self.read("GEOGRAPHIC_COORD.LAT"))
+    altitude_m = float(self.read("GEOGRAPHIC_COORD.ELEV"))
+    from astropy.time import Time
+    from astropy.coordinates import EarthLocation
+    import astropy.units as u
+    # 1. Get the current time in UTC as an Astropy Time object
+    now = Time.now()  # default timescale = 'utc'
+
+    # 2. Create an EarthLocation object with your longitude/latitude
+    #    (height=0 by default; set your altitude if you want).
+    location = EarthLocation(lon=longitude_deg * u.deg,
+                              lat=latitude_deg * u.deg,
+                              height=altitude_m * u.m)
+
+    # 3. Use Astropy's sidereal_time() method to get LST.
+    #    'mean' sidereal time is usually adequate; you can also choose 'apparent'.
+    lst = now.sidereal_time('mean', longitude=location.lon)
+
+    # Convert LST (an Angle object) to decimal hours
+    lst_hours = lst.hour
+
+    print(f"Local Sidereal Time: {lst_hours:.2f} hours")
+    return lst_hours

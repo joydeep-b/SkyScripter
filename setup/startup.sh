@@ -71,6 +71,13 @@ connect_cameras() {
       echo "Failed to connect to camera"
       exit 1
   fi
+  sleep 2
+  indi_setprop "QHY CCD QHY268M-b93fd94.ACTIVE_DEVICES.ACTIVE_TELESCOPE=ZWO AM5"
+  retcode=$?
+  if [ "$retcode" -ne 0 ]; then
+      echo "Failed to set active telescope"
+      exit 1
+  fi
   echo "Connected to ASI 120MM camera"
   indi_setprop "ZWO CCD ASI120MM Mini.CONNECTION.CONNECT=On"
   retcode=$?

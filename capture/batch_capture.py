@@ -12,10 +12,28 @@ from datetime import datetime, timedelta, timezone
 from dateutil import tz
 import signal
 
+# Settings for the script.
+settings = {
+  'mount': 'ZWO AM5',
+  'focuser': 'ZWO EAF',
+  'camera': 'QHY CCD QHY268M-b93fd94',
+  'target': 'M31',
+  'capture_dir': '~/Pictures',
+  'mode': 5,
+  'gain': 56,
+  'offset': 20,
+  'sequences': [
+    {'filter': 'L', 'exposure': 300, 'repeat': 1},
+    {'filter': 'R', 'exposure': 300, 'repeat': 1},
+    {'filter': 'G', 'exposure': 300, 'repeat': 1},
+    {'filter': 'B', 'exposure': 300, 'repeat': 1},
+  ]
+}
+
 sys.path.append(os.getcwd())
 
 from sky_scripter.lib_gphoto import GphotoClient
-from sky_scripter.lib_indi import IndiMount, IndiFocuser
+from sky_scripter.lib_indi import IndiCamera, IndiFocuser, IndiMount
 from sky_scripter.algorithms import auto_focus, align_to_object
 from sky_scripter.util import init_logging, print_and_log, parse_coordinates
 from sky_scripter.lib_phd2 import Phd2Client
@@ -42,7 +60,8 @@ def get_image_filename(capture_dir: str):
   raise ValueError('Too many images in the capture directory')
 
 def get_time_to_flip(mount: IndiMount, args: argparse.Namespace):
-  ra, dec, _, _, lst = mount.get_coordinates()
+  ra, _, = mount.get_ra_dec()
+  lst = mount.get_lst()
   ha = lst - ra
   if ha > 12:
     ha -= 24
@@ -62,7 +81,7 @@ def need_meridian_flip(mount: IndiMount, args: argparse.Namespace):
 
 def perform_meridian_flip(mount: IndiMount):
   # Perform a meridian flip.
-  ra, dec, _, _, lst = mount.get_coordinates()
+  ra, dec = mount.get_ra_dec()
   # Intermediary step: Slew to point 3 hours west of the meridian.
   intermediate_ra = ra + 3
   mount.goto(intermediate_ra, dec)
@@ -124,36 +143,34 @@ def set_up_capture_directory(args: argparse.Namespace, coordinates: tuple):
   print_and_log(f"Capture directory: {capture_dir}")
   return capture_dir
 
-def setup_camera(camera: GphotoClient, args: argparse.Namespace):
-  shutter_speed_num = eval(args.shutter_speed)
-  camera_mode = 'Bulb' if shutter_speed_num > 30 else 'Manual'
-  camera.initialize()
-
-def run_auto_focus(focus_camera: GphotoClient,
-                   capture_camera: GphotoClient,
+def run_auto_focus(camera: IndiCamera,
                    focuser: IndiFocuser,
+                   filter: str,
                    args: argparse.Namespace):
+  # For filter=L, R, G, B, use exposure time of 2 seconds. For other filters, use 5 seconds.
+  if filter in ['L', 'R', 'G', 'B']:
+    exposure = 2
+  else:
+    exposure = 4
+  camera.change_filter(filter)
+  camera.set_capture_settings(mode=5, gain=70, offset=20, exposure=exposure)
   if args.simulate:
     return
-  focus_camera.initialize()
   current_focus = focuser.get_focus()
   focus_step = args.focus_step_size
   focus_min = current_focus - focus_step * args.focus_steps
   focus_max = current_focus + focus_step * args.focus_steps
-  auto_focus(focuser, focus_camera, focus_min, focus_max, focus_step)
-  capture_camera.initialize()
+  auto_focus(focuser, camera, focus_min, focus_max, focus_step)
 
 def run_alignment(mount: IndiMount,
-                  alignment_camera: GphotoClient,
-                  capture_camera: GphotoClient,
+                  camera: IndiCamera,
                   coordinates: tuple,
                   phd2client: Phd2Client,
                   args: argparse.Namespace):
   phd2client.stop_guiding()
-  alignment_camera.initialize()
-  align_to_object(mount, alignment_camera, coordinates[0], coordinates[1],
-                  args.align_threshold)
-  capture_camera.initialize()
+  camera.change_filter('L')
+  camera.set_capture_settings(mode=5, gain=70, offset=20, exposure=2)
+  align_to_object(mount, camera, coordinates[0], coordinates[1], args.align_threshold)
   phd2client.start_guiding()
 
 def signal_handler(signum, frame):
@@ -169,14 +186,12 @@ def get_args():
       help='WCS coordinates (e.g., "5:35:17 -5:23:24")')
   # Hardware configuration.
   parser.add_argument('-m', '--mount', type=str,
-      help='INDI mount device name', default='Star Adventurer GTi')
+      help='INDI mount device name', default='ZWO AM5')
   parser.add_argument('-f', '--focuser', type=str,
-      help='INDI focuser device name', default='ASI EAF')
-  # Camera settings.
-  parser.add_argument('-i', '--iso', type=int,
-      help='ISO value', default=400)
-  parser.add_argument('-s', '--shutter_speed', type=str,
-      help='Shutter speed', default='90')
+      help='INDI focuser device name', default='ZWO EAF')
+  parser.add_argument('-c', '--camera', type=str,
+      help='INDI camera device name', default='QHY CCD QHY268M-b93fd94')
+
   # Alignment and mount limit settings.
   parser.add_argument('--align-threshold', type=float,
       help='Alignment threshold in arcseconds', default=20)
@@ -193,7 +208,7 @@ def get_args():
   parser.add_argument('--focus-steps', type=int,
       help='Number of focus steps on either side of start', default=7)
   parser.add_argument('--focus-interval', type=int,
-      help='Focus interval in minutes', default=40)
+      help='Focus interval in minutes', default=60)
   parser.add_argument('--skip-initial-focus', action='store_true',
       help='Skip initial focus')
   # Application settings.
@@ -204,7 +219,7 @@ def get_args():
 
   return parser.parse_args(), parser
 
-def capture_image(camera, filename, args):
+def capture_image(camera, filename, exposure):
   global terminate
   pid = os.fork()
   if pid == 0:
@@ -215,18 +230,18 @@ def capture_image(camera, filename, args):
   else:
     # Parent process: Show a progress bar for the duration, with 20 ticks.
     t_start = time.time()
-    duration = eval(args.shutter_speed)
+    duration = exposure
     while time.time() - t_start < duration:
       time.sleep(0.1)
       terminate_string = ' [Terminating]' if terminate else ''
       print(f'\r[Remaining: {duration - (time.time() - t_start):.1f}s] {terminate_string}  ', end='', flush=True)
 
-    # Check if a process by the name "gphoto2" is running.
-    is_gphoto_running = os.system('pgrep gphoto2 > /dev/null') == 0
-    while is_gphoto_running:
+    # Check if a process by the name "indi_cam_client" is running.
+    is_capture_running = os.system('pgrep indi_cam_client > /dev/null') == 0
+    while is_capture_running:
       time.sleep(0.1)
-      sys_result = os.system('pgrep gphoto2 > /dev/null')
-      is_gphoto_running = sys_result == 0
+      sys_result = os.system('pgrep indi_cam_client > /dev/null')
+      is_capture_running = sys_result == 0
       terminate_string = ' [Terminating]' if terminate else ''
       print(f'\r[Remaining: {duration - (time.time() - t_start):.1f}s] {terminate_string}  ', end='', flush=True)
 
@@ -243,28 +258,18 @@ def signal_handler(signum, frame):
     print_and_log('Hit Ctrl-C again to terminate immediately')
   terminate_count += 1
 
-
 def print_and_log_mount_state(mount, args):
   current_date_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-  manual_slew, goto_slew, tracking = mount.get_mount_state()
-  if manual_slew:
-    mount_state = "Slewing "
-  elif goto_slew:
-    mount_state = "Goto    "
-  elif tracking:
-    mount_state = "Tracking"
-  else:
-    mount_state = "Idle    "
-
-  ra, dec, alt, az, lst = mount.get_coordinates()
+  ra, dec = mount.get_ra_dec()
+  lst = mount.get_lst()
   ha = lst - ra
   pier_side = mount.get_pier_side()
   _, time_to_flip_hours, time_to_flip_minutes, time_to_flip_seconds = \
       get_time_to_flip(mount, args)
-  log_string = "%s | %s |" % (current_date_time, mount_state)
+  log_string = "%s " % (current_date_time)
   log_string += " RA: %9.6f HA: %9.6f DEC: %9.6f |" % (ra, ha, dec)
   log_string += " Pier side: %s |" % pier_side
-  log_string += " Alt: %7.3f Az: %7.3f |" % (alt, az)
+  # log_string += " Alt: %7.3f Az: %7.3f |" % (alt, az)
   log_string += " Time to flip: %02d:%02d:%02d" % \
       (time_to_flip_hours, time_to_flip_minutes, time_to_flip_seconds)
   print_and_log(log_string)
@@ -278,6 +283,22 @@ def check_disk_space():
     print_and_log(f"Low disk space: {free_space / (1024 * 1024 * 1024):.2f} GB")
     confirm_abort()
 
+def load_capture_settings():
+  # TODO: Load settings from a JSON file.
+  return settings
+
+def handle_meridian_flip(mount, phd2client, camera, focuser, coordinates, args):
+  print_and_log("Meridian flip needed")
+  stop_guiding(phd2client)
+  perform_meridian_flip(mount)
+  print_and_log("Meridian flip complete, running alignment")
+  run_alignment(mount, camera, coordinates, phd2client, args)
+  print_and_log("Alignment complete, starting guiding")
+  start_guiding(phd2client)
+  print_and_log("Running auto focus")
+  run_auto_focus(camera, focuser, args)
+  print_and_log("Resuming capture")
+
 def main():
   args, parser = get_args()
   init_logging('batch_capture', also_to_console=args.verbose)
@@ -289,78 +310,66 @@ def main():
   coordinates = parse_coordinates(args, parser)
   check_sprinklers()
   capture_dir = set_up_capture_directory(args, coordinates)
+  capture_settings = load_capture_settings()
   print("Connecting to devices")
   mount = IndiMount(args.mount, simulate=args.simulate)
   focuser = IndiFocuser(args.focuser, simulate=args.simulate)
-  capture_camera = GphotoClient(simulate=args.simulate,
-                                image_format='RAW',
-                                mode='Bulb',
-                                iso=args.iso,
-                                shutter_speed=args.shutter_speed)
-  capture_camera.initialize()
-  alignment_camera = GphotoClient(simulate=args.simulate,
-                                  image_format='RAW',
-                                  mode='Manual',
-                                  iso=1600,
-                                  shutter_speed='2')
-  alignment_camera.initialize()
+  camera = IndiCamera(args.camera)
+  mount.unpark()
   print("Connecting to PHD2")
   phd2client = Phd2Client()
-  setup_camera(capture_camera, args)
-  phd2client.connect()
-  phd2client.stop_guiding()
+  # phd2client.connect()
+  # phd2client.stop_guiding()
 
 
   # Initial actions: Align, Start guiding, Auto focus.
   print_and_log('Running initial alignment')
-  run_alignment(mount, alignment_camera, capture_camera, coordinates,
-                phd2client, args)
+  # run_alignment(mount, camera, coordinates, phd2client, args)
   print_and_log_mount_state(mount, args)
   print_and_log('Starting guiding')
-  start_guiding(phd2client)
+  # start_guiding(phd2client)
   if not args.skip_initial_focus:
     print_and_log('Running initial auto focus')
-    run_auto_focus(alignment_camera, capture_camera, focuser, args)
+    # run_auto_focus(camera, focuser, args)
   t_last_focus = time.time()
 
-  _, _, alt, _, _ = mount.get_coordinates()
-  num_images = 1
-  capture_camera.initialize()
+  alt, _ = mount.get_alt_az()
+  sequences = capture_settings['sequences']
   while (alt > args.min_altitude or args.simulate) and not terminate:
-    print_and_log_mount_state(mount, args)
-    if need_meridian_flip(mount, args):
-      print_and_log("Meridian flip needed")
-      stop_guiding(phd2client)
-      perform_meridian_flip(mount)
-      print_and_log("Meridian flip complete, running alignment")
-      run_alignment(mount, alignment_camera, capture_camera, coordinates,
-                    phd2client, args)
-      print_and_log("Alignment complete, starting guiding")
-      start_guiding(phd2client)
-      print_and_log("Running auto focus")
-      run_auto_focus(alignment_camera, capture_camera, focuser, args)
-      t_last_focus = time.time()
-      print_and_log("Resuming capture")
-    if time.time() - t_last_focus > args.focus_interval * 60:
-      print_and_log("Running auto focus")
-      run_auto_focus(alignment_camera, capture_camera, focuser, args)
-      t_last_focus = time.time()
-    if num_images % args.dither_period == 0:
-      print_and_log("Dithering...")
-      if phd2client.dither(pixels=4, settle_pixels=0.5, settle_timeout=60):
-        print_and_log("Dithering complete")
-      else:
-        print_and_log("Dithering failed")
-    image_file = get_image_filename(capture_dir)
-    image_file_short = os.path.basename(image_file)
-    print_and_log(f"Capturing image {num_images} to {image_file_short}")
-    capture_image(capture_camera, image_file, args)
-    # TODO: Dithering
-    num_images += 1
-    _, _, alt, _, _ = mount.get_coordinates()
+    for seq in sequences:
+      filter = seq['filter']
+      exposure = seq['exposure']
+      repeat = seq['repeat']
+      camera.change_filter(filter)
+      # run_auto_focus(camera, focuser, filter, args)
+      for i in range(repeat):
+        print_and_log_mount_state(mount, args)
+        if need_meridian_flip(mount, args):
+          handle_meridian_flip(mount, phd2client, camera, focuser, coordinates, args)
+          t_last_focus = time.time()
+        if time.time() - t_last_focus > args.focus_interval * 60:
+          print_and_log("Running auto focus")
+          # run_auto_focus(camera, focuser, args)
+          t_last_focus = time.time()
+        if (i + 1) % args.dither_period == 0:
+          print_and_log("Dithering...")
+          if phd2client.dither(pixels=4, settle_pixels=0.5, settle_timeout=60):
+            print_and_log("Dithering complete")
+          else:
+            print_and_log("Dithering failed")
+        image_file = get_image_filename(capture_dir)
+        image_file_short = os.path.basename(image_file)
+        print_and_log(f"Capturing image {i} to {image_file_short}")
+        camera.set_capture_settings(capture_settings['mode'],
+                                    capture_settings['gain'],
+                                    capture_settings['offset'],
+                                    exposure)
+        capture_image(camera, image_file, exposure)
+        alt, _ = mount.get_alt_az()
 
-  # End of capture: Stop guiding, print summary.
-  phd2client.stop_guiding()
+  # End of capture: Stop guiding, park the mount, print summary.
+  # phd2client.stop_guiding()
+  mount.park()
   if terminate:
     print_and_log("Capture terminated by user")
   elif alt <= args.min_altitude:
