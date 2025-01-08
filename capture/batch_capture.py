@@ -54,7 +54,7 @@ def stop_guiding(phd2client: Phd2Client):
 def get_image_filename(capture_dir: str):
   # Check for the first available image filename.
   for i in range(100000):
-    filename = os.path.join(capture_dir, f'capture-{i:05d}.CR3')
+    filename = os.path.join(capture_dir, f'capture-{i:05d}.fits')
     if not os.path.exists(filename):
       return filename
   raise ValueError('Too many images in the capture directory')
@@ -147,7 +147,10 @@ def run_auto_focus(camera: IndiCamera,
                    focuser: IndiFocuser,
                    filter: str,
                    args: argparse.Namespace):
-  # For filter=L, R, G, B, use exposure time of 2 seconds. For other filters, use 5 seconds.
+  if filter not in ['L', 'R', 'G', 'B', 'S', 'H', 'O']:
+    print_and_log(f"Invalid filter for focusing: '{filter}'", level=logging.ERROR)
+    return
+  # For filter=L, R, G, B, use exposure time of 2 seconds. For other filters, use 4 seconds.
   if filter in ['L', 'R', 'G', 'B']:
     exposure = 2
   else:
@@ -160,18 +163,22 @@ def run_auto_focus(camera: IndiCamera,
   focus_step = args.focus_step_size
   focus_min = current_focus - focus_step * args.focus_steps
   focus_max = current_focus + focus_step * args.focus_steps
-  auto_focus(focuser, camera, focus_min, focus_max, focus_step)
+  focus_at_min_fwhm, min_fwhm, focus_results, plot_file = \
+      auto_focus(focuser, camera, focus_min, focus_max, focus_step)
+  return focus_at_min_fwhm, min_fwhm, focus_results, plot_file
 
 def run_alignment(mount: IndiMount,
                   camera: IndiCamera,
                   coordinates: tuple,
-                  phd2client: Phd2Client,
+                  phd2client: Phd2Client | None,
                   args: argparse.Namespace):
-  phd2client.stop_guiding()
+  if phd2client is not None:
+    phd2client.stop_guiding()
   camera.change_filter('L')
   camera.set_capture_settings(mode=5, gain=70, offset=20, exposure=2)
   align_to_object(mount, camera, coordinates[0], coordinates[1], args.align_threshold)
-  phd2client.start_guiding()
+  if phd2client is not None:
+    phd2client.start_guiding()
 
 def signal_handler(signum, frame):
   global terminate
@@ -216,6 +223,8 @@ def get_args():
       help='Simulate the capture without actually taking images')
   parser.add_argument('-v', '--verbose', action='store_true',
       help='Print verbose messages')
+  parser.add_argument('--test', action='store_true',
+      help='Run in test mode')
 
   return parser.parse_args(), parser
 
@@ -224,7 +233,7 @@ def capture_image(camera, filename, exposure):
   pid = os.fork()
   if pid == 0:
     # Child process
-    camera.capture_image(filename)
+    camera.capture_image(filename, exposure=exposure)
     logging.info(f"Image saved to {filename}")
     sys.exit(0)
   else:
@@ -289,18 +298,163 @@ def load_capture_settings():
 
 def handle_meridian_flip(mount, phd2client, camera, focuser, coordinates, args):
   print_and_log("Meridian flip needed")
-  stop_guiding(phd2client)
+  if phd2client is not None:
+    stop_guiding(phd2client)
   perform_meridian_flip(mount)
   print_and_log("Meridian flip complete, running alignment")
   run_alignment(mount, camera, coordinates, phd2client, args)
-  print_and_log("Alignment complete, starting guiding")
+  print_and_log("Alignment complete")
+  if phd2client is not None:
+    print_and_log("Resuming guiding")
+    start_guiding(phd2client)
+  if camera is not None:
+    if focuser is not None:
+      print_and_log("Running auto focus")
+      run_auto_focus(camera, focuser, args)
+    print_and_log("Resuming capture")
+
+def test_alignment(args, parser):
+  coordinates = parse_coordinates(args, parser)
+  mount = IndiMount(args.mount, simulate=args.simulate)
+  camera = IndiCamera(args.camera)
+  print_and_log('Testing alignment')
+  run_alignment(mount, camera, coordinates, None, args)
+
+def test_auto_focus():
+  camera = IndiCamera('QHY CCD QHY268M-b93fd94')
+  focuser = IndiFocuser('ZWO EAF')
+  # Ask which filter to use for testing.
+  print("Select a filter to test auto focus (L, R, G, B, S, H, O):")
+  filter = input()
+  if filter not in ['L', 'R', 'G', 'B', 'S', 'H', 'O']:
+    print_and_log("Invalid filter", level=logging.ERROR)
+    return
+  print_and_log(f'Testing auto focus with filter {filter}')
+  focus_at_min_fwhm, min_fwhm, _, plot_file = run_auto_focus(camera, focuser, filter, None)
+  print(f"Focus at min FWHM: {focus_at_min_fwhm} Min FWHM: {min_fwhm}")
+  print("Opening the plot file")
+  # Open the plot file in the default viewer.
+  os.system(f'open {plot_file}')
+
+def test_meridian_flip(args):
+  mount = IndiMount('ZWO AM5', simulate=False)
+  print_and_log("Testing meridian flip")
+  # Ask the user what declination to use for the test.
+  print("Enter the declination to use for the test:")
+  dec = float(input())
+  # Ask the user how many minutes ahead of the meridian to start the test from.
+  print("Enter the number of minutes ahead of the meridian to start the test from:")
+  minutes = float(input())
+  # Calculate the RA for the test.
+  lst = mount.get_lst()
+  ra = lst - minutes / 60
+  print(f"Testing meridian flip at RA {ra} DEC {dec}")
+  mount.goto(ra, dec)
+  print("Waiting for the mount to reach the target")
+  while True:
+    print_and_log_mount_state(mount, args)
+    if need_meridian_flip(mount, args):
+      handle_meridian_flip(mount, None, None, None, (ra, dec), args)
+      print_and_log("Meridian flip complete")
+      break
+
+def test_capture(args):
+  camera = IndiCamera(args.camera)
+  print("Enter the exposure time in seconds to use for the test:")
+  exposure = float(input())
+  print("Enter the filter to use for the test (L, R, G, B, S, H, O):")
+  filter = input()
+  if filter not in ['L', 'R', 'G', 'B', 'S', 'H', 'O']:
+    print_and_log("Invalid filter", level=logging.ERROR)
+    return
+  print("Enter the mode to use for the test:")
+  mode = int(input())
+  print("Enter the gain to use for the test:")
+  gain = int(input())
+  print("Enter the offset to use for the test:")
+  offset = int(input())
+  camera.set_capture_settings(mode, gain, offset, exposure)
+  print("Enter the output directory for the test: [Default: ~/Pictures/test_capture]")
+  output_dir = input()
+  if output_dir == '':
+    output_dir = '~/Pictures/test_capture'
+  os.makedirs(output_dir, exist_ok=True)
+  print("Enter the number of images to capture:")
+  num_images = int(input())
+  for i in range(num_images):
+    image_file = os.path.join(output_dir, f'test_capture_{i:05d}.fits')
+    print(f"Capturing image {i} to {image_file}")
+    capture_image(camera, image_file, exposure)
+
+def test_guiding():
+  global terminate
+  phd2client = Phd2Client()
+  phd2client.connect()
+  print("Starting guiding")
   start_guiding(phd2client)
-  print_and_log("Running auto focus")
-  run_auto_focus(camera, focuser, args)
-  print_and_log("Resuming capture")
+  print("Guiding started, press Ctrl-C to stop, enter to dither")
+  while not terminate:
+    time.sleep(1)
+    input()
+    print("Dithering...")
+    if phd2client.dither(pixels=4, settle_pixels=0.5, settle_timeout=60):
+      print("Dithering complete")
+    else:
+      print("Dithering failed")
+  print("Stopping guiding")
+  stop_guiding(phd2client)
+
+def test_mode(args, parser):
+  global terminate, terminate_count
+  init_logging('batch_capture_test_mode', also_to_console=args.verbose)
+  signal.signal(signal.SIGINT, signal_handler)
+  print("Running in test mode")
+  while not terminate:
+    # Print the menu.
+    print("Test mode options:")
+    print("1. Test target alignment")
+    print("2. Test auto focus")
+    print("3. Test meridian flip")
+    print("4. Test guiding and dithering")
+    print("5. Test capture")
+    print("8. Monitor mount state")
+    print("p. Park the mount")
+    print("u. Unpark the mount")
+    print("x. Exit")
+    # Get the user's choice.
+    choice = input("Enter your choice: ")
+    if choice == '1':
+      test_alignment(args, parser)
+    elif choice == '2':
+      test_auto_focus()
+    elif choice == '3':
+      test_meridian_flip(args)
+    elif choice == '4':
+      test_guiding()
+    elif choice == '5':
+      test_capture(args)
+    elif choice == '8':
+      mount = IndiMount(args.mount, simulate=args.simulate)
+      while not terminate:
+        print_and_log_mount_state(mount, args)
+        time.sleep(1)
+    elif choice == 'p':
+      mount = IndiMount(args.mount, simulate=args.simulate)
+      mount.park()
+    elif choice == 'u':
+      mount = IndiMount(args.mount, simulate=args.simulate)
+      mount.unpark()
+    elif choice == 'x':
+      break
+    else:
+      print("Invalid choice")
 
 def main():
   args, parser = get_args()
+  if args.test:
+    test_mode(args, parser)
+    return
+
   init_logging('batch_capture', also_to_console=args.verbose)
   logging.info(f"Starting batch capture with arguments: {args}")
   signal.signal(signal.SIGINT, signal_handler)
@@ -308,7 +462,7 @@ def main():
 
   check_disk_space()
   coordinates = parse_coordinates(args, parser)
-  check_sprinklers()
+  # check_sprinklers()
   capture_dir = set_up_capture_directory(args, coordinates)
   capture_settings = load_capture_settings()
   print("Connecting to devices")
@@ -318,19 +472,19 @@ def main():
   mount.unpark()
   print("Connecting to PHD2")
   phd2client = Phd2Client()
-  # phd2client.connect()
-  # phd2client.stop_guiding()
+  phd2client.connect()
+  phd2client.stop_guiding()
 
 
   # Initial actions: Align, Start guiding, Auto focus.
   print_and_log('Running initial alignment')
-  # run_alignment(mount, camera, coordinates, phd2client, args)
+  run_alignment(mount, camera, coordinates, phd2client, args)
   print_and_log_mount_state(mount, args)
   print_and_log('Starting guiding')
   # start_guiding(phd2client)
   if not args.skip_initial_focus:
     print_and_log('Running initial auto focus')
-    # run_auto_focus(camera, focuser, args)
+    run_auto_focus(camera, focuser, "L",  args)
   t_last_focus = time.time()
 
   alt, _ = mount.get_alt_az()

@@ -79,7 +79,7 @@ def auto_focus(focuser, camera, focus_min, focus_max, focus_step, backlash=50):
     image_file = os.path.join(os.getcwd(),
                               '.focus',
                               'images',
-                              time.strftime("%Y-%m-%dT%H:%M:%S.RAW"))
+                              time.strftime("%Y-%m-%dT%H:%M:%S.fits"))
     camera.capture_image(image_file)
     num_stars, fwhm = run_star_detect_siril(image_file)
     return num_stars, fwhm
@@ -146,4 +146,4 @@ def auto_focus(focuser, camera, focus_min, focus_max, focus_step, backlash=50):
                            '.focus',
                            time.strftime("%Y-%m-%d-%H-%M-%S-focus_plot.png"))
   plt.savefig(plot_file)
-  return focus_at_min_fwhm, min_fwhm, focus_results
+  return focus_at_min_fwhm, min_fwhm, focus_results, plot_file

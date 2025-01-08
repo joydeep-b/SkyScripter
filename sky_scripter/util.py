@@ -6,7 +6,7 @@ import time
 import re
 import shutil
 import tempfile
-from astroquery.simbad import Simbad 
+from astroquery.simbad import Simbad
 from astropy.coordinates import SkyCoord, FK5, ICRS
 import astropy.units as units
 import astropy.time
@@ -18,8 +18,8 @@ def init_logging(name, also_to_console=False):
       script_dir,
       '..', '.logs', name + '-' + time.strftime("%Y-%m-%d") + '.log')
   logging.basicConfig(
-      filename=logfile, 
-      level=logging.INFO, 
+      filename=logfile,
+      level=logging.INFO,
       format='%(asctime)s %(filename)-20s %(levelname)-8s %(message)s',
       filemode='a')
   if also_to_console:
@@ -82,7 +82,7 @@ def lookup_object_coordinates(object_name):
     # Convert J2000 coordinates to JNow.
     c = SkyCoord(ra, dec, unit=(units.hourangle, units.deg), frame=ICRS())
     jnow_coord = c.transform_to(FK5(equinox=astropy.time.Time.now()))
-    
+
     return jnow_coord.ra.hour, jnow_coord.dec.deg
 
 def parse_coordinates(args, parser):
@@ -117,8 +117,8 @@ def run_plate_solve_astap(file, astap_path=astap_path_autodetected):
   astap_output = exec_or_fail(astap_cli_command)
   # Define the regex pattern, to match output like this:
   # Solution found: 05: 36 03.8	-05° 27 14
-  regex = r"Solution found: ([0-9]+): ([0-9]+) ([0-9]+\.[0-9]+)\t([+-])([0-9]+)° ([0-9]+) ([0-9]+)"
-
+  regex = r"Solution found: ([\ ]*[0-9]+): ([\ ]*[0-9]+) ([\ ]*[0-9]+\.[0-9]+)\t([+-])([\ ]*[0-9]+)° ([\ ]*[0-9]+) ([\ ]*[0-9]+\.[0-9]+)"
+  # print(f"ASTAP output:\n {astap_output}\n========\n")
   # Search for the pattern in the output
   match = re.search(regex, astap_output)
   if not match:
@@ -135,6 +135,9 @@ def run_plate_solve_astap(file, astap_path=astap_path_autodetected):
   # Convert delta (DEC) to decimal degrees
   delta_multiplier = 1 if delta_sign == '+' else -1
   delta = delta_multiplier * (float(delta_d) + float(delta_m)/60 + float(delta_s)/3600)
+
+  if False:
+    print(f"RA: {alpha}, DEC: {delta}")
 
   # TODO: Convert J2000 coordinates to JNow.
   c = SkyCoord(alpha, delta, unit=(units.hourangle, units.deg), frame=ICRS())
@@ -156,9 +159,10 @@ def run_star_detect_siril(image_file):
       SIRIL_PATH = '/home/joydeepb/Siril-1.2.1-x86_64.AppImage'
     siril_commands = f"""requires 1.2.0
 convert light
-calibrate_single light_00001 -bias="=2048" -debayer -cfa -equalize_cfa 
-load pp_light_00001
-crop 2048 1366 4096 2732
+# calibrate_single light_00001 -bias="=2048" -debayer -cfa -equalize_cfa
+# load pp_light_00001
+# crop 2048 1366 4096 2732
+load light_00001
 setfindstar -radius=3 -sigma=0.5 -roundness=0.8 -focal=403.2 -pixelsize=4.39 -moffat -minbeta=1.5 -relax=on
 findstar
 close
@@ -167,9 +171,9 @@ close
     siril_cli_command = [SIRIL_PATH, "-d", tmpdirname, "-s", "-"]
     # Run the command and capture output
     try:
-      result = subprocess.run(siril_cli_command, 
+      result = subprocess.run(siril_cli_command,
                               input=siril_commands,
-                              text=True, 
+                              text=True,
                               capture_output=True,
                               check=True)
       if result.returncode != 0:
@@ -183,6 +187,7 @@ close
       if not match:
         return None, None
       num_stars, fwhm = match.groups()
+      # print(f"Detected '{num_stars}' stars with FWHM '{fwhm}' full output:\n {result.stdout}\n")
       return int(num_stars), float(fwhm)
     except subprocess.CalledProcessError as e:
       return None, None

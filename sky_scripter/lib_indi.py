@@ -146,6 +146,15 @@ class IndiCamera(IndiClient):
     logging.info("Turning cooler off")
     self.write("CCD_COOLER", "COOLER_OFF", "On")
 
+  def capture_image(self, filename, gain=None, exposure=None):
+    if gain is None:
+      gain = self.gain
+    if exposure is None:
+      exposure = self.exposure
+    logging.info(f"Capturing image to {filename}")
+    command = f"{self.indi_cam_client} --output {filename} --mode {self.mode} --gain {gain} --offset {self.offset} --exposure {exposure}"
+    exec_or_fail(command)
+
 class IndiMount(IndiClient):
   def park(self):
     self.write("TELESCOPE_PARK", "PARK", "On")
@@ -161,18 +170,31 @@ class IndiMount(IndiClient):
     self.write("ON_COORD_SET", "TRACK", "On")
     time.sleep(1)
     self.write("EQUATORIAL_EOD_COORD", ["RA", "DEC"], [ra, dec])
-    tracking = False
-    while not tracking:
+    t_start = time.time()
+    def slew_finished():
+      current_ra, current_dec = self.get_ra_dec()
+      max_error = 10 / 3600 # Arcseconds
+      if True:
+        print(f"RA Error: {abs(current_ra - ra) * 3600:.3f} arcsec, DEC Error: {abs(current_dec - dec) * 3600:.3f} arcsec")
+      return abs(current_ra - ra) < max_error and \
+              abs(current_dec - dec) < max_error
+
+    while not slew_finished():
+      t_now = time.time()
+      if t_now - t_start > 30:
+        current_ra, current_dec = self.get_ra_dec()
+        logging.error(f"Slew timeout. Requested: {ra} {dec} Read: {current_ra} {current_dec} Error: {abs(current_ra - ra) * 3600:.3f} {abs(current_dec - dec) * 3600:.3f}")
+        return
       time.sleep(1)
-      _, _, tracking = self.get_mount_state()
+
+
 
   def sync(self, ra: float, dec: float):
     self.write("TELESCOPE_TRACK_STATE", "TRACK_ON", "On")
     self.write("ON_COORD_SET", "SYNC", "On")
     self.write("EQUATORIAL_EOD_COORD", ["RA", "DEC"], [ra, dec])
     time.sleep(1)
-    ra_read = float(self.read("EQUATORIAL_EOD_COORD.RA"))
-    dec_read = float(self.read("EQUATORIAL_EOD_COORD.DEC"))
+    ra_read, dec_read = self.get_ra_dec()
     if abs(ra - ra_read) > 0.001 or abs(dec - dec_read) > 0.001:
       logging.error(f"Sync failed. Requested: {ra} {dec} Read: {ra_read} {dec_read}")
 
@@ -307,5 +329,5 @@ class IndiMount(IndiClient):
     # Convert LST (an Angle object) to decimal hours
     lst_hours = lst.hour
 
-    print(f"Local Sidereal Time: {lst_hours:.2f} hours")
+    # print(f"Local Sidereal Time: {lst_hours:.2f} hours")
     return lst_hours
