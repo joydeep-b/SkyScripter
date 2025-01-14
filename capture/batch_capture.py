@@ -34,7 +34,7 @@ sys.path.append(os.getcwd())
 
 from sky_scripter.lib_gphoto import GphotoClient
 from sky_scripter.lib_indi import IndiCamera, IndiFocuser, IndiMount
-from sky_scripter.algorithms import auto_focus, align_to_object
+from sky_scripter.algorithms import auto_focus, align_to_object, measure_stars
 from sky_scripter.util import init_logging, print_and_log, parse_coordinates
 from sky_scripter.lib_phd2 import Phd2Client
 from sky_scripter.lib_rachio import RachioClient, get_rachio_key
@@ -155,11 +155,13 @@ def run_auto_focus(camera: IndiCamera,
     exposure = 2
   else:
     exposure = 4
+  print_and_log(f"Running auto focus with filter {filter}, exposure {exposure}s")
   camera.change_filter(filter)
   camera.set_capture_settings(mode=5, gain=70, offset=20, exposure=exposure)
   if args.simulate:
     return
   current_focus = focuser.get_focus()
+  print_and_log(f"Current focus: {current_focus}")
   focus_step = args.focus_step_size
   focus_min = current_focus - focus_step * args.focus_steps
   focus_max = current_focus + focus_step * args.focus_steps
@@ -320,17 +322,16 @@ def test_alignment(args, parser):
   print_and_log('Testing alignment')
   run_alignment(mount, camera, coordinates, None, args)
 
-def test_auto_focus():
-  camera = IndiCamera('QHY CCD QHY268M-b93fd94')
-  focuser = IndiFocuser('ZWO EAF')
+def test_auto_focus(args):
+  camera = IndiCamera(args.camera)
+  focuser = IndiFocuser(args.focuser)
   # Ask which filter to use for testing.
   print("Select a filter to test auto focus (L, R, G, B, S, H, O):")
   filter = input()
   if filter not in ['L', 'R', 'G', 'B', 'S', 'H', 'O']:
     print_and_log("Invalid filter", level=logging.ERROR)
     return
-  print_and_log(f'Testing auto focus with filter {filter}')
-  focus_at_min_fwhm, min_fwhm, _, plot_file = run_auto_focus(camera, focuser, filter, None)
+  focus_at_min_fwhm, min_fwhm, _, plot_file = run_auto_focus(camera, focuser, filter, args)
   print(f"Focus at min FWHM: {focus_at_min_fwhm} Min FWHM: {min_fwhm}")
   print("Opening the plot file")
   # Open the plot file in the default viewer.
@@ -367,6 +368,8 @@ def test_capture(args):
   if filter not in ['L', 'R', 'G', 'B', 'S', 'H', 'O']:
     print_and_log("Invalid filter", level=logging.ERROR)
     return
+  print("Changing filter to ", filter)
+  camera.change_filter(filter)
   print("Enter the mode to use for the test:")
   mode = int(input())
   print("Enter the gain to use for the test:")
@@ -377,8 +380,14 @@ def test_capture(args):
   print("Enter the output directory for the test: [Default: ~/Pictures/test_capture]")
   output_dir = input()
   if output_dir == '':
-    output_dir = '~/Pictures/test_capture'
+    home_dir = os.path.expanduser("~")
+    output_dir = os.path.join(home_dir, 'Pictures', 'test_capture')
+  print(f"Using output directory {output_dir}")
   os.makedirs(output_dir, exist_ok=True)
+  # Make sure output dir exists.
+  if not os.path.exists(output_dir):
+    print_and_log(f"Failed to create output directory {output_dir}", level=logging.ERROR)
+    return
   print("Enter the number of images to capture:")
   num_images = int(input())
   for i in range(num_images):
@@ -404,6 +413,46 @@ def test_guiding():
   print("Stopping guiding")
   stop_guiding(phd2client)
 
+def test_measure_stars(camera: IndiCamera):
+  print("Testing star measurement")
+  camera.set_capture_settings(5, 70, 20, 2)
+  camera.change_filter('L')
+  num_stars, fwhm =  measure_stars(camera)
+  print(f"Number of stars: {num_stars} FWHM: {fwhm}")
+  
+def manual_focus(args: argparse.Namespace):
+  camera = IndiCamera(args.camera)
+  focuser = IndiFocuser(args.focuser)
+  camera.set_capture_settings(5, 70, 20, 2)
+  print("Enter the filter to use for manual focus (L, R, G, B, S, H, O):")
+  filter = input()
+  print(f"Changing filter to {filter}")
+  camera.change_filter(filter)
+  print("Done.")
+  # Until the user enters no number, keep asking for focus values, then go to the value and measure
+  # the stars.
+  MIN_FOCUS = 4000
+  MAX_FOCUS = 6000
+  while True:
+    current_focus = focuser.get_focus()
+    print(f"Current focus: {current_focus}, measuring stars...")
+    num_stars, fwhm = measure_stars(camera)
+    print(f"Current focus: {current_focus} NumStars: {num_stars} FWHM: {fwhm}")
+    print("Enter new focus value:")
+    retval = input()
+    if retval == '':
+      break
+    try:
+      focus = int(retval)
+    except ValueError:
+      print("Invalid focus value")
+      continue
+    if focus < MIN_FOCUS or focus > MAX_FOCUS:
+      print(f"Focus value {focus} out of range [{MIN_FOCUS}, {MAX_FOCUS}]")
+      continue
+    focuser.set_focus(focus)
+    time.sleep(1)
+
 def test_mode(args, parser):
   global terminate, terminate_count
   init_logging('batch_capture_test_mode', also_to_console=args.verbose)
@@ -418,6 +467,8 @@ def test_mode(args, parser):
     print("4. Test guiding and dithering")
     print("5. Test capture")
     print("8. Monitor mount state")
+    print("9. Test star measurement")
+    print("f. Manual focus")
     print("p. Park the mount")
     print("u. Unpark the mount")
     print("x. Exit")
@@ -426,7 +477,7 @@ def test_mode(args, parser):
     if choice == '1':
       test_alignment(args, parser)
     elif choice == '2':
-      test_auto_focus()
+      test_auto_focus(args)
     elif choice == '3':
       test_meridian_flip(args)
     elif choice == '4':
@@ -438,6 +489,11 @@ def test_mode(args, parser):
       while not terminate:
         print_and_log_mount_state(mount, args)
         time.sleep(1)
+    elif choice == '9':
+      camera = IndiCamera(args.camera)
+      test_measure_stars(camera)
+    elif choice == 'f':
+      manual_focus(args)
     elif choice == 'p':
       mount = IndiMount(args.mount, simulate=args.simulate)
       mount.park()

@@ -174,7 +174,7 @@ class IndiMount(IndiClient):
     def slew_finished():
       current_ra, current_dec = self.get_ra_dec()
       max_error = 10 / 3600 # Arcseconds
-      if True:
+      if False:
         print(f"RA Error: {abs(current_ra - ra) * 3600:.3f} arcsec, DEC Error: {abs(current_dec - dec) * 3600:.3f} arcsec")
       return abs(current_ra - ra) < max_error and \
               abs(current_dec - dec) < max_error

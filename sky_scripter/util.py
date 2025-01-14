@@ -187,6 +187,9 @@ close
       if not match:
         return None, None
       num_stars, fwhm = match.groups()
+      if float(fwhm) < 0 or int(num_stars) < 0 or float(fwhm) > 10:
+        print_and_log(f"WARNING: Invalid FWHM and number of stars: {fwhm}, {num_stars}", level=logging.WARNING)
+        print_and_log(f"Full output:\n {result.stdout}\n", level=logging.WARNING)
       # print(f"Detected '{num_stars}' stars with FWHM '{fwhm}' full output:\n {result.stdout}\n")
       return int(num_stars), float(fwhm)
     except subprocess.CalledProcessError as e:
