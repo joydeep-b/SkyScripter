@@ -14,9 +14,11 @@ import astropy.time
 
 def init_logging(name, also_to_console=False):
   script_dir = os.path.dirname(__file__)
-  logfile = os.path.join(
-      script_dir,
-      '..', '.logs', name + '-' + time.strftime("%Y-%m-%d") + '.log')
+  # Make sure the log directory exists, create it if not.
+  log_dir = os.path.join(script_dir, '..', '.logs')
+  if not os.path.exists(log_dir):
+    os.makedirs(log_dir)
+  logfile = os.path.join(log_dir, name + '-' + time.strftime("%Y-%m-%d") + '.log')
   logging.basicConfig(
       filename=logfile,
       level=logging.INFO,
@@ -156,7 +158,7 @@ def run_star_detect_siril(image_file):
     if sys.platform == 'darwin':
       SIRIL_PATH = '/Applications/Siril.app/Contents/MacOS/Siril'
     else:
-      SIRIL_PATH = '/home/joydeepb/Siril-1.2.1-x86_64.AppImage'
+      SIRIL_PATH = '/home/joydeepb/Downloads/Siril-1.2.5-x86_64.AppImage'
     siril_commands = f"""requires 1.2.0
 convert light
 # calibrate_single light_00001 -bias="=2048" -debayer -cfa -equalize_cfa
