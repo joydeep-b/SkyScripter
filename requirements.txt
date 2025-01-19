@@ -1,5 +1,8 @@
+argparse
 astropy
 astroquery
-python-dateutil
 matplotlib
+numpy
+opencv-python
+python-dateutil
 pytz
