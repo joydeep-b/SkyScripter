@@ -3,7 +3,7 @@
 ********************************************************************
 PixInsight XML Process Serialization Module - XPSM 1.0
 ********************************************************************
-Generated on 2024-12-30T18:43:12.208Z
+Generated on 2025-01-13T16:46:38.264Z
 PixInsight Core 1.9.1 (x64)
 Copyright (c) 2003-2024 Pleiades Astrophoto
 ********************************************************************
@@ -842,8 +842,8 @@ Copyright (c) 2003-2024 Pleiades Astrophoto
       <parameter id="greenMARSFilter">G</parameter>
       <parameter id="blueMARSFilter">B</parameter>
       <parameter id="referenceImageId"></parameter>
-      <parameter id="gradientScale" value="1024"/>
-      <parameter id="structureSeparation" value="3"/>
+      <parameter id="gradientScale" value="1536"/>
+      <parameter id="structureSeparation" value="2"/>
       <parameter id="modelSmoothness" value="1.00"/>
       <parameter id="minFieldRatio" value="0.017"/>
       <parameter id="maxFieldRatio" value="0.167"/>
@@ -1386,6 +1386,84 @@ Copyright (c) 2003-2024 Pleiades Astrophoto
       <parameter id="newImageSampleFormat" value="SameAsTarget"/>
       <table id="outputData" rows="0"/>
    </instance>
+   <instance class="ProcessContainer" id="BlurX_StarX_instance">
+      <instance class="BlurXTerminator" version="256" enabled="true">
+         <time start="2025-01-08T03:33:37.423Z" span="11.134377"/>
+         <parameter id="ai_file">BlurXTerminator.4.mlpackage</parameter>
+         <parameter id="correct_only" value="false"/>
+         <parameter id="correct_first" value="false"/>
+         <parameter id="nonstellar_then_stellar" value="false"/>
+         <parameter id="lum_only" value="false"/>
+         <parameter id="sharpen_stars" value="0.24"/>
+         <parameter id="adjust_halos" value="-0.00"/>
+         <parameter id="nonstellar_psf_diameter" value="0.00"/>
+         <parameter id="auto_nonstellar_psf" value="true"/>
+         <parameter id="sharpen_nonstellar" value="0.50"/>
+      </instance>
+      <instance class="StarXTerminator" version="256" enabled="true">
+         <time start="2025-01-08T03:33:48.582Z" span="8.6683994"/>
+         <parameter id="ai_file">StarXTerminator.lite.nonoise.11.mlpackage</parameter>
+         <parameter id="stars" value="false"/>
+         <parameter id="unscreen" value="false"/>
+         <parameter id="overlap" value="0.20"/>
+      </instance>
+   </instance>
+   <instance class="ProcessContainer" id="RGBStarStretch_instance">
+      <instance class="GeneralizedHyperbolicStretch" version="256" enabled="true">
+         <time start="2025-01-12T18:40:36.019Z" span="0.18429438"/>
+         <parameter id="stretchType" value="ST_Arcsinh"/>
+         <parameter id="stretchChannel" value="SC_RGB"/>
+         <parameter id="inverse" value="false"/>
+         <parameter id="stretchFactor" value="3.900"/>
+         <parameter id="localIntensity" value="-1.880"/>
+         <parameter id="symmetryPoint" value="0.000000"/>
+         <parameter id="highlightProtection" value="1.000000"/>
+         <parameter id="shadowProtection" value="0.000000"/>
+         <parameter id="blackPoint" value="0.000000"/>
+         <parameter id="whitePoint" value="1.000000"/>
+         <parameter id="colourBlend" value="1.000"/>
+         <parameter id="clipType" value="CT_RGBBlend"/>
+         <parameter id="useRGBWorkingSpace" value="false"/>
+      </instance>
+      <instance class="GeneralizedHyperbolicStretch" version="256" enabled="true">
+         <time start="2025-01-12T18:40:36.223Z" span="0.16325467"/>
+         <parameter id="stretchType" value="ST_Arcsinh"/>
+         <parameter id="stretchChannel" value="SC_RGB"/>
+         <parameter id="inverse" value="false"/>
+         <parameter id="stretchFactor" value="5.490"/>
+         <parameter id="localIntensity" value="-1.880"/>
+         <parameter id="symmetryPoint" value="0.000000"/>
+         <parameter id="highlightProtection" value="1.000000"/>
+         <parameter id="shadowProtection" value="0.000000"/>
+         <parameter id="blackPoint" value="0.000000"/>
+         <parameter id="whitePoint" value="1.000000"/>
+         <parameter id="colourBlend" value="1.000"/>
+         <parameter id="clipType" value="CT_RGBBlend"/>
+         <parameter id="useRGBWorkingSpace" value="false"/>
+      </instance>
+      <instance class="GeneralizedHyperbolicStretch" version="256" enabled="true">
+         <time start="2025-01-12T18:40:36.402Z" span="1.0559986"/>
+         <parameter id="stretchType" value="ST_GeneralisedHyperbolic"/>
+         <parameter id="stretchChannel" value="SC_Saturation"/>
+         <parameter id="inverse" value="false"/>
+         <parameter id="stretchFactor" value="1.300"/>
+         <parameter id="localIntensity" value="0.000"/>
+         <parameter id="symmetryPoint" value="0.000000"/>
+         <parameter id="highlightProtection" value="1.000000"/>
+         <parameter id="shadowProtection" value="0.000000"/>
+         <parameter id="blackPoint" value="0.000000"/>
+         <parameter id="whitePoint" value="1.000000"/>
+         <parameter id="colourBlend" value="1.000"/>
+         <parameter id="clipType" value="CT_RGBBlend"/>
+         <parameter id="useRGBWorkingSpace" value="false"/>
+      </instance>
+   </instance>
+   <instance class="NoiseXTerminator" version="256" id="Process47_instance">
+      <time start="2025-01-12T18:55:58.584Z" span="3.7855976"/>
+      <parameter id="ai_file">NoiseXTerminator.2.mlpackage</parameter>
+      <parameter id="denoise" value="0.86"/>
+      <parameter id="detail" value="0.16"/>
+   </instance>
    <icon id="STF" instance="STF_instance" xpos="1544" ypos="8" workspace="Workspace01"/>
    <icon id="VerticalMirror" instance="VerticalMirror_instance" xpos="1544" ypos="40" workspace="Workspace01"/>
    <icon id="StarX" instance="StarX_instance" xpos="1544" ypos="232" workspace="Workspace01"/>
@@ -1430,4 +1508,7 @@ Copyright (c) 2003-2024 Pleiades Astrophoto
    <icon id="Process42" instance="Process42_instance" xpos="1568" ypos="600" workspace="Workspace02"/>
    <icon id="rgb_stars" instance="rgb_stars_instance" xpos="1536" ypos="568" workspace="Workspace03"/>
    <icon id="hss_stars" instance="hss_stars_instance" xpos="1536" ypos="648" workspace="Workspace03"/>
+   <icon id="BlurX_StarX" instance="BlurX_StarX_instance" xpos="1544" ypos="328" workspace="Workspace01"/>
+   <icon id="RGBStarStretch" instance="RGBStarStretch_instance" xpos="1504" ypos="192" workspace="Workspace03"/>
+   <icon id="Process47" instance="Process47_instance" xpos="1536" ypos="376" workspace="Workspace03"/>
 </xpsm>
