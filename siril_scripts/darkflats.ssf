@@ -1,0 +1,7 @@
+requires 1.2.0
+
+convert darkflat -out=../.process
+cd ../.process
+
+stack darkflat rej 3 3 -nonorm -out=../../master_darkflat_$FILTER:%s$_MODE$READMODE:%1d$_GAIN$GAIN:%2d$_OFFSET$OFFSET:%2d$_EXPTIME$EXPTIME:%3d$_TEMP$CCD-TEMP:%d$
+cd ..
