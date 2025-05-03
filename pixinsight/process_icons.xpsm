@@ -3,32 +3,33 @@
 ********************************************************************
 PixInsight XML Process Serialization Module - XPSM 1.0
 ********************************************************************
-Generated on 2025-01-13T16:46:38.264Z
+Generated on 2025-04-30T02:03:07.009Z
 PixInsight Core 1.9.1 (x64)
 Copyright (c) 2003-2024 Pleiades Astrophoto
 ********************************************************************
 -->
 <xpsm version="1.0" xmlns="http://www.pixinsight.com/xpsm" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.pixinsight.com/xpsm http://pixinsight.com/xpsm/xpsm-1.0.xsd">
    <instance class="ScreenTransferFunction" version="256" id="STF_instance">
+      <time start="2025-04-29T19:06:20.532Z" span="0.037119334"/>
       <table id="STF" rows="4">
          <tr>
-            <td id="c0" value="0.00000"/>
+            <td id="c0" value="0.00015"/>
             <td id="c1" value="1.00000"/>
-            <td id="m" value="0.50000"/>
+            <td id="m" value="0.00003"/>
             <td id="r0" value="0.00000"/>
             <td id="r1" value="1.00000"/>
          </tr>
          <tr>
-            <td id="c0" value="0.00000"/>
+            <td id="c0" value="0.00015"/>
             <td id="c1" value="1.00000"/>
-            <td id="m" value="0.50000"/>
+            <td id="m" value="0.00003"/>
             <td id="r0" value="0.00000"/>
             <td id="r1" value="1.00000"/>
          </tr>
          <tr>
-            <td id="c0" value="0.00000"/>
+            <td id="c0" value="0.00015"/>
             <td id="c1" value="1.00000"/>
-            <td id="m" value="0.50000"/>
+            <td id="m" value="0.00003"/>
             <td id="r0" value="0.00000"/>
             <td id="r1" value="1.00000"/>
          </tr>
@@ -40,25 +41,35 @@ Copyright (c) 2003-2024 Pleiades Astrophoto
             <td id="r1" value="1.00000"/>
          </tr>
       </table>
-      <parameter id="interaction" value="SeparateChannels"/>
+      <parameter id="interaction" value="Grayscale"/>
    </instance>
    <instance class="FastRotation" version="256" id="VerticalMirror_instance">
       <parameter id="mode" value="Rotate180"/>
       <parameter id="noGUIMessages" value="false"/>
    </instance>
    <instance class="StarXTerminator" version="256" id="StarX_instance">
+      <time start="2025-04-26T01:04:23.875Z" span="9.2155448"/>
       <parameter id="ai_file">StarXTerminator.lite.nonoise.11.mlpackage</parameter>
       <parameter id="stars" value="false"/>
       <parameter id="unscreen" value="false"/>
       <parameter id="overlap" value="0.20"/>
    </instance>
    <instance class="NoiseXTerminator" version="256" id="NoiseX_instance">
-      <parameter id="ai_file">NoiseXTerminator.2.mlpackage</parameter>
-      <parameter id="denoise" value="0.41"/>
-      <parameter id="detail" value="0.36"/>
+      <mask id="RGB_chroma_mask" inverted="false" deleted="false"/>
+      <time start="2025-04-26T11:45:53.513Z" span="2.0466982"/>
+      <parameter id="ai_file">NoiseXTerminator.3.mlpackage</parameter>
+      <parameter id="enable_color_separation" value="false"/>
+      <parameter id="enable_frequency_separation" value="false"/>
+      <parameter id="denoise" value="0.73"/>
+      <parameter id="denoise_color" value="0.90"/>
+      <parameter id="denoise_lf" value="0.9"/>
+      <parameter id="denoise_lf_color" value="0.9"/>
+      <parameter id="frequency_scale" value="5.0"/>
+      <parameter id="iterations" value="2"/>
+      <parameter id="detail" value="0.51"/>
    </instance>
    <instance class="GeneralizedHyperbolicStretch" version="256" id="GHS_instance">
-      <time start="2024-11-30T19:53:30.313Z" span="0.039708459"/>
+      <time start="2025-03-20T04:15:11.874Z" span="0.049781708"/>
       <parameter id="stretchType" value="ST_GeneralisedHyperbolic"/>
       <parameter id="stretchChannel" value="SC_RGB"/>
       <parameter id="inverse" value="false"/>
@@ -156,12 +167,6 @@ Copyright (c) 2003-2024 Pleiades Astrophoto
       <parameter id="newImageColorSpace" value="SameAsTarget"/>
       <parameter id="newImageSampleFormat" value="SameAsTarget"/>
       <table id="outputData" rows="0"/>
-   </instance>
-   <instance class="SCNR" version="256" id="SCNR_instance">
-      <parameter id="amount" value="1.00"/>
-      <parameter id="protectionMethod" value="AverageNeutral"/>
-      <parameter id="colorToRemove" value="Green"/>
-      <parameter id="preserveLightness" value="true"/>
    </instance>
    <instance class="HistogramTransformation" version="256" id="Hist_instance">
       <table id="H" rows="5">
@@ -391,6 +396,7 @@ Copyright (c) 2003-2024 Pleiades Astrophoto
       <parameter id="invert" value="false"/>
    </instance>
    <instance class="BlurXTerminator" version="256" id="BlurX_instance">
+      <time start="2025-03-20T02:15:39.433Z" span="11.629517"/>
       <parameter id="ai_file">BlurXTerminator.4.mlpackage</parameter>
       <parameter id="correct_only" value="false"/>
       <parameter id="correct_first" value="false"/>
@@ -477,6 +483,7 @@ Copyright (c) 2003-2024 Pleiades Astrophoto
       <parameter id="inheritAstrometricSolution" value="true"/>
    </instance>
    <instance class="BackgroundNeutralization" version="256" id="BkgNeutralization_instance">
+      <time start="2025-03-19T01:05:43.829Z" span="0.98234046"/>
       <parameter id="backgroundReferenceViewId"></parameter>
       <parameter id="backgroundLow" value="0.0000000"/>
       <parameter id="backgroundHigh" value="0.1000000"/>
@@ -779,7 +786,7 @@ Copyright (c) 2003-2024 Pleiades Astrophoto
       <table id="outputData" rows="0"/>
    </instance>
    <instance class="SpectrophotometricFluxCalibration" version="1" id="SPFC_instance">
-      <parameter id="narrowbandMode" value="false"/>
+      <parameter id="narrowbandMode" value="true"/>
       <parameter id="grayFilterTrCurve">300,0,380,0,400,1,500,1,675,1,710,0,800,0</parameter>
       <parameter id="grayFilterName">Astronomik UV-IR Block L-2</parameter>
       <parameter id="redFilterTrCurve">594,0,596,0.001,598,0.001,600,0.002,602,0.003,604,0.004,606,0.005,608,0.006,610,0.014,612,0.026,614,0.037,616,0.098,618,0.245,620,0.482,622,0.799,624,0.984,626,0.985,628,0.982,630,0.98,632,0.978,634,0.979,636,0.981,638,0.985,640,0.984,642,0.982,644,0.979,646,0.976,648,0.977,650,0.979,652,0.982,654,0.986,656,0.987,658,0.987,660,0.988,662,0.988,664,0.988,666,0.987,668,0.985,670,0.983,672,0.981,674,0.979,676,0.972,678,0.965,680,0.96,682,0.957,684,0.953,686,0.932,688,0.85,690,0.696,692,0.468,694,0.244,696,0.134,698,0.071,700,0.046,702,0.024,704,0.016,706,0.009,708,0.006,710,0.003,712,0.003,714,0.003,716,0.002,718,0.002,720,0.001</parameter>
@@ -789,13 +796,13 @@ Copyright (c) 2003-2024 Pleiades Astrophoto
       <parameter id="blueFilterTrCurve">420,0.002,422,0.006,424,0.021,426,0.088,428,0.237,430,0.418,432,0.611,434,0.795,436,0.925,438,0.964,440,0.968,442,0.964,444,0.962,446,0.957,448,0.954,450,0.957,452,0.966,454,0.97,456,0.971,458,0.973,460,0.978,462,0.977,464,0.975,466,0.969,468,0.959,470,0.956,472,0.955,474,0.961,476,0.966,478,0.968,480,0.964,482,0.957,484,0.965,486,0.965,488,0.962,490,0.956,492,0.966,494,0.966,496,0.963,498,0.956,500,0.966,502,0.968,504,0.838,506,0.653,508,0.431,510,0.201,512,0.095,514,0.05,516,0.023,518,0.012,520,0.007,522,0.004,524,0.002</parameter>
       <parameter id="blueFilterName">Antlia V Pro Series B</parameter>
       <parameter id="grayFilterWavelength" value="656.3"/>
-      <parameter id="grayFilterBandwidth" value="3.0"/>
-      <parameter id="redFilterWavelength" value="656.3"/>
-      <parameter id="redFilterBandwidth" value="3.0"/>
-      <parameter id="greenFilterWavelength" value="500.7"/>
-      <parameter id="greenFilterBandwidth" value="3.0"/>
+      <parameter id="grayFilterBandwidth" value="2.5"/>
+      <parameter id="redFilterWavelength" value="672.4"/>
+      <parameter id="redFilterBandwidth" value="2.5"/>
+      <parameter id="greenFilterWavelength" value="656.3"/>
+      <parameter id="greenFilterBandwidth" value="2.5"/>
       <parameter id="blueFilterWavelength" value="500.7"/>
-      <parameter id="blueFilterBandwidth" value="3.0"/>
+      <parameter id="blueFilterBandwidth" value="2.5"/>
       <parameter id="deviceQECurve">402,0.7219,404,0.7367,406,0.75,408,0.7618,410,0.7751,412,0.787,414,0.7944,416,0.8018,418,0.8112,420,0.8214,422,0.8343,424,0.8462,426,0.8536,428,0.8595,430,0.8639,432,0.8713,434,0.8757,436,0.8802,438,0.8861,440,0.8905,442,0.895,444,0.8994,446,0.9038,448,0.9068,450,0.9112,452,0.9142,454,0.9172,456,0.9168,458,0.9151,460,0.9134,462,0.9117,464,0.91,466,0.9083,468,0.9066,470,0.9049,472,0.9032,474,0.9015,476,0.8997,478,0.898,480,0.8963,482,0.8946,484,0.8929,486,0.8912,488,0.8876,490,0.8846,492,0.8877,494,0.8904,496,0.893,498,0.8964,500,0.8964,502,0.895,504,0.8945,506,0.8922,508,0.8899,510,0.8876,512,0.8853,514,0.883,516,0.8807,518,0.8784,520,0.8761,522,0.8743,524,0.8728,526,0.8698,528,0.8669,530,0.8624,532,0.858,534,0.855,536,0.8506,538,0.8476,540,0.8432,542,0.8402,544,0.8358,546,0.8328,548,0.8284,550,0.8254,552,0.821,554,0.8166,556,0.8136,558,0.8092,560,0.8062,562,0.8023,564,0.7983,566,0.7944,568,0.7899,570,0.787,572,0.7825,574,0.7781,576,0.7751,578,0.7707,580,0.7663,582,0.7618,584,0.7559,586,0.75,588,0.7441,590,0.7396,592,0.7337,594,0.7278,596,0.7219,598,0.716,600,0.7101,602,0.7056,604,0.6997,606,0.695,608,0.6905,610,0.6852,612,0.6808,614,0.6763,616,0.6719,618,0.6675,620,0.663,622,0.6583,624,0.6553,626,0.6509,628,0.6464,630,0.642,632,0.6376,634,0.6317,636,0.6272,638,0.6213,640,0.6154,642,0.6109,644,0.6036,646,0.5962,648,0.5902,650,0.5843,652,0.5799,654,0.574,656,0.5695,658,0.5636,660,0.5592,662,0.5545,664,0.5504,666,0.5462,668,0.542,670,0.5378,672,0.5328,674,0.5286,676,0.5244,678,0.5203,680,0.5163,682,0.5133,684,0.5089,686,0.5044,688,0.4985,690,0.4926,692,0.4867,694,0.4793,696,0.4719,698,0.4645,700,0.4586,702,0.4541,704,0.4497,706,0.4453,708,0.4408,710,0.4364,712,0.432,714,0.4275,716,0.4216,718,0.4186,720,0.4142,722,0.4127,724,0.4103,726,0.4078,728,0.4053,730,0.4024,732,0.3979,734,0.3935,736,0.3891,738,0.3831,740,0.3802,742,0.3772,744,0.3743,746,0.3713,748,0.3669,750,0.3624,752,0.3595,754,0.3559,756,0.3526,758,0.3494,760,0.3462,762,0.3429,764,0.3397,766,0.3364,768,0.3332,770,0.33,772,0.3267,774,0.3235,776,0.3203,778,0.317,780,0.3138,782,0.3106,784,0.3073,786,0.3041,788,0.3009,790,0.2976,792,0.2937,794,0.2905,796,0.2873,798,0.284,800,0.2808,802,0.2776,804,0.2743,806,0.2731,808,0.2703,810,0.2674,812,0.2646,814,0.2618,816,0.2589,818,0.2561,820,0.2533,822,0.2504,824,0.2476,826,0.2456,828,0.2439,830,0.2433,832,0.2427,834,0.2421,836,0.2416,838,0.2411,840,0.2382,842,0.2322,844,0.2278,846,0.2219,848,0.2175,850,0.2114,852,0.2069,854,0.2023,856,0.1978,858,0.1932,860,0.1918,862,0.1911,864,0.1904,866,0.1897,868,0.189,870,0.1883,872,0.1879,874,0.1834,876,0.179,878,0.1731,880,0.1672,882,0.1612,884,0.1568,886,0.1524,888,0.1479,890,0.1464,892,0.1464,894,0.1464,896,0.1464,898,0.1481,900,0.1494,902,0.1494,904,0.1494,906,0.1464,908,0.1435,910,0.1391,912,0.1346,914,0.1302,916,0.1257,918,0.1228,920,0.1183,922,0.1139,924,0.1109,926,0.1093,928,0.1085,930,0.108,932,0.108,934,0.108,936,0.108,938,0.108,940,0.1058,942,0.1039,944,0.1021,946,0.0998,948,0.0958,950,0.0918,952,0.0888,954,0.0828,956,0.0769,958,0.074,960,0.0714,962,0.0695,964,0.0677,966,0.0658,968,0.0651,970,0.0636,972,0.0626,974,0.0616,976,0.0606,978,0.0596,980,0.0586,982,0.0576,984,0.0567,986,0.0557,988,0.0547,990,0.0537,992,0.0527,994,0.0517,996,0.0507</parameter>
       <parameter id="deviceQECurveName">Sony IMX411/455/461/533/571</parameter>
       <parameter id="broadbandIntegrationStepSize" value="0.50"/>
@@ -830,7 +837,7 @@ Copyright (c) 2003-2024 Pleiades Astrophoto
       <table id="marsDatabaseFiles" rows="2">
          <tr>
             <td id="enabled" value="true"/>
-            <td id="path">/Users/joydeepbiswas/owncloud-system/Astrophotography/.mars/MARS-DR1-1.0.3.xmars</td>
+            <td id="path">/Users/joydeepbiswas/owncloud-system/Astrophotography/.mars/MARS-DR1-1.1.1.xmars</td>
          </tr>
          <tr>
             <td id="enabled" value="true"/>
@@ -1285,14 +1292,27 @@ Copyright (c) 2003-2024 Pleiades Astrophoto
       <parameter id="useRGBWorkingSpace" value="false"/>
    </instance>
    <instance class="NoiseXTerminator" version="256" id="NoiseX1_instance">
-      <parameter id="ai_file">NoiseXTerminator.2.mlpackage</parameter>
+      <parameter id="ai_file">NoiseXTerminator.3.mlpackage</parameter>
+      <parameter id="enable_color_separation" value="false"/>
+      <parameter id="enable_frequency_separation" value="false"/>
       <parameter id="denoise" value="0.41"/>
+      <parameter id="denoise_color" value="0.90"/>
+      <parameter id="denoise_lf" value="0.9"/>
+      <parameter id="denoise_lf_color" value="0.9"/>
+      <parameter id="frequency_scale" value="5.0"/>
+      <parameter id="iterations" value="2"/>
       <parameter id="detail" value="0.36"/>
    </instance>
    <instance class="NoiseXTerminator" version="256" id="NoiseX2_instance">
-      <time start="2024-12-28T12:08:39.910Z" span="3.8362904"/>
-      <parameter id="ai_file">NoiseXTerminator.2.mlpackage</parameter>
+      <parameter id="ai_file">NoiseXTerminator.3.mlpackage</parameter>
+      <parameter id="enable_color_separation" value="false"/>
+      <parameter id="enable_frequency_separation" value="false"/>
       <parameter id="denoise" value="0.41"/>
+      <parameter id="denoise_color" value="0.90"/>
+      <parameter id="denoise_lf" value="0.9"/>
+      <parameter id="denoise_lf_color" value="0.9"/>
+      <parameter id="frequency_scale" value="5.0"/>
+      <parameter id="iterations" value="2"/>
       <parameter id="detail" value="0.36"/>
    </instance>
    <instance class="LinearFit" version="256" id="LinearFit1_instance">
@@ -1386,31 +1406,9 @@ Copyright (c) 2003-2024 Pleiades Astrophoto
       <parameter id="newImageSampleFormat" value="SameAsTarget"/>
       <table id="outputData" rows="0"/>
    </instance>
-   <instance class="ProcessContainer" id="BlurX_StarX_instance">
-      <instance class="BlurXTerminator" version="256" enabled="true">
-         <time start="2025-01-08T03:33:37.423Z" span="11.134377"/>
-         <parameter id="ai_file">BlurXTerminator.4.mlpackage</parameter>
-         <parameter id="correct_only" value="false"/>
-         <parameter id="correct_first" value="false"/>
-         <parameter id="nonstellar_then_stellar" value="false"/>
-         <parameter id="lum_only" value="false"/>
-         <parameter id="sharpen_stars" value="0.24"/>
-         <parameter id="adjust_halos" value="-0.00"/>
-         <parameter id="nonstellar_psf_diameter" value="0.00"/>
-         <parameter id="auto_nonstellar_psf" value="true"/>
-         <parameter id="sharpen_nonstellar" value="0.50"/>
-      </instance>
-      <instance class="StarXTerminator" version="256" enabled="true">
-         <time start="2025-01-08T03:33:48.582Z" span="8.6683994"/>
-         <parameter id="ai_file">StarXTerminator.lite.nonoise.11.mlpackage</parameter>
-         <parameter id="stars" value="false"/>
-         <parameter id="unscreen" value="false"/>
-         <parameter id="overlap" value="0.20"/>
-      </instance>
-   </instance>
    <instance class="ProcessContainer" id="RGBStarStretch_instance">
       <instance class="GeneralizedHyperbolicStretch" version="256" enabled="true">
-         <time start="2025-01-12T18:40:36.019Z" span="0.18429438"/>
+         <time start="2025-03-25T12:20:31.179Z" span="0.15770617"/>
          <parameter id="stretchType" value="ST_Arcsinh"/>
          <parameter id="stretchChannel" value="SC_RGB"/>
          <parameter id="inverse" value="false"/>
@@ -1426,7 +1424,7 @@ Copyright (c) 2003-2024 Pleiades Astrophoto
          <parameter id="useRGBWorkingSpace" value="false"/>
       </instance>
       <instance class="GeneralizedHyperbolicStretch" version="256" enabled="true">
-         <time start="2025-01-12T18:40:36.223Z" span="0.16325467"/>
+         <time start="2025-03-25T12:20:31.351Z" span="0.15364704"/>
          <parameter id="stretchType" value="ST_Arcsinh"/>
          <parameter id="stretchChannel" value="SC_RGB"/>
          <parameter id="inverse" value="false"/>
@@ -1442,7 +1440,7 @@ Copyright (c) 2003-2024 Pleiades Astrophoto
          <parameter id="useRGBWorkingSpace" value="false"/>
       </instance>
       <instance class="GeneralizedHyperbolicStretch" version="256" enabled="true">
-         <time start="2025-01-12T18:40:36.402Z" span="1.0559986"/>
+         <time start="2025-03-25T12:20:31.516Z" span="0.24667771"/>
          <parameter id="stretchType" value="ST_GeneralisedHyperbolic"/>
          <parameter id="stretchChannel" value="SC_Saturation"/>
          <parameter id="inverse" value="false"/>
@@ -1461,8 +1459,284 @@ Copyright (c) 2003-2024 Pleiades Astrophoto
    <instance class="NoiseXTerminator" version="256" id="Process47_instance">
       <time start="2025-01-12T18:55:58.584Z" span="3.7855976"/>
       <parameter id="ai_file">NoiseXTerminator.2.mlpackage</parameter>
+      <parameter id="enable_color_separation" value="false"/>
+      <parameter id="enable_frequency_separation" value="false"/>
       <parameter id="denoise" value="0.86"/>
+      <parameter id="denoise_color" value="0.90"/>
+      <parameter id="denoise_lf" value="0.9"/>
+      <parameter id="denoise_lf_color" value="0.9"/>
+      <parameter id="frequency_scale" value="5.0"/>
+      <parameter id="iterations" value="2"/>
       <parameter id="detail" value="0.16"/>
+   </instance>
+   <instance class="BlurXTerminator" version="256" id="BlurXT_instance">
+      <parameter id="ai_file">BlurXTerminator.4.mlpackage</parameter>
+      <parameter id="correct_only" value="false"/>
+      <parameter id="correct_first" value="false"/>
+      <parameter id="nonstellar_then_stellar" value="false"/>
+      <parameter id="lum_only" value="false"/>
+      <parameter id="sharpen_stars" value="0.24"/>
+      <parameter id="adjust_halos" value="-0.00"/>
+      <parameter id="nonstellar_psf_diameter" value="0.00"/>
+      <parameter id="auto_nonstellar_psf" value="true"/>
+      <parameter id="sharpen_nonstellar" value="0.50"/>
+   </instance>
+   <instance class="StarXTerminator" version="256" id="StarXT_instance">
+      <parameter id="ai_file">StarXTerminator.lite.nonoise.11.mlpackage</parameter>
+      <parameter id="stars" value="false"/>
+      <parameter id="unscreen" value="false"/>
+      <parameter id="overlap" value="0.20"/>
+   </instance>
+   <instance class="ScreenTransferFunction" version="256" id="STF3_instance">
+      <table id="STF" rows="4">
+         <tr>
+            <td id="c0" value="0.00008"/>
+            <td id="c1" value="1.00000"/>
+            <td id="m" value="0.01585"/>
+            <td id="r0" value="0.00000"/>
+            <td id="r1" value="1.00000"/>
+         </tr>
+         <tr>
+            <td id="c0" value="0.00008"/>
+            <td id="c1" value="1.00000"/>
+            <td id="m" value="0.01585"/>
+            <td id="r0" value="0.00000"/>
+            <td id="r1" value="1.00000"/>
+         </tr>
+         <tr>
+            <td id="c0" value="0.00008"/>
+            <td id="c1" value="1.00000"/>
+            <td id="m" value="0.01585"/>
+            <td id="r0" value="0.00000"/>
+            <td id="r1" value="1.00000"/>
+         </tr>
+         <tr>
+            <td id="c0" value="0.00008"/>
+            <td id="c1" value="1.00000"/>
+            <td id="m" value="0.01585"/>
+            <td id="r0" value="0.00000"/>
+            <td id="r1" value="1.00000"/>
+         </tr>
+      </table>
+      <parameter id="interaction" value="Grayscale"/>
+   </instance>
+   <instance class="HistogramTransformation" version="256" id="Hist2_instance">
+      <table id="H" rows="5">
+         <tr>
+            <td id="c0" value="0.00000000"/>
+            <td id="m" value="0.50000000"/>
+            <td id="c1" value="1.00000000"/>
+            <td id="r0" value="0.00000000"/>
+            <td id="r1" value="1.00000000"/>
+         </tr>
+         <tr>
+            <td id="c0" value="0.00000000"/>
+            <td id="m" value="0.50000000"/>
+            <td id="c1" value="1.00000000"/>
+            <td id="r0" value="0.00000000"/>
+            <td id="r1" value="1.00000000"/>
+         </tr>
+         <tr>
+            <td id="c0" value="0.00000000"/>
+            <td id="m" value="0.50000000"/>
+            <td id="c1" value="1.00000000"/>
+            <td id="r0" value="0.00000000"/>
+            <td id="r1" value="1.00000000"/>
+         </tr>
+         <tr>
+            <td id="c0" value="0.00023184"/>
+            <td id="m" value="0.00051257"/>
+            <td id="c1" value="1.00000000"/>
+            <td id="r0" value="0.00000000"/>
+            <td id="r1" value="1.00000000"/>
+         </tr>
+         <tr>
+            <td id="c0" value="0.00000000"/>
+            <td id="m" value="0.50000000"/>
+            <td id="c1" value="1.00000000"/>
+            <td id="r0" value="0.00000000"/>
+            <td id="r1" value="1.00000000"/>
+         </tr>
+      </table>
+   </instance>
+   <instance class="ChannelCombination" version="256" id="Process52_instance">
+      <parameter id="colorSpace" value="CIELab"/>
+      <table id="channels" rows="3">
+         <tr>
+            <td id="enabled" value="true"/>
+            <td id="id">Lum_Composite</td>
+         </tr>
+         <tr>
+            <td id="enabled" value="false"/>
+            <td id="id"></td>
+         </tr>
+         <tr>
+            <td id="enabled" value="false"/>
+            <td id="id"></td>
+         </tr>
+      </table>
+      <parameter id="inheritAstrometricSolution" value="true"/>
+   </instance>
+   <instance class="CurvesTransformation" version="256" id="Process53_instance">
+      <table id="R" rows="2">
+         <tr>
+            <td id="x" value="0.00000"/>
+            <td id="y" value="0.00000"/>
+         </tr>
+         <tr>
+            <td id="x" value="1.00000"/>
+            <td id="y" value="1.00000"/>
+         </tr>
+      </table>
+      <parameter id="Rt" value="AkimaSubsplines"/>
+      <table id="G" rows="2">
+         <tr>
+            <td id="x" value="0.00000"/>
+            <td id="y" value="0.00000"/>
+         </tr>
+         <tr>
+            <td id="x" value="1.00000"/>
+            <td id="y" value="1.00000"/>
+         </tr>
+      </table>
+      <parameter id="Gt" value="AkimaSubsplines"/>
+      <table id="B" rows="2">
+         <tr>
+            <td id="x" value="0.00000"/>
+            <td id="y" value="0.00000"/>
+         </tr>
+         <tr>
+            <td id="x" value="1.00000"/>
+            <td id="y" value="1.00000"/>
+         </tr>
+      </table>
+      <parameter id="Bt" value="AkimaSubsplines"/>
+      <table id="K" rows="2">
+         <tr>
+            <td id="x" value="0.00000"/>
+            <td id="y" value="0.00000"/>
+         </tr>
+         <tr>
+            <td id="x" value="1.00000"/>
+            <td id="y" value="1.00000"/>
+         </tr>
+      </table>
+      <parameter id="Kt" value="AkimaSubsplines"/>
+      <table id="A" rows="2">
+         <tr>
+            <td id="x" value="0.00000"/>
+            <td id="y" value="0.00000"/>
+         </tr>
+         <tr>
+            <td id="x" value="1.00000"/>
+            <td id="y" value="1.00000"/>
+         </tr>
+      </table>
+      <parameter id="At" value="AkimaSubsplines"/>
+      <table id="L" rows="2">
+         <tr>
+            <td id="x" value="0.00000"/>
+            <td id="y" value="0.00000"/>
+         </tr>
+         <tr>
+            <td id="x" value="1.00000"/>
+            <td id="y" value="1.00000"/>
+         </tr>
+      </table>
+      <parameter id="Lt" value="AkimaSubsplines"/>
+      <table id="a" rows="2">
+         <tr>
+            <td id="x" value="0.00000"/>
+            <td id="y" value="0.00000"/>
+         </tr>
+         <tr>
+            <td id="x" value="1.00000"/>
+            <td id="y" value="1.00000"/>
+         </tr>
+      </table>
+      <parameter id="at" value="AkimaSubsplines"/>
+      <table id="b" rows="2">
+         <tr>
+            <td id="x" value="0.00000"/>
+            <td id="y" value="0.00000"/>
+         </tr>
+         <tr>
+            <td id="x" value="1.00000"/>
+            <td id="y" value="1.00000"/>
+         </tr>
+      </table>
+      <parameter id="bt" value="AkimaSubsplines"/>
+      <table id="c" rows="2">
+         <tr>
+            <td id="x" value="0.00000"/>
+            <td id="y" value="0.00000"/>
+         </tr>
+         <tr>
+            <td id="x" value="1.00000"/>
+            <td id="y" value="1.00000"/>
+         </tr>
+      </table>
+      <parameter id="ct" value="AkimaSubsplines"/>
+      <table id="H" rows="2">
+         <tr>
+            <td id="x" value="0.00000"/>
+            <td id="y" value="0.00000"/>
+         </tr>
+         <tr>
+            <td id="x" value="1.00000"/>
+            <td id="y" value="1.00000"/>
+         </tr>
+      </table>
+      <parameter id="Ht" value="AkimaSubsplines"/>
+      <table id="S" rows="4">
+         <tr>
+            <td id="x" value="0.00000"/>
+            <td id="y" value="0.00000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.13684"/>
+            <td id="y" value="0.23438"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.45526"/>
+            <td id="y" value="0.58854"/>
+         </tr>
+         <tr>
+            <td id="x" value="1.00000"/>
+            <td id="y" value="1.00000"/>
+         </tr>
+      </table>
+      <parameter id="St" value="AkimaSubsplines"/>
+   </instance>
+   <instance class="PixelMath" version="256" id="Process54_instance">
+      <parameter id="expression">~((~(bglr_lum_stretched2^k1))*(~((dust-0.1*med(dust))^k2)))</parameter>
+      <parameter id="expression1"></parameter>
+      <parameter id="expression2"></parameter>
+      <parameter id="expression3"></parameter>
+      <parameter id="useSingleExpression" value="true"/>
+      <parameter id="symbols">k1=1.2,
+k2=0.8</parameter>
+      <parameter id="clearImageCacheAndExit" value="false"/>
+      <parameter id="cacheGeneratedImages" value="false"/>
+      <parameter id="generateOutput" value="true"/>
+      <parameter id="singleThreaded" value="false"/>
+      <parameter id="optimization" value="true"/>
+      <parameter id="use64BitWorkingImage" value="false"/>
+      <parameter id="rescale" value="true"/>
+      <parameter id="rescaleLower" value="0"/>
+      <parameter id="rescaleUpper" value="1"/>
+      <parameter id="truncate" value="true"/>
+      <parameter id="truncateLower" value="0"/>
+      <parameter id="truncateUpper" value="1"/>
+      <parameter id="createNewImage" value="false"/>
+      <parameter id="showNewImage" value="true"/>
+      <parameter id="newImageId"></parameter>
+      <parameter id="newImageWidth" value="0"/>
+      <parameter id="newImageHeight" value="0"/>
+      <parameter id="newImageAlpha" value="false"/>
+      <parameter id="newImageColorSpace" value="SameAsTarget"/>
+      <parameter id="newImageSampleFormat" value="SameAsTarget"/>
+      <table id="outputData" rows="0"/>
    </instance>
    <icon id="STF" instance="STF_instance" xpos="1544" ypos="8" workspace="Workspace01"/>
    <icon id="VerticalMirror" instance="VerticalMirror_instance" xpos="1544" ypos="40" workspace="Workspace01"/>
@@ -1470,8 +1744,7 @@ Copyright (c) 2003-2024 Pleiades Astrophoto
    <icon id="NoiseX" instance="NoiseX_instance" xpos="1544" ypos="264" workspace="Workspace01"/>
    <icon id="GHS" instance="GHS_instance" xpos="1544" ypos="296" workspace="Workspace01"/>
    <icon id="SPCC" instance="SPCC_instance" xpos="1544" ypos="168" workspace="Workspace01"/>
-   <icon id="StarRecombine" instance="StarRecombine_instance" xpos="1544" ypos="328" workspace="Workspace03"/>
-   <icon id="SCNR" instance="SCNR_instance" xpos="1544" ypos="360" workspace="Workspace01"/>
+   <icon id="StarRecombine" instance="StarRecombine_instance" xpos="1568" ypos="72" workspace="Workspace03"/>
    <icon id="Hist" instance="Hist_instance" xpos="1544" ypos="392" workspace="Workspace01"/>
    <icon id="DynamicCrop" instance="DynamicCrop_instance" xpos="1544" ypos="424" workspace="Workspace01"/>
    <icon id="Rescale" instance="Rescale_instance" xpos="1544" ypos="456" workspace="Workspace01"/>
@@ -1494,21 +1767,27 @@ Copyright (c) 2003-2024 Pleiades Astrophoto
    <icon id="MSGC" instance="MSGC_instance" xpos="1544" ypos="136" workspace="Workspace01"/>
    <icon id="RGBPlusHa" instance="RGBPlusHa_instance" xpos="1544" ypos="920" workspace="Workspace01"/>
    <icon id="M33_fg_stretch" instance="M33_fg_stretch_instance" xpos="1544" ypos="952" workspace="Workspace01"/>
-   <icon id="HSS" instance="HSS_instance" xpos="1584" ypos="8" workspace="Workspace02"/>
-   <icon id="STF1" instance="STF1_instance" xpos="1584" ypos="40" workspace="Workspace02"/>
-   <icon id="DBE1" instance="DBE1_instance" xpos="1584" ypos="104" workspace="Workspace02"/>
-   <icon id="Hist1" instance="Hist1_instance" xpos="1584" ypos="72" workspace="Workspace02"/>
-   <icon id="GHS1" instance="GHS1_instance" xpos="1584" ypos="136" workspace="Workspace02"/>
-   <icon id="ColorCalibration1" instance="ColorCalibration1_instance" xpos="1544" ypos="208" workspace="Workspace02"/>
-   <icon id="BkgNeutralization1" instance="BkgNeutralization1_instance" xpos="1544" ypos="248" workspace="Workspace02"/>
-   <icon id="GHS2" instance="GHS2_instance" xpos="1592" ypos="464" workspace="Workspace03"/>
-   <icon id="NoiseX1" instance="NoiseX1_instance" xpos="1560" ypos="280" workspace="Workspace03"/>
-   <icon id="NoiseX2" instance="NoiseX2_instance" xpos="1560" ypos="280" workspace="Workspace02"/>
-   <icon id="LinearFit1" instance="LinearFit1_instance" xpos="1568" ypos="352" workspace="Workspace02"/>
-   <icon id="Process42" instance="Process42_instance" xpos="1568" ypos="600" workspace="Workspace02"/>
-   <icon id="rgb_stars" instance="rgb_stars_instance" xpos="1536" ypos="568" workspace="Workspace03"/>
-   <icon id="hss_stars" instance="hss_stars_instance" xpos="1536" ypos="648" workspace="Workspace03"/>
-   <icon id="BlurX_StarX" instance="BlurX_StarX_instance" xpos="1544" ypos="328" workspace="Workspace01"/>
-   <icon id="RGBStarStretch" instance="RGBStarStretch_instance" xpos="1504" ypos="192" workspace="Workspace03"/>
-   <icon id="Process47" instance="Process47_instance" xpos="1536" ypos="376" workspace="Workspace03"/>
+   <icon id="HSS" instance="HSS_instance" xpos="1552" ypos="8" workspace="Workspace02"/>
+   <icon id="STF1" instance="STF1_instance" xpos="1552" ypos="40" workspace="Workspace02"/>
+   <icon id="DBE1" instance="DBE1_instance" xpos="1552" ypos="104" workspace="Workspace02"/>
+   <icon id="Hist1" instance="Hist1_instance" xpos="1552" ypos="72" workspace="Workspace02"/>
+   <icon id="GHS1" instance="GHS1_instance" xpos="1552" ypos="136" workspace="Workspace02"/>
+   <icon id="ColorCalibration1" instance="ColorCalibration1_instance" xpos="1552" ypos="168" workspace="Workspace02"/>
+   <icon id="BkgNeutralization1" instance="BkgNeutralization1_instance" xpos="1552" ypos="200" workspace="Workspace02"/>
+   <icon id="GHS2" instance="GHS2_instance" xpos="1568" ypos="136" workspace="Workspace03"/>
+   <icon id="NoiseX1" instance="NoiseX1_instance" xpos="1568" ypos="40" workspace="Workspace03"/>
+   <icon id="NoiseX2" instance="NoiseX2_instance" xpos="1552" ypos="232" workspace="Workspace02"/>
+   <icon id="LinearFit1" instance="LinearFit1_instance" xpos="1552" ypos="296" workspace="Workspace02"/>
+   <icon id="Process42" instance="Process42_instance" xpos="1552" ypos="360" workspace="Workspace02"/>
+   <icon id="rgb_stars" instance="rgb_stars_instance" xpos="1568" ypos="168" workspace="Workspace03"/>
+   <icon id="hss_stars" instance="hss_stars_instance" xpos="1568" ypos="200" workspace="Workspace03"/>
+   <icon id="RGBStarStretch" instance="RGBStarStretch_instance" xpos="1568" ypos="8" workspace="Workspace03"/>
+   <icon id="Process47" instance="Process47_instance" xpos="1568" ypos="104" workspace="Workspace03"/>
+   <icon id="BlurXT" instance="BlurXT_instance" xpos="1552" ypos="264" workspace="Workspace02"/>
+   <icon id="StarXT" instance="StarXT_instance" xpos="1552" ypos="328" workspace="Workspace02"/>
+   <icon id="STF3" instance="STF3_instance" xpos="1576" ypos="248" workspace="Workspace03"/>
+   <icon id="Hist2" instance="Hist2_instance" xpos="1568" ypos="304" workspace="Workspace03"/>
+   <icon id="Process52" instance="Process52_instance" xpos="1568" ypos="376" workspace="Workspace03"/>
+   <icon id="Process53" instance="Process53_instance" xpos="1552" ypos="448" workspace="Workspace03"/>
+   <icon id="Process54" instance="Process54_instance" xpos="1568" ypos="544" workspace="Workspace03"/>
 </xpsm>

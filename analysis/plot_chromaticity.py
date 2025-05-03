@@ -16,7 +16,7 @@ image_path = sys.argv[1]
 # -----------------------------------------------------------------------------
 # User Parameters for intensity filtering.
 # -----------------------------------------------------------------------------
-lower_intensity = 0.3
+lower_intensity = 0.2
 upper_intensity = 0.99
 
 # -----------------------------------------------------------------------------
@@ -151,7 +151,7 @@ for w in tick_wavelengths:
 print("Plotting sRGB triangle...")
 sRGB_triangle = sRGB_cs.primaries  # sRGB primaries in xy coordinates.
 sRGB_triangle = np.vstack((sRGB_triangle, sRGB_triangle[0]))  # Close the triangle.
-ax.plot(sRGB_triangle[:, 0], sRGB_triangle[:, 1], color='red', linewidth=2)
+ax.plot(sRGB_triangle[:, 0], sRGB_triangle[:, 1], color='red', linewidth=1)
 
 # -----------------------------------------------------------------------------
 # Add the D65 white point.
@@ -178,8 +178,39 @@ ax.scatter(
     xy_filtered[:, 1],
     c=colors_filtered,
     edgecolors="none",
-    s=20,
+    s=1,
     alpha=0.7,
+)
+
+# -----------------------------------------------------------------------------
+# Overlay the Planckian locus.
+# -----------------------------------------------------------------------------
+print("Computing Planckian locus...")
+# Define a temperature range (in Kelvin) for the Planckian locus.
+temperatures = np.linspace(1000, 10000, 200)
+xy_planckian = []
+
+# Use the CIE 1931 2 Degree Standard Observer CMFs and a standard spectral shape.
+cmfs = colour.MSDS_CMFS["CIE 1931 2 Degree Standard Observer"]
+illuminant_D65 = colour.SDS_ILLUMINANTS["D65"]
+shape = colour.SpectralShape(360, 830, 1)
+
+for T in temperatures:
+    sd_bb = colour.sd_blackbody(T, shape=shape)
+    # Convert the blackbody spectral distribution to XYZ.
+    XYZ_bb = colour.sd_to_XYZ(sd_bb, cmfs=cmfs, illuminant=illuminant_D65)
+    xy_bb = colour.XYZ_to_xy(XYZ_bb)
+    xy_planckian.append(xy_bb)
+xy_planckian = np.array(xy_planckian)
+
+# Plot the Planckian locus as an orange line.
+ax.plot(
+    xy_planckian[:, 0],
+    xy_planckian[:, 1],
+    color="orange",
+    linewidth=1,
+    linestyle="-",
+    label="Planckian Locus"
 )
 
 # -----------------------------------------------------------------------------

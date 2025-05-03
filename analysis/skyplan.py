@@ -83,10 +83,10 @@ def main():
     )
     parser.add_argument("--target", type=str, required=True,
                         help="Name of the astronomical object (e.g., M81)")
-    parser.add_argument("--location", type=str, required=True,
-                        help="Viewing location (e.g., 'Austin, Texas')")
-    parser.add_argument("--n", type=int, default=7,
-                        help="Number of days to generate graphs for (default: 7)")
+    parser.add_argument("--location", type=str, default="Brady, Texas",
+                        help="Viewing location (e.g., 'Brady, Texas')")
+    parser.add_argument("--n", type=int, default=9,
+                        help="Number of days to generate graphs for (default: 9)")
     parser.add_argument("--min-alt", type=float, default=15,
                         help="Minimum altitude (in degrees) for counting visible hours (default: 15)")
     args = parser.parse_args()
@@ -159,6 +159,8 @@ def main():
         ax.plot(local_times, moon_altitudes, label="Moon Altitude", linestyle='--')
         ax.axhline(args.min_alt, color='red', linestyle=':', label=f"Min Alt = {args.min_alt}°")
         ax.set_ylabel("Altitude (deg)")
+        # Set Y-axis limits to 0-90 degrees.
+        ax.set_ylim(-5, 90)
         ax.set_title(f"{day_date}\nMoon Illumination: {illum_percent:.0f}%")
         ax.legend()
         ax.grid(True)

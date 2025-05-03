@@ -1,13 +1,7 @@
 requires 1.3.5
 
-seqapplyreg bkg_pp_light -drizzle -scale=1.0 -pixfrac=4 -framing=min -kernel=gaussian
-stack r_bkg_pp_light rej 3 3  -norm=addscale -output_norm -weight=wfwhm -out=../../master_light_$FILTER:%s$_pixfrac4_gaussian
+convert light -out=../.process
+cd ../.process
+calibrate light -dark=$defbias -flat=$defflat -cc=dark
 
-seqapplyreg bkg_pp_light -drizzle -scale=1.0 -pixfrac=2 -framing=min -kernel=gaussian
-stack r_bkg_pp_light rej 3 3  -norm=addscale -output_norm -weight=wfwhm -out=../../master_light_$FILTER:%s$_pixfrac2_gaussian
-
-seqapplyreg bkg_pp_light -drizzle -scale=1.0 -pixfrac=1.5 -framing=min -kernel=gaussian
-stack r_bkg_pp_light rej 3 3  -norm=addscale -output_norm -weight=wfwhm -out=../../master_light_$FILTER:%s$_pixfrac1.5_gaussian
-
-seqapplyreg bkg_pp_light -drizzle -scale=1.0 -pixfrac=0.9 -framing=min -kernel=gaussian
-stack r_bkg_pp_light rej 3 3  -norm=addscale -output_norm -weight=wfwhm -out=../../master_light_$FILTER:%s$_pixfrac0.9_gaussian
+stack pp_light rej 3 3  -norm=addscale -output_norm -out=../master_light_$FILTER:%s$

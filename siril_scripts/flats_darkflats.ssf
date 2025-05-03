@@ -1,7 +1,94 @@
 requires 1.2.0
 
-convert flat -out=../.process
-cd ../.process
-calibrate flat -bias=$defbias
-# calibrate flat -dark=../../master_dark_MODE5_GAIN56_OFFSET20_EXPTIME0.80_TEMP6.fit -cc=dark
+# L
+cd DarkFlat/L
+convert darkflat -out=../../.process
+cd ../../.process
+stack darkflat rej 3 3 -nonorm -out=../master_darkflat_$FILTER:%s$_MODE$READMODE:%1d$_GAIN$GAIN:%2d$_OFFSET$OFFSET:%2d$_EXPTIME$EXPTIME:%.4f$
+cd ..
+cd Flat/L
+convert flat -out=../../.process
+cd ../../.process
+calibrate flat -dark=../master_darkflat_$FILTER:%s$_MODE$READMODE:%1d$_GAIN$GAIN:%2d$_OFFSET$OFFSET:%2d$_EXPTIME$EXPTIME:%.4f$.fit -cc=dark
 stack pp_flat rej winsorized 3 3 -norm=mul -out=../master_flat_$FILTER:%s$
+cd ..
+
+# R
+cd DarkFlat/R
+convert darkflat -out=../../.process
+cd ../../.process
+stack darkflat rej 3 3 -nonorm -out=../master_darkflat_$FILTER:%s$_MODE$READMODE:%1d$_GAIN$GAIN:%2d$_OFFSET$OFFSET:%2d$_EXPTIME$EXPTIME:%.4f$
+cd ..
+cd Flat/R
+convert flat -out=../../.process
+cd ../../.process
+calibrate flat -dark=../master_darkflat_$FILTER:%s$_MODE$READMODE:%1d$_GAIN$GAIN:%2d$_OFFSET$OFFSET:%2d$_EXPTIME$EXPTIME:%.4f$.fit -cc=dark
+stack pp_flat rej winsorized 3 3 -norm=mul -out=../master_flat_$FILTER:%s$
+cd ..
+
+# G
+cd DarkFlat/G
+convert darkflat -out=../../.process
+cd ../../.process
+stack darkflat rej 3 3 -nonorm -out=../master_darkflat_$FILTER:%s$_MODE$READMODE:%1d$_GAIN$GAIN:%2d$_OFFSET$OFFSET:%2d$_EXPTIME$EXPTIME:%.4f$
+cd ..
+cd Flat/G
+convert flat -out=../../.process
+cd ../../.process
+calibrate flat -dark=../master_darkflat_$FILTER:%s$_MODE$READMODE:%1d$_GAIN$GAIN:%2d$_OFFSET$OFFSET:%2d$_EXPTIME$EXPTIME:%.4f$.fit -cc=dark
+stack pp_flat rej winsorized 3 3 -norm=mul -out=../master_flat_$FILTER:%s$
+cd ..
+
+# B
+cd DarkFlat/B
+convert darkflat -out=../../.process
+cd ../../.process
+stack darkflat rej 3 3 -nonorm -out=../master_darkflat_$FILTER:%s$_MODE$READMODE:%1d$_GAIN$GAIN:%2d$_OFFSET$OFFSET:%2d$_EXPTIME$EXPTIME:%.4f$
+cd ..
+cd Flat/B
+convert flat -out=../../.process
+cd ../../.process
+calibrate flat -dark=../master_darkflat_$FILTER:%s$_MODE$READMODE:%1d$_GAIN$GAIN:%2d$_OFFSET$OFFSET:%2d$_EXPTIME$EXPTIME:%.4f$.fit -cc=dark
+stack pp_flat rej winsorized 3 3 -norm=mul -out=../master_flat_$FILTER:%s$
+cd ..
+
+# H
+cd DarkFlat/H
+convert darkflat -out=../../.process
+cd ../../.process
+stack darkflat rej 3 3 -nonorm -out=../master_darkflat_$FILTER:%s$_MODE$READMODE:%1d$_GAIN$GAIN:%2d$_OFFSET$OFFSET:%2d$_EXPTIME$EXPTIME:%.4f$
+cd ..
+cd Flat/H
+convert flat -out=../../.process
+cd ../../.process
+calibrate flat -dark=../master_darkflat_$FILTER:%s$_MODE$READMODE:%1d$_GAIN$GAIN:%2d$_OFFSET$OFFSET:%2d$_EXPTIME$EXPTIME:%.4f$.fit -cc=dark
+stack pp_flat rej winsorized 3 3 -norm=mul -out=../master_flat_$FILTER:%s$
+cd ..
+
+# S
+cd DarkFlat/S
+convert darkflat -out=../../.process
+cd ../../.process
+stack darkflat rej 3 3 -nonorm -out=../master_darkflat_$FILTER:%s$_MODE$READMODE:%1d$_GAIN$GAIN:%2d$_OFFSET$OFFSET:%2d$_EXPTIME$EXPTIME:%.4f$
+cd ..
+cd Flat/S
+convert flat -out=../../.process
+cd ../../.process
+calibrate flat -dark=../master_darkflat_$FILTER:%s$_MODE$READMODE:%1d$_GAIN$GAIN:%2d$_OFFSET$OFFSET:%2d$_EXPTIME$EXPTIME:%.4f$.fit -cc=dark
+stack pp_flat rej winsorized 3 3 -norm=mul -out=../master_flat_$FILTER:%s$
+cd ..
+
+# O
+cd DarkFlat/O
+convert darkflat -out=../../.process
+cd ../../.process
+stack darkflat rej 3 3 -nonorm -out=../master_darkflat_$FILTER:%s$_MODE$READMODE:%1d$_GAIN$GAIN:%2d$_OFFSET$OFFSET:%2d$_EXPTIME$EXPTIME:%.4f$
+cd ..
+cd Flat/O
+convert flat -out=../../.process
+cd ../../.process
+calibrate flat -dark=../master_darkflat_$FILTER:%s$_MODE$READMODE:%1d$_GAIN$GAIN:%2d$_OFFSET$OFFSET:%2d$_EXPTIME$EXPTIME:%.4f$.fit -cc=dark
+stack pp_flat rej winsorized 3 3 -norm=mul -out=../master_flat_$FILTER:%s$
+cd ..
+
+

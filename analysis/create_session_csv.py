@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 from tqdm import tqdm
 
 default_values = {
-    'bortle': '8',
+    'bortle': '1',
     'darks': '100',
     'flats': '100',
     'bias': '100',

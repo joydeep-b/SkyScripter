@@ -5,10 +5,10 @@ cd ../.process
 
 calibrate light -dark=$defdark -flat=$defflat -cc=dark
 
-seqsubsky pp_light 1 -tolerance=0.8
+seqsubsky pp_light 2 -tolerance=0.8
 register bkg_pp_light -2pass
 
-seqapplyreg bkg_pp_light -drizzle -scale=1.0 -pixfrac=0.9 -framing=min
+seqapplyreg bkg_pp_light -drizzle -scale=1.0 -pixfrac=0.9 -framing=cog
 # stack r_bkg_pp_light rej 5 5  -norm=addscale -output_norm -weight=wfwhm -out=../../master_light_$FILTER:%s$
 stack r_bkg_pp_light rej 3 3  -norm=addscale -output_norm -filter-wfwhm=90% -weight=wfwhm -out=../../master_light_$FILTER:%s$
 
