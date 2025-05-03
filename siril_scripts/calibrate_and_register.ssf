@@ -1,0 +1,7 @@
+requires 1.3.5
+
+convert light -out=../.process
+cd ../.process
+calibrate light -dark=$defdark -flat=$defflat -cc=dark
+
+register pp_light -2pass

@@ -1,0 +1,16 @@
+requires 1.3.5
+
+
+seqapplyreg pp_light -drizzle -scale=1.0 -pixfrac=0.9 -framing=min
+# stack r_pp_light rej 5 5  -norm=addscale -output_norm -filter-wfwhm=90% -weight_from_wfwhm -out=../../master_light_$FILTER:%s$
+
+# register pp_light
+
+# stack r_pp_light rej 5 5  -norm=addscale -output_norm -filter-wfwhm=90% -weight_from_wfwhm -out=../../master_light_$FILTER:%s$
+
+# stack r_pp_light rej 3 3  -norm=addscale -output_norm -weight=wfwhm -out=../../master_light_$FILTER:%s$
+stack r_pp_light rej 3 3  -norm=addscale -output_norm -weight=wfwhm -filter-wfwhm=90% -out=../../master_light_$FILTER:%s$
+
+# Alphabetical order of filters
+# 1 2 3 4 5 6 7
+# B G H L O R S
