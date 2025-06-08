@@ -1,0 +1,67 @@
+[
+  {
+    "name": "SNR G179.0+2.6",
+    "ra": "00h42m44.3s",
+    "dec": "+41d16m9s",
+    "min_dusk": "2025-1-1",
+    "zenith_midnight": "2025-2-15",
+    "peak_alt": 60.0,
+    "bookmarks": [
+        "https://www.astrobin.com/xpol3w/",
+        "https://cdn.astrobin.com/thumbs/ScCGlvMJW0pS_1824x0_rv2QpFNw.jpg"
+    ],
+    "notes": "Supernova Remnant G179.0+2.6"
+  },
+  {
+    "name": "SNR G067.6+00.9",
+    "ra": "00h42m44.3s",
+    "dec": "+41d16m9s",
+    "min_dusk": "2025-1-1",
+    "zenith_midnight": "2025-2-15",
+    "peak_alt": 55.0,
+    "bookmarks": [
+        "https://cdn.astrobin.com/thumbs/KlNWngYEvDkS_1824x0_esdlMP5Y.jpg",
+        "https://www.astrobin.com/yljs0z/"
+    ],
+    "notes": "Supernova Remnant G067.6+00.9"
+  },
+  {
+    "name": "M31",
+    "ra": "00h42m44.3s",
+    "dec": "+41d16m9s",
+    "min_dusk": "2025-10-01",
+    "zenith_midnight": "2025-11-15",
+    "peak_alt": 75.0,
+    "bookmarks": [
+      "https://cdn.astrobin.com/thumbs/cDkTYst3a8nU_1824x0_rv2QpFNw.jpg",
+      "https://example.com/m31_1.jpg"
+    ],
+    "notes": "Andromeda Galaxy: Best viewed in autumn. Use 200mm lens for wide field."
+  },
+  {
+    "name": "M42",
+    "ra": "00h42m44.3s",
+    "dec": "+41d16m9s",
+    "min_dusk": "2025-12-05",
+    "zenith_midnight": "2025-12-25",
+    "peak_alt": 80.0,
+    "bookmarks": [
+      "https://cdn.astrobin.com/thumbs/0d3DCQTks301_1824x0_i_LoPqjA.jpg",
+      "https://example.com/m42_1.jpg"
+    ],
+    "notes": "Orion Nebula: High in sky during winter months. Use narrowband filter."
+  },
+  {
+    "name": "M13",
+    "ra": "00h42m44.3s",
+    "dec": "+41d16m9s",
+    "min_dusk": "2025-06-10",
+    "zenith_midnight": "2025-07-01",
+    "peak_alt": 68.0,
+    "bookmarks": [
+      "https://cdn.astrobin.com/thumbs/gY10hfZQHA83_1824x0_esdlMP5Y.jpg",
+      "https://example.com/m13_1.jpg"
+    ],
+    "notes": "Hercules Globular Cluster: Good target for small scopes in summer."
+  }
+]
