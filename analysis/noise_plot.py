@@ -5,9 +5,22 @@ import os
 import sys
 import subprocess
 import re
+import json
 
 SIRIL_PATH = '/Applications/Siril.app/Contents/MacOS/Siril'
 STRETCH=True
+
+def load_config(config_file):
+  """Load configuration from JSON file."""
+  try:
+    with open(config_file, 'r') as f:
+      return json.load(f)
+  except FileNotFoundError:
+    print(f"Error: Config file '{config_file}' not found.")
+    sys.exit(1)
+  except json.JSONDecodeError as e:
+    print(f"Error: Invalid JSON in config file '{config_file}': {e}")
+    sys.exit(1)
 
 def get_fits_files(indir):
   input_dir = Path(indir)
@@ -124,12 +137,10 @@ starnet -stretch -nostarmask
       print(f"Error running Siril: {e}")
       sys.exit(1)
 
-def get_bg(f):
-  # # Manually selected area of interest with dark background in S II image.
-  (x, y, w, h) = (1165, 997, 117, 83)
-  # (x, y, w, h) = (3297, 580, 30, 50)
-  # Manually selected area of interest with dark background in Ha image.
-  # (x, y, w, h) = (5826, 3672, 44, 26)
+def get_bg(f, config):
+  # Get background region from config
+  bg_region = config['background_region']
+  (x, y, w, h) = (bg_region['x'], bg_region['y'], bg_region['w'], bg_region['h'])
   script = f"""requires 1.3.5
 load {f}
 boxselect {x} {y} {w} {h}
@@ -160,16 +171,15 @@ stat
     print(f"Error running Siril: {e}")
     sys.exit(1)
 
-def get_noise_stats(starless_dir):
+def get_noise_stats(starless_dir, config):
   global STRETCH
   # Get list of all "starless_*.fit" files in starless_dir
   starless_files = list(Path(starless_dir).glob('starless_*.fit'))
   # starless_files = list(Path(starless_dir).glob('stack_*.fit'))
   starless_files.sort()
-  # # Manually selected area of interest with faint nebulosity in S II image.
-  (x, y, w, h) = (2712, 2252, 73, 53)
-  # Manually selected area of interest with faint nebulosity in Ha image.
-  # (x, y, w, h) = (3729, 2964, 74, 52)
+  # Get noise region from config
+  noise_region = config['noise_region']
+  (x, y, w, h) = (noise_region['x'], noise_region['y'], noise_region['w'], noise_region['h'])
   # Go through each of them, run a Siril script to select a box with parameters x, y, w, h. Then run
   # the stat command.
   stats = []
@@ -200,7 +210,7 @@ stat
         min = float(m.group(4))
         max = float(m.group(5))
         # bgnoise = float(m.group(6))
-        bg, bgnoise = get_bg(f)
+        bg, bgnoise = get_bg(f, config)
         snr = (mean - bg) / sigma
         print(f"{f.name}: Mean: {mean:5.2f}, Median: {median}, Sigma: {sigma}, Min: {min}, Max: {max}, bgnoise: {bgnoise} bg: {bg} SNR: {snr:.2f}")
       else:
@@ -326,6 +336,7 @@ def main():
   parser.add_argument('outdir', type=str, help='Output directory.')
   parser.add_argument('-graph', action='store_true', help='Skip processing, just generate the graph.')
   parser.add_argument('-nostretch', action='store_true', help='Do not stretch the starless images.')
+  parser.add_argument('-config', type=str, default='noise_stats_config.json', help='Path to config file (default: noise_stats_config.json)')
   args = parser.parse_args()
   if args.nostretch:
     STRETCH = False
@@ -349,7 +360,8 @@ def main():
       create_sub_stack(process_dir, outdir, s)
     create_starless(stack_sizes, outdir)
 
-  stats = get_noise_stats(os.path.join(outdir, '.starless'))
+  config = load_config(args.config)
+  stats = get_noise_stats(os.path.join(outdir, '.starless'), config)
   label = os.path.basename(args.indir)
   plot_stats(stack_sizes, stats, outdir, label)
   # generate_gif(stack_sizes, outdir)
