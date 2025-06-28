@@ -6,9 +6,38 @@ import sys
 import subprocess
 import re
 import json
+import platform
 
-SIRIL_PATH = '/Applications/Siril.app/Contents/MacOS/Siril'
 STRETCH=True
+
+def get_siril_path():
+  """Get the Siril executable path based on the operating system."""
+  system = platform.system()
+  
+  if system == "Darwin":  # macOS
+    return '/Applications/Siril.app/Contents/MacOS/Siril'
+  elif system == "Linux":
+    # Try to find siril using 'which' command
+    try:
+      result = subprocess.run(['which', 'siril'], 
+                              capture_output=True, 
+                              text=True, 
+                              check=True)
+      siril_path = result.stdout.strip()
+      if siril_path:
+        return siril_path
+      else:
+        print("Error: Siril not found in PATH. Please install Siril or ensure it's in your PATH.")
+        sys.exit(1)
+    except subprocess.CalledProcessError:
+      print("Error: Siril not found in PATH. Please install Siril or ensure it's in your PATH.")
+      sys.exit(1)
+  else:
+    print(f"Error: Unsupported operating system: {system}")
+    sys.exit(1)
+
+# Get the Siril path based on the operating system
+SIRIL_PATH = get_siril_path()
 
 def load_config(config_file):
   """Load configuration from JSON file."""
@@ -22,14 +51,14 @@ def load_config(config_file):
     print(f"Error: Invalid JSON in config file '{config_file}': {e}")
     sys.exit(1)
 
-def get_fits_files(indir):
+def get_calibrated_files(indir):
   input_dir = Path(indir)
-  fits_files = list(input_dir.glob('*.fits'))
-  fits_files.sort()
-  # # Print the list of fits files.
-  # for f in fits_files:
+  calibrated_files = list(input_dir.glob('pp_light_*.fit'))
+  calibrated_files.sort()
+  # # Print the list of calibrated files.
+  # for f in calibrated_files:
   #   print(f)
-  return fits_files
+  return calibrated_files
 
 def get_stack_size(fits_files):
   stack_sizes = [2]
@@ -39,51 +68,36 @@ def get_stack_size(fits_files):
     stack_sizes.append(len(fits_files))
   return stack_sizes
 
-def calibrate_images(indir, process_dir):
-  print(f"Calibrating images in {indir}")
-  calibration_script = f"""requires 1.3.5
-convert light -out={process_dir}
-cd {process_dir}
-calibrate light -dark=$defdark -flat=$defflat -cc=dark
-register pp_light -2pass
-# seqapplyreg pp_light -drizzle -scale=1 -pixfrac=0.9 -framing=min
-seqapplyreg pp_light -drizzle -scale=1 -pixfrac=0.9 -framing=cog
-"""
-  siril_cli_command = [SIRIL_PATH, "-d", indir, "-s", "-"]
-  try:
-    result = subprocess.run(siril_cli_command,
-                            input=calibration_script,
-                            text=True,
-                            capture_output=True)
-    if result.returncode != 0:
-      print("Error running Siril.")
-      print(f"stdout:\n{result.stdout}")
-      print(f"stderr:\n{result.stderr}")
-      sys.exit(1)
-  except subprocess.CalledProcessError as e:
-    print(f"Error running Siril: {e}")
-    sys.exit(1)
-  pass
-
-def create_sub_stack(process_dir, outdir, stack_size):
-  # Ensure that stack_size is <= number of r_pp*.fit files in process_dir
-  num_processed_files = len(list(Path(process_dir).glob('r_pp*.fit')))
+def create_sub_stack(indir, outdir, stack_size):
+  # Convert indir to an absolute path.
+  indir = os.path.abspath(indir)
+  # Ensure that stack_size is <= number of pp_light*.fit files in indir
+  num_calibrated_files = len(list(Path(indir).glob('pp_light_*.fit')))
+  if stack_size > num_calibrated_files:
+    print(f"Warning: Requested stack size {stack_size} is larger than available files {num_calibrated_files}")
+    stack_size = num_calibrated_files
+  
   # Output file will be stack_nnnn.fit
   output_file = os.path.join(outdir, f"stack_{stack_size:04d}.fit")
+  
   # Create a stacking dir, and delete all files in it if it exists.
   stacking_dir = os.path.join(outdir, '.stacking')
   os.makedirs(stacking_dir, exist_ok=True)
   if os.path.exists(stacking_dir):
-    os.system(f"rm -rf {stacking_dir}/r_*")
-  # Copy the first stack_size files from process_dir to stacking_dir
-  r_pp_files = list(Path(process_dir).glob('r_pp*.fit'))
-  r_pp_files.sort()
-  for i in range(0, min(stack_size, len(r_pp_files))):
-    os.symlink(r_pp_files[i], os.path.join(stacking_dir, r_pp_files[i].name))
-  # Run the stacking script
+    os.system(f"rm -rf {stacking_dir}/pp_*")
+    os.system(f"rm -rf {stacking_dir}/r_pp_*")
+  
+  # Copy the first stack_size files from indir to stacking_dir
+  pp_light_files = list(Path(indir).glob('pp_light_*.fit'))
+  pp_light_files.sort()
+  for i in range(0, min(stack_size, len(pp_light_files))):
+    # print(f"Linking {pp_light_files[i]} to {os.path.join(stacking_dir, pp_light_files[i].name)}")
+    os.symlink(str(pp_light_files[i]), os.path.join(stacking_dir, pp_light_files[i].name))
+  
+  # Run the registration and stacking script
   stacking_script = f"""requires 1.3.5
-register r_pp_light
-stack r_r_pp_light rej 5 5  -norm=addscale -output_norm -weight=wfwhm -out={output_file}
+register pp_light
+stack r_pp_light rej 5 5  -norm=addscale -output_norm -weight=wfwhm -out={output_file}
 """
   siril_cli_command = [SIRIL_PATH, "-d", stacking_dir, "-s", "-"]
   try:
@@ -222,7 +236,6 @@ stat
   return stats
 
 def cleanup(outdir):
-  os.system(f"rm -rf {os.path.join(outdir, '.process')}")
   os.system(f"rm -rf {os.path.join(outdir, '.stacking')}")
 
 def plot_stats(stack_sizes, stats, outdir, label):
@@ -278,7 +291,8 @@ def plot_stats(stack_sizes, stats, outdir, label):
   # Make the x-axis logarithmic of base 2
   # plt.xscale('log', base=2)
   # Save the plot to outdir
-  plt.savefig(os.path.join(outdir, f"snr_vs_stack_{label}_{"stretch" if STRETCH else "nostretch"}.png"))
+  stretch_str = "stretch" if STRETCH else "nostretch"
+  plt.savefig(os.path.join(outdir, f"snr_vs_stack_{label}_{stretch_str}.png"))
   # plt.show()
 
 def generate_gif(stack_sizes, outdir):
@@ -331,8 +345,8 @@ savepng {png_file_without_ext}
 
 def main():
   global STRETCH
-  parser = argparse.ArgumentParser(description='Create a csv file with astrophotography session information.')
-  parser.add_argument('indir', type=str, help='Input directory containing the fits files.')
+  parser = argparse.ArgumentParser(description='Analyze noise statistics for astrophotography stacks.')
+  parser.add_argument('indir', type=str, help='Input directory containing the calibrated pp_light_*.fit files.')
   parser.add_argument('outdir', type=str, help='Output directory.')
   parser.add_argument('-graph', action='store_true', help='Skip processing, just generate the graph.')
   parser.add_argument('-nostretch', action='store_true', help='Do not stretch the starless images.')
@@ -341,23 +355,17 @@ def main():
   if args.nostretch:
     STRETCH = False
 
-  fits_files = get_fits_files(args.indir)
-  stack_sizes = get_stack_size(fits_files)
+  calibrated_files = get_calibrated_files(args.indir)
+  stack_sizes = get_stack_size(calibrated_files)
 
   outdir = Path(args.outdir)
   outdir = outdir.resolve()
   outdir.mkdir(parents=True, exist_ok=True)
 
-  process_dir = os.path.join(outdir, '.process')
-  process_dir = os.path.abspath(process_dir)
-  os.makedirs(process_dir, exist_ok=True)
-  print(f"Processing directory: {process_dir}")
-
   if not args.graph:
-    calibrate_images(args.indir, process_dir)
     for s in stack_sizes:
       print(f"Creating sub-stack of size {s}")
-      create_sub_stack(process_dir, outdir, s)
+      create_sub_stack(args.indir, outdir, s)
     create_starless(stack_sizes, outdir)
 
   config = load_config(args.config)
