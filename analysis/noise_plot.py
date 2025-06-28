@@ -226,7 +226,7 @@ stat
         # bgnoise = float(m.group(6))
         bg, bgnoise = get_bg(f, config)
         snr = (mean - bg) / sigma
-        print(f"{f.name}: Mean: {mean:5.2f}, Median: {median}, Sigma: {sigma}, Min: {min}, Max: {max}, bgnoise: {bgnoise} bg: {bg} SNR: {snr:.2f}")
+        print(f"{f.name}: Mean: {mean:6.2f}, Median: {median:6.2f}, Sigma: {sigma:6.2f}, Min: {min:6.2f}, Max: {max:6.2f}, bgnoise: {bgnoise:6.2f} bg: {bg:6.2f} SNR: {snr:6.2f}")
       else:
         print(f"Error parsing output of stat command for {f}")
       stats.append((f, mean, median, sigma, min, max, bgnoise, bg, snr))
@@ -272,7 +272,7 @@ def plot_stats(stack_sizes, stats, outdir, label):
   plt.plot(stack_sizes, func(stack_sizes, *popt), 'r-', label=f'fit: a={popt[0]:.2f}, b={popt[1]:.2f}')
   for desired_snr in [10, 12, 14, 16, 18]:
     desired_stack_size = ((desired_snr - popt[2]) / popt[0]) ** (1/popt[1])
-    print(f"Desired stack size for SNR={desired_snr:02f}: {desired_stack_size:.0f}")
+    print(f"Desired stack size for SNR={desired_snr:4.1f}: {int(desired_stack_size):5d}")
 
 
   ax2 = ax1.twinx()

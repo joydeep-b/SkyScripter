@@ -6,3 +6,4 @@ numpy
 opencv-python
 python-dateutil
 pytz
+scipy
