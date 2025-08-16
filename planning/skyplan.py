@@ -4,18 +4,21 @@ import datetime
 import webbrowser
 import urllib.request
 import warnings
+import signal
 import json
+import time
 from astropy.coordinates import SkyCoord
 
 
-from PyQt5.QtCore import Qt, QDate, QSize
+from PyQt5.QtCore import Qt, QDate, QSize, QThread, pyqtSignal
 from PyQt5.QtGui import QIcon, QPixmap, QPainter, QColor, QFont, QImage
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QHBoxLayout, QVBoxLayout,
     QTableWidget, QTableWidgetItem, QTextEdit, QLabel, QDateEdit,
     QPushButton, QListWidget, QListWidgetItem, QSplitter, QTabWidget,
     QLineEdit, QGroupBox, QMessageBox, QToolBar, QAction, QDialog, 
-    QButtonGroup, QRadioButton, QStackedWidget, QPlainTextEdit, QFileDialog
+    QButtonGroup, QRadioButton, QStackedWidget, QPlainTextEdit, 
+    QFileDialog, QProgressDialog
 )
 
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -68,6 +71,37 @@ def get_observer(location_name: str) -> Observer:
         timezone=timezone_str
     )
     return observer
+
+
+def long_running_action(parent):
+    """
+    Shows a modal QProgressDialog while running a WorkerThread
+    that emits progress signals.
+    """
+    dlg = QProgressDialog("Processing…", "Cancel", 0, 100, parent)
+    dlg.setWindowModality(Qt.WindowModal)
+    dlg.setAutoClose(True)
+    dlg.setAutoReset(True)
+
+    worker = WorkerThread(parent)
+    worker.progress.connect(dlg.setValue)
+
+    # If the user clicks “Cancel”, stop the worker
+    dlg.canceled.connect(worker.terminate)
+
+    worker.start()
+    dlg.exec_()   # this blocks until dlg.close() or worker.quit()
+    worker.wait() # ensure thread has finished
+
+
+class WorkerThread(QThread):
+    progress = pyqtSignal(int)   # emit percentage 0–100
+
+    def run(self):
+        total = 100
+        for i in range(total + 1):
+            time.sleep(0.05)       # simulate work
+            self.progress.emit(i)  # send progress update
 
 def find_date_at_altitude_at_dusk(observer: Observer,
                                 target: FixedTarget,
@@ -159,12 +193,13 @@ def compute_hours_above(altitudes, times, min_alt: float) -> float:
     return np.sum(above) / len(above) * total_duration
 
 def plot_altitude_on_axes(ax,
-                        target_name: str,
-                        date: datetime.date,
-                        observer: Observer,
-                        min_alt: float,
-                        linewidth: float = 1.5,
-                        show_legend: bool = True):
+                          target_name: str,
+                          target: FixedTarget,
+                          date: datetime.date,
+                          observer: Observer,
+                          min_alt: float,
+                          linewidth: float = 1.5,
+                          show_legend: bool = True):
     """
     Draw altitude vs. time (and Moon) on the given axes `ax`.
     If show_legend=False, do not call ax.legend().
@@ -172,13 +207,6 @@ def plot_altitude_on_axes(ax,
     ax.clear()
     if observer is None:
         ax.text(0.5, 0.5, "Observer Error", ha='center', va='center')
-        return
-
-    # 1) Look up FixedTarget
-    try:
-        target = FixedTarget.from_name(target_name)
-    except Exception:
-        ax.text(0.5, 0.5, f"Target '{target_name}' not found", ha='center', va='center')
         return
 
     # 2) Compute evening/morning astro twilight for `date`
@@ -408,6 +436,7 @@ def load_pixmap_from_url(url: str, size: QSize = QSize(100, 100)) -> QPixmap:
 
 def generate_graph_pixmap(
     target_name: str,
+    target: FixedTarget,
     date: datetime.date,
     observer: Observer,
     min_alt: float,
@@ -421,7 +450,7 @@ def generate_graph_pixmap(
     ax = fig.add_axes([0, 0, 1, 1])
 
     # Pass show_legend=False here
-    plot_altitude_on_axes(ax, target_name, date, observer, min_alt, show_legend=False, linewidth=4.0)
+    plot_altitude_on_axes(ax, target_name, target, date, observer, min_alt, show_legend=False, linewidth=4.0)
 
     canvas = FigureCanvasAgg(fig)
     canvas.draw()
@@ -445,7 +474,11 @@ class RealAltitudeGraphCanvas(FigureCanvas):
             self.setParent(parent)
         self.observer = observer
 
-    def plot_altitude(self, target_name: str, date: datetime.date, min_alt: float = 0.0):
+    def plot_altitude(self, 
+                      target_name: str, 
+                      target: FixedTarget,
+                      date: datetime.date, 
+                      min_alt: float = 0.0):
         """
         Clear self.ax, then reuse plot_altitude_on_axes to draw onto that axes.
         """
@@ -454,6 +487,7 @@ class RealAltitudeGraphCanvas(FigureCanvas):
         plot_altitude_on_axes(
             self.ax,
             target_name,
+            target,
             date,
             self.observer,
             min_alt
@@ -467,7 +501,6 @@ class RealAltitudeGraphCanvas(FigureCanvas):
             bottom=0.08   # how close the x-axis is to the bottom edge
         )
         self.draw()
-
 
 
 class ImagingPlannerGUI(QMainWindow):
@@ -695,20 +728,126 @@ class ImagingPlannerGUI(QMainWindow):
         self.populate_table()
 
     def edit_target(self):
-        # TODO: open TargetEditorDialog pre‐filled with selected target
-        pass
+        """
+        Open TargetEditorDialog pre-filled with the selected target’s data.
+        On OK, update that entry in self.targets and refresh the table.
+        """
+        selected = self.table.selectedItems()
+        if not selected:
+            QMessageBox.warning(self, "Edit Target", "Please select a target to edit.")
+            return
+        row = selected[0].row()
+        tgt = self.targets[row]
+
+        # Launch dialog
+        dlg = TargetEditorDialog(self)
+        # Prefill Name
+        dlg.name_edit.setText(tgt["name"])
+        # Prefill coords in manual mode
+        dlg.manual_rb.setChecked(True)
+        dlg.stack.setCurrentIndex(0)
+        ra_str  = tgt["coord"].ra.to_string(unit=u.hourangle, sep=':')
+        dec_str = tgt["coord"].dec.to_string(unit=u.deg, sep=':')
+        dlg.ra_edit.setText(ra_str)
+        dlg.dec_edit.setText(dec_str)
+        # Prefill notes
+        dlg.notes_edit.setPlainText(tgt.get("notes", ""))
+        # Prefill bookmarks
+        dlg.bm_edit.setPlainText("\n".join(tgt.get("bookmarks", [])))
+
+        if dlg.exec_() != QDialog.Accepted:
+            return
+
+        # Retrieve edited data
+        data = dlg.get_data()
+        # Update the target dict
+        tgt["name"]         = data["name"]
+        tgt["coord"]        = data["coord"]
+        tgt["fixed_target"] = data["fixed_target"]
+        tgt["notes"]        = data["notes"]
+        tgt["bookmarks"]    = data["bookmarks"]
+        # (leave min_dusk, zenith_midnight, peak_alt untouched)
+
+        # Refresh table and keep the same row selected
+        self.populate_table()
+        self.table.selectRow(row)
+        self.on_table_selection_changed()
+
 
     def delete_target(self):
-        # TODO: remove selected entry from self.targets and refresh table
-        pass
+        """
+        Remove the selected target from self.targets (with confirmation),
+        refresh the table, and clear the detail pane.
+        """
+        selected_items = self.table.selectedItems()
+        if not selected_items:
+            QMessageBox.warning(self, "Delete Target", "Please select a target to delete.")
+            return
+
+        row = selected_items[0].row()
+        name = self.targets[row]["name"]
+
+        reply = QMessageBox.question(
+            self,
+            "Confirm Delete",
+            f"Are you sure you want to delete '{name}'?",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
+        )
+        if reply != QMessageBox.Yes:
+            return
+
+        # Remove and repopulate
+        self.targets.pop(row)
+        self.populate_table()
+
+        # Clear detail pane
+        self.notes_edit.clear()
+        self.coord_label.clear()
+        self.bookmark_list.clear()
+        self.bookmark_link_label.clear()
+        self.canvas_today.ax.clear();    self.canvas_today.draw()
+        self.canvas_dusk.ax.clear();     self.canvas_dusk.draw()
+        self.canvas_midnight.ax.clear(); self.canvas_midnight.draw()
+        self.canvas_custom.ax.clear();   self.canvas_custom.draw()
+
+        # Select a valid row
+        count = self.table.rowCount()
+        if count > 0:
+            new_row = min(row, count - 1)
+            self.table.selectRow(new_row)
+            self.on_table_selection_changed()
+
 
     def recalculate_target(self):
-        # TODO: re‐run find_date_at_altitude_at_dusk (and other calcs) for selected target
-        pass
+        selected = self.table.selectedItems()
+        if not selected:
+            QMessageBox.warning(self, "Recalculate Target", "Please select a target to recalculate.")
+            return
+        row = selected[0].row()
+        tgt = self.targets[row]
+
+        # Update the target dict
+        tgt["name"]         = data["name"]
+        tgt["coord"]        = data["coord"]
+        tgt["fixed_target"] = data["fixed_target"]
+        tgt["notes"]        = data["notes"]
+        tgt["bookmarks"]    = data["bookmarks"]
+        # (leave min_dusk, zenith_midnight, peak_alt untouched)
+
+        # Refresh table and keep the same row selected
+        self.populate_table()
+        self.table.selectRow(row)
+        self.on_table_selection_changed()
 
     def load_targets(self):
-        # TODO: read JSON from file, call self.load_data() or similar
-        pass
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Save Targets", "targets.json",
+            "JSON Files (*.json);;All Files (*)"
+        )
+        if not path:
+            return
+        self.load_data(path)
 
     def save_targets(self):
         """
@@ -764,9 +903,9 @@ class ImagingPlannerGUI(QMainWindow):
         new_pydate = current_pydate + datetime.timedelta(days=1)
         self.date_edit.setDate(QDate(new_pydate.year, new_pydate.month, new_pydate.day))
 
-    def load_data(self):
+    def load_data(self, path="targets.json"):
         try:
-            entries = json.load(open("targets.json"))
+            entries = json.load(open(path, "r"))
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to load targets.json:\n{e}")
             self.targets = []
@@ -794,6 +933,7 @@ class ImagingPlannerGUI(QMainWindow):
                     "bookmarks":      entry.get("bookmarks", []),
                     "notes":          entry.get("notes", "")
                 }
+                # long_running_action(parent=self)
                 # 4) compute min_dusk if not provided
                 if parsed["min_dusk"] is None or parsed["min_dusk"] == "":
                     # Find the date at which the target is at desired altitude at dusk
@@ -858,6 +998,7 @@ class ImagingPlannerGUI(QMainWindow):
 
             graph_pixmap = generate_graph_pixmap(
                 target["name"],
+                target["fixed_target"],
                 thumb_date,
                 self.observer,
                 self.min_alt,
@@ -905,14 +1046,15 @@ class ImagingPlannerGUI(QMainWindow):
         dusk_date = target["min_dusk"]
         zenith_date = target["zenith_midnight"]
 
-        self.canvas_today.plot_altitude(name, today_date, min_alt=self.min_alt)
-        self.canvas_dusk.plot_altitude(name, dusk_date, min_alt=self.min_alt)
-        self.canvas_midnight.plot_altitude(name, zenith_date, min_alt=self.min_alt)
+        fixed_target = target["fixed_target"]
+        self.canvas_today.plot_altitude(name, fixed_target, today_date, min_alt=self.min_alt)
+        self.canvas_dusk.plot_altitude(name, fixed_target, dusk_date, min_alt=self.min_alt)
+        self.canvas_midnight.plot_altitude(name, fixed_target, zenith_date, min_alt=self.min_alt)
 
         # Custom date tab: use current date in QDateEdit
         custom_q = self.date_edit.date()
         custom_date = datetime.date(custom_q.year(), custom_q.month(), custom_q.day())
-        self.canvas_custom.plot_altitude(name, custom_date, min_alt= self.min_alt)
+        self.canvas_custom.plot_altitude(name, fixed_target, custom_date, min_alt= self.min_alt)
 
         # Update bookmark list
         self.bookmark_list.clear()
@@ -931,9 +1073,9 @@ class ImagingPlannerGUI(QMainWindow):
         target = self.table.item(row, 0).data(Qt.UserRole)
         name = target["name"]
         peak_alt = target["peak_alt"]
-
+        fixed_target = target["fixed_target"]
         custom_date = datetime.date(qdate.year(), qdate.month(), qdate.day())
-        self.canvas_custom.plot_altitude(name, custom_date, min_alt=self.min_alt)
+        self.canvas_custom.plot_altitude(name, fixed_target, custom_date, min_alt=self.min_alt)
 
     def add_bookmark_url(self):
         """
@@ -1030,20 +1172,19 @@ def main():
         help="Minimum altitude (in degrees) for counting visible hours (default: 25)"
     )
     parser.add_argument(
-        "--location", type=str, default="Austin, Texas",
+        "--location", type=str, default="Brady, Texas",
         help="Viewing location (e.g., 'Brady, Texas')"
     )
     args = parser.parse_args()
 
     app = QApplication(sys.argv)
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
     window = ImagingPlannerGUI(
         location_name=args.location,
         min_alt=args.min_alt
     )
     window.showMaximized()
     sys.exit(app.exec_())
-
-
 
 if __name__ == "__main__":
     main()

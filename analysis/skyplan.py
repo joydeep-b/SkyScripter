@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import math
+import sys
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
@@ -79,16 +80,23 @@ def moon_illumination(time, observer):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Generate altitude graphs for an astronomical target (with Moon overlay) between astronomical dusk and dawn."
+        description="Generate altitude graphs for an astronomical target (with Moon overlay) " +
+                    "between astronomical dusk and dawn."
     )
-    parser.add_argument("--target", type=str, required=True,
+    parser.add_argument("target", type=str,
                         help="Name of the astronomical object (e.g., M81)")
     parser.add_argument("--location", type=str, default="Brady, Texas",
                         help="Viewing location (e.g., 'Brady, Texas')")
     parser.add_argument("--n", type=int, default=9,
                         help="Number of days to generate graphs for (default: 9)")
-    parser.add_argument("--min-alt", type=float, default=15,
-                        help="Minimum altitude (in degrees) for counting visible hours (default: 15)")
+    parser.add_argument("--min-alt", type=float, default=25,
+                        help="Minimum altitude (in deg.) for counting visible hours (default: 25)")
+    parser.add_argument("-d", "--start-date",
+                        type=lambda s: datetime.strptime(s, "%Y-%m-%d").date(),
+                        default=datetime.now().date(),
+                        help="Start date (YYYY-MM-DD) for the first night (default: today)"
+                        )
+
     args = parser.parse_args()
 
     # Create the observer from the provided location.
@@ -113,20 +121,35 @@ def main():
     nrows = math.ceil(args.n / ncols)
     fig, axes = plt.subplots(nrows, ncols, figsize=(5*ncols, 3*nrows), squeeze=False)
     axes = axes.flatten()
+    def on_key(event):
+        if event.key == 'escape':
+            plt.close(fig)
+            sys.exit(0)
 
+    fig.canvas.mpl_connect('key_press_event', on_key)
     if isinstance(observer.timezone, str):
         local_tz = pytz.timezone(observer.timezone)
     else:
         local_tz = observer.timezone
     # Loop over the next n days.
     for i in range(args.n):
-        day_date = (datetime.now() + timedelta(days=i)).date()
+        # day_date = (datetime.now() + timedelta(days=i)).date()
+        day_date = args.start_date + timedelta(days=i)
         ref_time = Time(f"{day_date} 12:00:00")
         try:
             evening_twilight, morning_twilight = get_twilight_times(observer, ref_time)
         except Exception as e:
             print(f"Error computing twilight times for {day_date}: {e}")
             continue
+
+
+        # compute exact mid-point of astronomical night
+        mid_astronomical = evening_twilight + (morning_twilight - evening_twilight) / 2
+        mid_local = mid_astronomical.to_datetime(timezone=observer.timezone)
+        
+        # convert astro dusk/dawn to local datetimes
+        evening_local = evening_twilight.to_datetime(timezone=observer.timezone)
+        morning_local = morning_twilight.to_datetime(timezone=observer.timezone)
 
         # Create a time grid between evening and morning astronomical twilight.
         num_points = 200
@@ -158,6 +181,12 @@ def main():
         ax.plot(local_times, altitudes, label=f"{args.target} (Visible: {hours_visible:.2f} hrs)")
         ax.plot(local_times, moon_altitudes, label="Moon Altitude", linestyle='--')
         ax.axhline(args.min_alt, color='red', linestyle=':', label=f"Min Alt = {args.min_alt}°")
+        # vertical line at middle of astro night
+        ax.axvline(mid_local, linestyle=':', color='black')
+        # grey vertical dotted lines at astro dusk and dawn
+        ax.axvline(evening_local, linestyle=':', color='grey')
+        ax.axvline(morning_local, linestyle=':', color='grey')
+        
         ax.set_ylabel("Altitude (deg)")
         # Set Y-axis limits to 0-90 degrees.
         ax.set_ylim(-5, 90)
@@ -168,6 +197,13 @@ def main():
         # ax.xaxis.set_major_formatter(mdates.DateFormatter('%H'))
         ax.xaxis.set_major_formatter(mdates.DateFormatter('%H', tz=local_tz))
     
+
+    # Print the summary of visible hours.
+    print("\nVisibility Summary:")
+    for day, hours in days_info:
+        print(f"{day}: {hours:.2f} hours above {args.min_alt}°")
+    print(f"\nCumulative visible hours over {args.n} day(s): {cumulative_hours:.2f} hours")
+    
     # Turn off any unused subplots.
     for j in range(args.n, len(axes)):
         axes[j].axis('off')
@@ -177,12 +213,6 @@ def main():
         ax.set_xlabel("Local Time (Hour)")
     plt.tight_layout()
     plt.show()
-
-    # Print the summary of visible hours.
-    print("\nVisibility Summary:")
-    for day, hours in days_info:
-        print(f"{day}: {hours:.2f} hours above {args.min_alt}°")
-    print(f"\nCumulative visible hours over {args.n} day(s): {cumulative_hours:.2f} hours")
 
 if __name__ == "__main__":
     main()

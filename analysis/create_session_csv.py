@@ -98,7 +98,10 @@ def get_session_data(directory):
             with fits.open(file) as hdul:
                 header = hdul[0].header
                 date = datetime.strptime(header['DATE-OBS'], '%Y-%m-%dT%H:%M:%S.%f').date()
-                filter = header['FILTER']
+                if 'FILTER' in header:
+                    filter = header['FILTER']
+                else:
+                    filter = 'H'
                 duration = header['EXPTIME']
                 gain = header['GAIN']
                 sensorCooling = header['CCD-TEMP']

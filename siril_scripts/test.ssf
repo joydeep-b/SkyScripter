@@ -1,7 +1,28 @@
 requires 1.3.5
 
-convert light -out=../.process
-cd ../.process
-calibrate light -dark=$defbias -flat=$defflat -cc=dark
+cd H
+convert H -out=../.process
+cd ../
 
-stack pp_light rej 3 3  -norm=addscale -output_norm -out=../master_light_$FILTER:%s$
+cd O
+convert O -out=../.process
+cd ../
+
+cd R
+convert R -out=../.process
+cd ../
+
+cd G
+convert G -out=../.process
+cd ../
+
+cd B
+convert B -out=../.process
+cd ../
+
+cd .process
+calibrate O -dark=$defdark -flat=$defflat -cc=dark
+calibrate H -dark=$defdark -flat=$defflat -cc=dark
+calibrate R -dark=$defdark -flat=$defflat -cc=dark
+calibrate G -dark=$defdark -flat=$defflat -cc=dark
+calibrate B -dark=$defdark -flat=$defflat -cc=dark
