@@ -19,7 +19,7 @@ In addition to the above, you will need the following:
     * `matplotlib`
     * `opencv-python`
     * `numpy` 
-    * `scipy` (for noise analysis)
+    * `scipy`
   
 You can install these with `pip3 install -r requirements.txt`
 
@@ -115,7 +115,7 @@ Desired stack size for SNR=16.0: 21773
 Desired stack size for SNR=18.0: 31235
 ```
 
-Example output:
+Example output:  
 ![SNR vs Stack Size](sample_data/snr_vs_stack_H_stretch.png)
 
 ### Notes
