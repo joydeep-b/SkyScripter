@@ -24,11 +24,21 @@ class WatchClient(discord.Client):
         logging.info(f"Logged in as {self.user} (id={self.user.id})")
         if TARGET_CHANNEL_ID:
             ch = self.get_channel(TARGET_CHANNEL_ID)
+            if ch is None:
+                try:
+                    ch = await self.fetch_channel(TARGET_CHANNEL_ID)
+                except discord.NotFound:
+                    logging.error(f"Channel {TARGET_CHANNEL_ID} not found (bot not in guild?)")
+                except discord.Forbidden:
+                    logging.error(f"No permission to access channel {TARGET_CHANNEL_ID}")
+                except Exception as e:
+                    logging.error(f"Unexpected error fetching channel: {e}")
             logging.info(f"Watching channel id={TARGET_CHANNEL_ID} -> {ch}")
         else:
             logging.warning("CHANNEL_ID not set; will log all channels this bot can see.")
 
     async def on_message(self, message: discord.Message):
+        logging.info(f"Received message: {message}")
         # Ignore messages from ourselves
         if message.author.id == self.user.id:
             return
@@ -42,6 +52,10 @@ class WatchClient(discord.Client):
         author = f"{message.author} (id={message.author.id})"
         where = f"#{getattr(message.channel, 'name', 'DM')} (id={message.channel.id})"
         logging.info(f"[{where}] {author}: {message.content!r}")
+        if "opening" in message.content.lower():
+            logging.info(f"Roof opening detected")
+        elif "closing" in message.content.lower():
+            logging.info(f"Roof closing detected")
 
         # Example: handle attachments
         for a in message.attachments:
