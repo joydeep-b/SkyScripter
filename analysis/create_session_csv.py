@@ -4,6 +4,8 @@
 # then creates a csv file with the astrophotography session information based on the files found.
 
 import csv
+import os
+import sys
 from astropy.io import fits
 from datetime import datetime, timedelta
 from tqdm import tqdm
@@ -79,22 +81,25 @@ def save_session_csv(sessions, output_file):
     return
 
 def get_session_data(directory):
-    # List the files in the sub-directories.
-    subdirs = ['L', 'R', 'G', 'B', 'H', 'O', 'S']
     sessions = []
     i = 0
     progress = ['|', '/', '-', '\\']
-    for subdir in subdirs:
-        # See if the sub-directory exists.
-        if not (directory / subdir).exists():
+    
+    # Recursively search for FITS files in all subdirectories
+    print("Recursively searching for FITS files...")
+    all_files = list(directory.rglob('*.fits')) + list(directory.rglob('*.fit'))
+    print(f"Found {len(all_files)} FITS files")
+    
+    # Use TQDM to show a progress bar.
+    for file in all_files:
+        file_path = str(file)
+        if "/." in file_path:
+            # print(f"Skipping {file_path}")
             continue
-        # print(f'Processing {subdir} files.')
-        files = directory.glob(f'**/{subdir}/*.fits')
-        # Use TQDM to show a progress bar.
-        for file in files:
-            print(f'\r{progress[i % 4]}', end='')
-            i += 1
-            # print(f'Processing {file}')
+        print(f'\r{progress[i % 4]}', end='')
+        i += 1
+        # print(f'Processing {file}')
+        try:
             with fits.open(file) as hdul:
                 header = hdul[0].header
                 date = datetime.strptime(header['DATE-OBS'], '%Y-%m-%dT%H:%M:%S.%f').date()
@@ -106,6 +111,12 @@ def get_session_data(directory):
                 gain = header['GAIN']
                 sensorCooling = header['CCD-TEMP']
                 temperature = header['FOCUSTEM']
+                
+                # Handle case where filter might not be in lookup
+                if filter not in filter_lookup:
+                    print(f"\nWarning: Unknown filter '{filter}' in {file}, using 'H' as default")
+                    filter = 'H'
+                
                 session = Session(date, filter, duration, gain, sensorCooling,
                                   default_values['darks'], default_values['flats'],
                                   default_values['bias'], default_values['bortle'], temperature)
@@ -114,6 +125,10 @@ def get_session_data(directory):
                     sessions[index] += 1
                 else:
                     sessions.append(session)
+        except Exception as e:
+            print(f"\nError processing {file}: {e}")
+            continue
+    
     print('\r', end='')
     sessions.sort()
     return sessions
