@@ -3,14 +3,20 @@ import asyncio
 import logging
 import discord
 import sys
+import subprocess
+
 
 # Read secrets from environment variables
 TOKEN = None
 TARGET_CHANNEL_ID = None
-
+# Set up root logger
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    handlers=[
+        logging.StreamHandler(),                 # console
+        logging.FileHandler(".discord_bot.log")  # file
+    ]
 )
 
 # You MUST enable message content intent both here and in the Dev Portal
@@ -54,9 +60,24 @@ class WatchClient(discord.Client):
         logging.info(f"[{where}] {author}: {message.content!r}")
         if "opening" in message.content.lower():
             logging.info(f"Roof opening detected")
+            logging.info(f"Starting scheduler")
+            result = subprocess.run([
+                "qdbus",
+                "org.kde.kstars",
+                "/KStars/Ekos/Scheduler",
+                "start"
+            ])
+            logging.info(f"Scheduler started with result: {result}")
         elif "closing" in message.content.lower():
             logging.info(f"Roof closing detected")
-
+            logging.info(f"Stopping scheduler")
+            result = subprocess.run([
+                "qdbus",
+                "org.kde.kstars",
+                "/KStars/Ekos/Scheduler",
+                "stop"
+            ])
+            logging.info(f"Scheduler stopped with result: {result}")
         # Example: handle attachments
         for a in message.attachments:
             logging.info(f"  attachment: {a.filename} -> {a.url}")
