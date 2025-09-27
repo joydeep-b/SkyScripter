@@ -1,8 +1,8 @@
 [
   {
     "name": "SNR G179.0+2.6",
-    "ra": "0:42:44.3",
-    "dec": "41:16:09",
+    "ra": "5:53:42",
+    "dec": "31:05:00",
     "min_dusk": "2025-01-01",
     "zenith_midnight": "2025-02-15",
     "peak_alt": 60.0,
@@ -16,7 +16,7 @@
     "name": "SNR G067.6+00.9",
     "ra": "19:57:44.8999992",
     "dec": "30:53:05.600004",
-    "min_dusk": "",
+    "min_dusk": "2025-06-22",
     "zenith_midnight": "2025-02-15",
     "peak_alt": 55.0,
     "bookmarks": [
@@ -50,5 +50,48 @@
       "https://cdn.astrobin.com/thumbs/gY10hfZQHA83_1824x0_esdlMP5Y.jpg"
     ],
     "notes": "MWP1 and ALV1: Unusual targets"
+  },
+  {
+    "name": "SNR G181.1+9.5",
+    "ra": "6:26:45.4992",
+    "dec": "32:31:01.2",
+    "min_dusk": "2025-09-13",
+    "zenith_midnight": "2025-09-13",
+    "peak_alt": 0.0,
+    "bookmarks": [
+      "https://www.astrobin.com/sk3q21/",
+      "https://www.astrobin.com/search/?q=snr+g181.1%2B9.5",
+      "https://cdn.astrobin.com/thumbs/9CHB5Hx_Mog__16536x0_ieTZ0INm.jpg"
+    ],
+    "notes": ""
+  },
+  {
+    "name": "SNR G119.5+10.2",
+    "ra": "0:06:36",
+    "dec": "72:46:58.8",
+    "min_dusk": "2025-09-13",
+    "zenith_midnight": "2025-09-13",
+    "peak_alt": 0.0,
+    "bookmarks": [
+      "https://www.astrobin.com/search/?q=SNR+G119.5%2B10.2",
+      "https://cdn.astrobin.com/thumbs/6PdF1x6iXMYf_16536x0_fr608aJc.jpg",
+      "https://www.astrobin.com/ger4go/",
+      "https://www.astrobin.com/b3n354/B/"
+    ],
+    "notes": "Also known as CTA 1"
+  },
+  {
+    "name": "SNR G126.2+1.6",
+    "ra": "1:22:00",
+    "dec": "64:15:00",
+    "min_dusk": "2025-09-13",
+    "zenith_midnight": "2025-09-13",
+    "peak_alt": 0.0,
+    "bookmarks": [
+      "https://www.astrobin.com/search/?q=snr+g126.2%2B1.6",
+      "https://www.astrobin.com/lzaexz/C/",
+      "https://cdn.astrobin.com/thumbs/V93qjrzc4OJb_16536x0_ieTZ0INm.jpg"
+    ],
+    "notes": ""
   }
 ]

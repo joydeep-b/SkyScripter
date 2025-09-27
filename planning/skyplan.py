@@ -1176,7 +1176,8 @@ def main():
         help="Viewing location (e.g., 'Brady, Texas')"
     )
     args = parser.parse_args()
-
+    print(f"Observer location: {args.location}")
+    print(f"Minimum altitude: {args.min_alt}")
     app = QApplication(sys.argv)
     signal.signal(signal.SIGINT, signal.SIG_DFL)
     window = ImagingPlannerGUI(
