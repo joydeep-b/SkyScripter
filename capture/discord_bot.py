@@ -4,7 +4,8 @@ import logging
 import discord
 import sys
 import subprocess
-
+import time
+import signal
 
 # Read secrets from environment variables
 TOKEN = None
@@ -19,11 +20,20 @@ logging.basicConfig(
     ]
 )
 
+script_dir = os.path.dirname(__file__)
+POWER_ON_SCRIPT = os.path.join(script_dir, '..', 'power.sh')
+
 # You MUST enable message content intent both here and in the Dev Portal
 intents = discord.Intents.default()
 intents.message_content = True
 intents.guilds = True
 intents.messages = True
+
+def ExecuteCommand(logging, command):
+    command_parts = command.split(" ")
+    result = subprocess.run(command_parts)
+    logging.info(f"Command '{command}' returned {result.returncode}")
+    return result
 
 class WatchClient(discord.Client):
     async def on_ready(self):
@@ -60,30 +70,43 @@ class WatchClient(discord.Client):
         logging.info(f"[{where}] {author}: {message.content!r}")
         if "opening" in message.content.lower():
             logging.info(f"Roof opening detected")
+            result = ExecuteCommand(logging, POWER_ON_SCRIPT + " on")
+            logging.info(f"Waiting 60 seconds to power on...")
+            # time.sleep(60)
+            await asyncio.sleep(60)
             logging.info(f"Starting scheduler")
-            result = subprocess.run([
-                "qdbus",
-                "org.kde.kstars",
-                "/KStars/Ekos/Scheduler",
-                "start"
-            ])
+            result = ExecuteCommand(logging,
+                "qdbus org.kde.kstars /KStars/Ekos/Scheduler start")
             logging.info(f"Scheduler started with result: {result}")
         elif "closing" in message.content.lower():
             logging.info(f"Roof closing detected")
             logging.info(f"Stopping scheduler")
-            result = subprocess.run([
-                "qdbus",
-                "org.kde.kstars",
-                "/KStars/Ekos/Scheduler",
-                "stop"
-            ])
-            logging.info(f"Scheduler stopped with result: {result}")
+            result = ExecuteCommand(logging, 
+                "qdbus org.kde.kstars /KStars/Ekos/Scheduler stop")
+            logging.info("Parking the mount")
+            result = ExecuteCommand(logging,
+                "qdbus org.kde.kstars /KStars/Ekos/Mount park")
+            logging.info(f"Waiting 120 seconds to park...")
+            # time.sleep(120)
+            await asyncio.sleep(120)
+            logging.info(f"Disconnecting devices")
+            result = ExecuteCommand(logging, 
+                "qdbus org.kde.kstars /KStars/Ekos disconnectDevices")
+            result = ExecuteCommand(logging, 
+                "qdbus org.kde.kstars /KStars/Ekos stop")
+            result = ExecuteCommand(logging, POWER_ON_SCRIPT + " off")
         # Example: handle attachments
         for a in message.attachments:
             logging.info(f"  attachment: {a.filename} -> {a.url}")
 
+def exit_handler(signum, frame):
+    logging.info(f"Exiting with signal {signum}")
+    sys.exit(0)
+
 # Auto-reconnect is built-in; wrap run in a task to allow clean shutdowns if needed
 async def main():
+    signal.signal(signal.SIGINT, exit_handler)
+    signal.signal(signal.SIGTERM, exit_handler)
     global TOKEN, TARGET_CHANNEL_ID
     try:
         with open('.discord_token', 'r') as f:
