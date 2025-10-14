@@ -3,7 +3,7 @@
 ********************************************************************
 PixInsight XML Process Serialization Module - XPSM 1.0
 ********************************************************************
-Generated on 2025-08-12T13:16:45.506Z
+Generated on 2025-10-12T14:55:07.346Z
 PixInsight Core 1.9.1 (x64)
 Copyright (c) 2003-2024 Pleiades Astrophoto
 ********************************************************************
@@ -48,7 +48,7 @@ Copyright (c) 2003-2024 Pleiades Astrophoto
       <parameter id="noGUIMessages" value="false"/>
    </instance>
    <instance class="StarXTerminator" version="256" id="StarX_instance">
-      <time start="2025-08-08T21:02:39.411Z" span="8.2524466"/>
+      <time start="2025-10-05T12:11:40.990Z" span="9.3944065"/>
       <parameter id="ai_file">StarXTerminator.lite.nonoise.11.mlpackage</parameter>
       <parameter id="stars" value="false"/>
       <parameter id="unscreen" value="false"/>
@@ -56,7 +56,7 @@ Copyright (c) 2003-2024 Pleiades Astrophoto
    </instance>
    <instance class="NoiseXTerminator" version="256" id="NoiseX_instance">
       <mask id="RGB_chroma_mask" inverted="false" deleted="false"/>
-      <time start="2025-08-09T13:39:35.622Z" span="8.8384445"/>
+      <time start="2025-10-10T01:45:09.646Z" span="9.5126891"/>
       <parameter id="ai_file">NoiseXTerminator.3.mlpackage</parameter>
       <parameter id="enable_color_separation" value="false"/>
       <parameter id="enable_frequency_separation" value="false"/>
@@ -396,7 +396,7 @@ Copyright (c) 2003-2024 Pleiades Astrophoto
       <parameter id="invert" value="false"/>
    </instance>
    <instance class="BlurXTerminator" version="256" id="BlurX_instance">
-      <time start="2025-08-08T21:02:26.722Z" span="10.410789"/>
+      <time start="2025-10-04T17:50:13.844Z" span="14.92856"/>
       <parameter id="ai_file">BlurXTerminator.4.mlpackage</parameter>
       <parameter id="correct_only" value="false"/>
       <parameter id="correct_first" value="false"/>
@@ -561,7 +561,7 @@ Copyright (c) 2003-2024 Pleiades Astrophoto
       <table id="outputData" rows="0"/>
    </instance>
    <instance class="SpectrophotometricFluxCalibration" version="1" id="SPFC_instance">
-      <time start="2025-07-03T19:06:56.233Z" span="97.363302"/>
+      <time start="2025-10-04T19:12:24.283Z" span="4.1808736"/>
       <parameter id="narrowbandMode" value="false"/>
       <parameter id="grayFilterTrCurve">300,0,380,0,400,1,500,1,675,1,710,0,800,0</parameter>
       <parameter id="grayFilterName">Astronomik UV-IR Block L-2</parameter>
@@ -991,7 +991,7 @@ Copyright (c) 2003-2024 Pleiades Astrophoto
    </instance>
    <instance class="ProcessContainer" id="RGBStarStretch_instance">
       <instance class="GeneralizedHyperbolicStretch" version="256" enabled="true">
-         <time start="2025-07-27T18:48:08.594Z" span="0.17845"/>
+         <time start="2025-09-28T18:27:55.891Z" span="0.18763175"/>
          <parameter id="stretchType" value="ST_Arcsinh"/>
          <parameter id="stretchChannel" value="SC_RGB"/>
          <parameter id="inverse" value="false"/>
@@ -1007,7 +1007,7 @@ Copyright (c) 2003-2024 Pleiades Astrophoto
          <parameter id="useRGBWorkingSpace" value="false"/>
       </instance>
       <instance class="GeneralizedHyperbolicStretch" version="256" enabled="true">
-         <time start="2025-07-27T18:48:08.789Z" span="0.16958788"/>
+         <time start="2025-09-28T18:27:56.104Z" span="0.16553546"/>
          <parameter id="stretchType" value="ST_Arcsinh"/>
          <parameter id="stretchChannel" value="SC_RGB"/>
          <parameter id="inverse" value="false"/>
@@ -1023,7 +1023,7 @@ Copyright (c) 2003-2024 Pleiades Astrophoto
          <parameter id="useRGBWorkingSpace" value="false"/>
       </instance>
       <instance class="GeneralizedHyperbolicStretch" version="256" enabled="true">
-         <time start="2025-07-27T18:48:08.970Z" span="0.59099508"/>
+         <time start="2025-09-28T18:27:56.296Z" span="0.54132175"/>
          <parameter id="stretchType" value="ST_GeneralisedHyperbolic"/>
          <parameter id="stretchChannel" value="SC_Saturation"/>
          <parameter id="inverse" value="false"/>
@@ -1322,7 +1322,7 @@ k2=0.8</parameter>
       <table id="outputData" rows="0"/>
    </instance>
    <instance class="BlurXTerminator" version="256" id="BlurXCorrectOnly_instance">
-      <time start="2025-08-10T15:54:44.579Z" span="12.40356"/>
+      <time start="2025-10-09T19:15:09.358Z" span="12.36014"/>
       <parameter id="ai_file">BlurXTerminator.4.mlpackage</parameter>
       <parameter id="correct_only" value="true"/>
       <parameter id="correct_first" value="false"/>
@@ -1343,7 +1343,7 @@ k2=0.8</parameter>
    </instance>
    <instance class="ProcessContainer" id="BlurX_StarX_instance">
       <instance class="BlurXTerminator" version="256" enabled="true">
-         <time start="2025-08-10T15:57:43.106Z" span="12.877671"/>
+         <time start="2025-10-10T01:43:25.550Z" span="11.649877"/>
          <parameter id="ai_file">BlurXTerminator.4.mlpackage</parameter>
          <parameter id="correct_only" value="false"/>
          <parameter id="correct_first" value="false"/>
@@ -1356,7 +1356,7 @@ k2=0.8</parameter>
          <parameter id="sharpen_nonstellar" value="0.50"/>
       </instance>
       <instance class="StarXTerminator" version="256" enabled="true">
-         <time start="2025-08-10T15:57:56.011Z" span="8.8658122"/>
+         <time start="2025-10-10T01:43:37.235Z" span="8.7847478"/>
          <parameter id="ai_file">StarXTerminator.lite.nonoise.11.mlpackage</parameter>
          <parameter id="stars" value="false"/>
          <parameter id="unscreen" value="false"/>
@@ -1462,7 +1462,7 @@ k2=0.8</parameter>
    <icon id="Process52" instance="Process52_instance" xpos="1568" ypos="296" workspace="Workspace03"/>
    <icon id="Process53" instance="Process53_instance" xpos="1568" ypos="328" workspace="Workspace03"/>
    <icon id="Process54" instance="Process54_instance" xpos="1568" ypos="360" workspace="Workspace03"/>
-   <icon id="BlurXCorrectOnly" instance="BlurXCorrectOnly_instance" xpos="1544" ypos="232" workspace="Workspace01"/>
+   <icon id="BlurXCorrectOnly" instance="BlurXCorrectOnly_instance" xpos="1544" ypos="72" workspace="Workspace01"/>
    <icon id="arcsinh" instance="arcsinh_instance" xpos="1544" ypos="664" workspace="Workspace01"/>
    <icon id="BlurX_StarX" instance="BlurX_StarX_instance" xpos="1544" ypos="360" workspace="Workspace01"/>
    <icon id="ColorSaturation" instance="ColorSaturation_instance" xpos="1552" ypos="408" workspace="Workspace02"/>

@@ -152,11 +152,13 @@ starnet -stretch -nostarmask
       sys.exit(1)
 
 def get_bg(f, config):
+  global STRETCH
   # Get background region from config
   bg_region = config['background_region']
   (x, y, w, h) = (bg_region['x'], bg_region['y'], bg_region['w'], bg_region['h'])
   script = f"""requires 1.3.5
 load {f}
+{"autostretch" if STRETCH else ""}
 boxselect {x} {y} {w} {h}
 stat
 """
@@ -225,10 +227,15 @@ stat
         max = float(m.group(5))
         # bgnoise = float(m.group(6))
         bg, bgnoise = get_bg(f, config)
-        snr = (mean - bg) / sigma
+        if sigma == 0:
+          snr = 0
+        else:
+          snr = (mean - bg) / sigma
         print(f"{f.name}: Mean: {mean:6.2f}, Median: {median:6.2f}, Sigma: {sigma:6.2f}, Min: {min:6.2f}, Max: {max:6.2f}, bgnoise: {bgnoise:6.2f} bg: {bg:6.2f} SNR: {snr:6.2f}")
       else:
         print(f"Error parsing output of stat command for {f}")
+        print(result.stdout)
+        continue
       stats.append((f, mean, median, sigma, min, max, bgnoise, bg, snr))
     except subprocess.CalledProcessError as e:
       print(f"Error running Siril: {e}")
