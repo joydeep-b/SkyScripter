@@ -3,7 +3,7 @@
 ********************************************************************
 PixInsight XML Process Serialization Module - XPSM 1.0
 ********************************************************************
-Generated on 2025-10-12T14:55:07.346Z
+Generated on 2025-10-15T18:00:55.576Z
 PixInsight Core 1.9.1 (x64)
 Copyright (c) 2003-2024 Pleiades Astrophoto
 ********************************************************************
@@ -56,7 +56,7 @@ Copyright (c) 2003-2024 Pleiades Astrophoto
    </instance>
    <instance class="NoiseXTerminator" version="256" id="NoiseX_instance">
       <mask id="RGB_chroma_mask" inverted="false" deleted="false"/>
-      <time start="2025-10-10T01:45:09.646Z" span="9.5126891"/>
+      <time start="2025-10-12T23:23:23.733Z" span="9.6437093"/>
       <parameter id="ai_file">NoiseXTerminator.3.mlpackage</parameter>
       <parameter id="enable_color_separation" value="false"/>
       <parameter id="enable_frequency_separation" value="false"/>
@@ -396,7 +396,7 @@ Copyright (c) 2003-2024 Pleiades Astrophoto
       <parameter id="invert" value="false"/>
    </instance>
    <instance class="BlurXTerminator" version="256" id="BlurX_instance">
-      <time start="2025-10-04T17:50:13.844Z" span="14.92856"/>
+      <time start="2025-10-12T17:08:17.875Z" span="11.674111"/>
       <parameter id="ai_file">BlurXTerminator.4.mlpackage</parameter>
       <parameter id="correct_only" value="false"/>
       <parameter id="correct_first" value="false"/>
@@ -1343,7 +1343,7 @@ k2=0.8</parameter>
    </instance>
    <instance class="ProcessContainer" id="BlurX_StarX_instance">
       <instance class="BlurXTerminator" version="256" enabled="true">
-         <time start="2025-10-10T01:43:25.550Z" span="11.649877"/>
+         <time start="2025-10-12T23:18:44.020Z" span="11.432568"/>
          <parameter id="ai_file">BlurXTerminator.4.mlpackage</parameter>
          <parameter id="correct_only" value="false"/>
          <parameter id="correct_first" value="false"/>
@@ -1356,7 +1356,7 @@ k2=0.8</parameter>
          <parameter id="sharpen_nonstellar" value="0.50"/>
       </instance>
       <instance class="StarXTerminator" version="256" enabled="true">
-         <time start="2025-10-10T01:43:37.235Z" span="8.7847478"/>
+         <time start="2025-10-12T23:18:55.473Z" span="8.408314"/>
          <parameter id="ai_file">StarXTerminator.lite.nonoise.11.mlpackage</parameter>
          <parameter id="stars" value="false"/>
          <parameter id="unscreen" value="false"/>
