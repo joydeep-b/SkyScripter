@@ -66,6 +66,8 @@ def get_stack_size(fits_files):
     stack_sizes.append(stack_sizes[-1] * 2)
   if stack_sizes[-1] < len(fits_files):
     stack_sizes.append(len(fits_files))
+  for i, s in enumerate(stack_sizes):
+    print(f"Stack size {i+1}: {s}")
   return stack_sizes
 
 def create_sub_stack(indir, outdir, stack_size):
