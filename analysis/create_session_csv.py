@@ -104,13 +104,16 @@ def get_session_data(directory):
                 header = hdul[0].header
                 date = datetime.strptime(header['DATE-OBS'], '%Y-%m-%dT%H:%M:%S.%f').date()
                 if 'FILTER' in header:
-                    filter = header['FILTER']
+                    filter = header['FILTER'].strip()
                 else:
-                    filter = 'H'
+                    filter = 'Unknown'
                 duration = header['EXPTIME']
                 gain = header['GAIN']
                 sensorCooling = header['CCD-TEMP']
-                temperature = header['FOCUSTEM']
+                if 'FOCUSTEM' in header:
+                    temperature = header['FOCUSTEM']
+                else:
+                    temperature = -1
                 
                 # Handle case where filter might not be in lookup
                 if filter not in filter_lookup:
