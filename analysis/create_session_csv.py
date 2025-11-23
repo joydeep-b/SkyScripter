@@ -117,8 +117,13 @@ def get_session_data(directory):
                 
                 # Handle case where filter might not be in lookup
                 if filter not in filter_lookup:
-                    print(f"\nWarning: Unknown filter '{filter}' in {file}, using 'H' as default")
-                    filter = 'H'
+                    # Try matching just the first letter
+                    if filter and filter[0] in filter_lookup:
+                        filter = filter[0]
+                        print(f"\nInfo: Using filter '{filter}' for {file}")
+                    else:
+                        print(f"\nWarning: Unknown filter '{filter}' in {file}, using 'H' as default")
+                        filter = 'H'
                 
                 session = Session(date, filter, duration, gain, sensorCooling,
                                   default_values['darks'], default_values['flats'],
