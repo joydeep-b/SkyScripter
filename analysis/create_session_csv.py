@@ -17,7 +17,7 @@ default_values = {
     'bias': '100',
 }
 
-filter_lookup = {
+default_filter_lookup = {
     'L': 4452,
     'R': 4457,
     'G': 4447,
@@ -26,6 +26,8 @@ filter_lookup = {
     'S': 23763,
     'O': 23762,
 }
+# This global can be overridden at runtime via CLI flags.
+filter_lookup = default_filter_lookup.copy()
 
 class Session:
     def __init__(self, date, filter, duration, gain, sensorCooling, darks, flats, bias, bortle, temperature):
@@ -102,7 +104,10 @@ def get_session_data(directory):
         try:
             with fits.open(file) as hdul:
                 header = hdul[0].header
-                date = datetime.strptime(header['DATE-OBS'], '%Y-%m-%dT%H:%M:%S.%f').date()
+                date_obs = header['DATE-OBS'][:19]
+                dt = datetime.strptime(date_obs, '%Y-%m-%dT%H:%M:%S')
+
+                date = dt.date()
                 if 'FILTER' in header:
                     filter = header['FILTER'].strip()
                 else:
@@ -135,6 +140,7 @@ def get_session_data(directory):
                     sessions.append(session)
         except Exception as e:
             print(f"\nError processing {file}: {e}")
+            # raise e
             continue
     
     print('\r', end='')
@@ -175,7 +181,20 @@ def main():
     parser = argparse.ArgumentParser(description='Create a csv file with astrophotography session information.')
     parser.add_argument('dir', type=str, help='Directory containing the fits files.')
     parser.add_argument('-out', type=str, help='Output csv file.')
+    # Allow per-filter ID overrides (e.g. -H 9999).
+    for filter_name in default_filter_lookup.keys():
+        parser.add_argument(f'-{filter_name}', dest=filter_name, type=int,
+                            help=f'Override filter ID for {filter_name} filter.')
     args = parser.parse_args()
+
+    # Apply filter overrides if provided.
+    global filter_lookup
+    filter_lookup = default_filter_lookup.copy()
+    for name, default_id in default_filter_lookup.items():
+        override = getattr(args, name)
+        if override is not None:
+            filter_lookup[name] = override
+    print(f'Using filter lookup override: {filter_lookup}')
 
     print(f'Creating csv file with session data from {args.dir}.')
     # Get the session data.
