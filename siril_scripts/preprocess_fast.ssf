@@ -6,7 +6,7 @@ calibrate light -dark=$defdark -flat=$defflat -cc=dark
 
 register pp_light
 
-stack r_pp_light rej 3 3  -norm=addscale -output_norm -weight=wfwhm -filter-wfwhm=90% -out=../../master_light_$FILTER:%s$
+stack r_pp_light rej 3 3  -norm=addscale -output_norm -weight=wfwhm -out=../../master_light_$FILTER:%s$
 
 # Alphabetical order of filters
 # 1 2 3 4 5 6 7

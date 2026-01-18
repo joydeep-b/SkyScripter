@@ -3,9 +3,9 @@
 ********************************************************************
 PixInsight XML Process Serialization Module - XPSM 1.0
 ********************************************************************
-Generated on 2025-10-15T18:00:55.576Z
-PixInsight Core 1.9.1 (x64)
-Copyright (c) 2003-2024 Pleiades Astrophoto
+Generated on 2026-01-13T13:55:46.946Z
+PixInsight Core 1.9.3 (x64)
+Copyright (c) 2003-2025 Pleiades Astrophoto
 ********************************************************************
 -->
 <xpsm version="1.0" xmlns="http://www.pixinsight.com/xpsm" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.pixinsight.com/xpsm http://pixinsight.com/xpsm/xpsm-1.0.xsd">
@@ -48,7 +48,7 @@ Copyright (c) 2003-2024 Pleiades Astrophoto
       <parameter id="noGUIMessages" value="false"/>
    </instance>
    <instance class="StarXTerminator" version="256" id="StarX_instance">
-      <time start="2025-10-05T12:11:40.990Z" span="9.3944065"/>
+      <time start="2026-01-11T03:12:31.211Z" span="12.780632"/>
       <parameter id="ai_file">StarXTerminator.lite.nonoise.11.mlpackage</parameter>
       <parameter id="stars" value="false"/>
       <parameter id="unscreen" value="false"/>
@@ -56,7 +56,7 @@ Copyright (c) 2003-2024 Pleiades Astrophoto
    </instance>
    <instance class="NoiseXTerminator" version="256" id="NoiseX_instance">
       <mask id="RGB_chroma_mask" inverted="false" deleted="false"/>
-      <time start="2025-10-12T23:23:23.733Z" span="9.6437093"/>
+      <time start="2026-01-11T03:13:06.712Z" span="11.959808"/>
       <parameter id="ai_file">NoiseXTerminator.3.mlpackage</parameter>
       <parameter id="enable_color_separation" value="false"/>
       <parameter id="enable_frequency_separation" value="false"/>
@@ -396,7 +396,7 @@ Copyright (c) 2003-2024 Pleiades Astrophoto
       <parameter id="invert" value="false"/>
    </instance>
    <instance class="BlurXTerminator" version="256" id="BlurX_instance">
-      <time start="2025-10-12T17:08:17.875Z" span="11.674111"/>
+      <time start="2026-01-11T03:12:09.857Z" span="12.413464"/>
       <parameter id="ai_file">BlurXTerminator.4.mlpackage</parameter>
       <parameter id="correct_only" value="false"/>
       <parameter id="correct_first" value="false"/>
@@ -1322,7 +1322,7 @@ k2=0.8</parameter>
       <table id="outputData" rows="0"/>
    </instance>
    <instance class="BlurXTerminator" version="256" id="BlurXCorrectOnly_instance">
-      <time start="2025-10-09T19:15:09.358Z" span="12.36014"/>
+      <time start="2026-01-11T03:08:45.747Z" span="16.880867"/>
       <parameter id="ai_file">BlurXTerminator.4.mlpackage</parameter>
       <parameter id="correct_only" value="true"/>
       <parameter id="correct_first" value="false"/>
@@ -1343,7 +1343,7 @@ k2=0.8</parameter>
    </instance>
    <instance class="ProcessContainer" id="BlurX_StarX_instance">
       <instance class="BlurXTerminator" version="256" enabled="true">
-         <time start="2025-10-12T23:18:44.020Z" span="11.432568"/>
+         <time start="2026-01-02T21:16:47.748Z" span="11.399034"/>
          <parameter id="ai_file">BlurXTerminator.4.mlpackage</parameter>
          <parameter id="correct_only" value="false"/>
          <parameter id="correct_first" value="false"/>
@@ -1356,7 +1356,7 @@ k2=0.8</parameter>
          <parameter id="sharpen_nonstellar" value="0.50"/>
       </instance>
       <instance class="StarXTerminator" version="256" enabled="true">
-         <time start="2025-10-12T23:18:55.473Z" span="8.408314"/>
+         <time start="2026-01-02T21:16:59.170Z" span="10.494007"/>
          <parameter id="ai_file">StarXTerminator.lite.nonoise.11.mlpackage</parameter>
          <parameter id="stars" value="false"/>
          <parameter id="unscreen" value="false"/>
@@ -1415,30 +1415,216 @@ k2=0.8</parameter>
       <parameter id="HSt" value="AkimaSubsplines"/>
       <parameter id="hueShift" value="0.000"/>
    </instance>
-   <icon id="STF" instance="STF_instance" xpos="1544" ypos="8" workspace="Workspace01"/>
-   <icon id="VerticalMirror" instance="VerticalMirror_instance" xpos="1544" ypos="40" workspace="Workspace01"/>
-   <icon id="StarX" instance="StarX_instance" xpos="1544" ypos="296" workspace="Workspace01"/>
-   <icon id="NoiseX" instance="NoiseX_instance" xpos="1544" ypos="328" workspace="Workspace01"/>
-   <icon id="GHS" instance="GHS_instance" xpos="1544" ypos="392" workspace="Workspace01"/>
-   <icon id="SPCC" instance="SPCC_instance" xpos="1544" ypos="200" workspace="Workspace01"/>
+   <instance class="ProcessContainer" id="Process531_instance">
+      <instance class="HistogramTransformation" version="256" enabled="true">
+         <time start="2025-12-24T14:41:54.017Z" span="0.28312488"/>
+         <table id="H" rows="5">
+            <tr>
+               <td id="c0" value="0.00000000"/>
+               <td id="m" value="0.50000000"/>
+               <td id="c1" value="1.00000000"/>
+               <td id="r0" value="0.00000000"/>
+               <td id="r1" value="1.00000000"/>
+            </tr>
+            <tr>
+               <td id="c0" value="0.00000000"/>
+               <td id="m" value="0.50000000"/>
+               <td id="c1" value="1.00000000"/>
+               <td id="r0" value="0.00000000"/>
+               <td id="r1" value="1.00000000"/>
+            </tr>
+            <tr>
+               <td id="c0" value="0.00000000"/>
+               <td id="m" value="0.50000000"/>
+               <td id="c1" value="1.00000000"/>
+               <td id="r0" value="0.00000000"/>
+               <td id="r1" value="1.00000000"/>
+            </tr>
+            <tr>
+               <td id="c0" value="0.00062897"/>
+               <td id="m" value="0.00019600"/>
+               <td id="c1" value="1.00000000"/>
+               <td id="r0" value="0.00000000"/>
+               <td id="r1" value="1.00000000"/>
+            </tr>
+            <tr>
+               <td id="c0" value="0.00000000"/>
+               <td id="m" value="0.50000000"/>
+               <td id="c1" value="1.00000000"/>
+               <td id="r0" value="0.00000000"/>
+               <td id="r1" value="1.00000000"/>
+            </tr>
+         </table>
+      </instance>
+      <instance class="GeneralizedHyperbolicStretch" version="256" enabled="true">
+         <time start="2025-12-24T14:41:54.313Z" span="0.16772283"/>
+         <parameter id="stretchType" value="ST_GeneralisedHyperbolic"/>
+         <parameter id="stretchChannel" value="SC_Red"/>
+         <parameter id="inverse" value="false"/>
+         <parameter id="stretchFactor" value="1.920"/>
+         <parameter id="localIntensity" value="0.000"/>
+         <parameter id="symmetryPoint" value="0.255365"/>
+         <parameter id="highlightProtection" value="0.370000"/>
+         <parameter id="shadowProtection" value="0.100000"/>
+         <parameter id="blackPoint" value="0.000000"/>
+         <parameter id="whitePoint" value="1.000000"/>
+         <parameter id="colourBlend" value="1.000"/>
+         <parameter id="clipType" value="CT_RGBBlend"/>
+         <parameter id="useRGBWorkingSpace" value="false"/>
+      </instance>
+      <instance class="GeneralizedHyperbolicStretch" version="256" enabled="true">
+         <time start="2025-12-24T14:41:54.493Z" span="0.45770517"/>
+         <parameter id="stretchType" value="ST_GeneralisedHyperbolic"/>
+         <parameter id="stretchChannel" value="SC_Red"/>
+         <parameter id="inverse" value="false"/>
+         <parameter id="stretchFactor" value="1.300"/>
+         <parameter id="localIntensity" value="0.000"/>
+         <parameter id="symmetryPoint" value="0.263627"/>
+         <parameter id="highlightProtection" value="0.370000"/>
+         <parameter id="shadowProtection" value="0.100000"/>
+         <parameter id="blackPoint" value="0.000000"/>
+         <parameter id="whitePoint" value="1.000000"/>
+         <parameter id="colourBlend" value="1.000"/>
+         <parameter id="clipType" value="CT_RGBBlend"/>
+         <parameter id="useRGBWorkingSpace" value="false"/>
+      </instance>
+      <instance class="GeneralizedHyperbolicStretch" version="256" enabled="true">
+         <time start="2025-12-24T14:41:55.238Z" span="0.21039987"/>
+         <parameter id="stretchType" value="ST_GeneralisedHyperbolic"/>
+         <parameter id="stretchChannel" value="SC_Green"/>
+         <parameter id="inverse" value="false"/>
+         <parameter id="stretchFactor" value="1.820"/>
+         <parameter id="localIntensity" value="0.000"/>
+         <parameter id="symmetryPoint" value="0.220000"/>
+         <parameter id="highlightProtection" value="0.300000"/>
+         <parameter id="shadowProtection" value="0.100000"/>
+         <parameter id="blackPoint" value="0.000000"/>
+         <parameter id="whitePoint" value="1.000000"/>
+         <parameter id="colourBlend" value="1.000"/>
+         <parameter id="clipType" value="CT_RGBBlend"/>
+         <parameter id="useRGBWorkingSpace" value="false"/>
+      </instance>
+      <instance class="GeneralizedHyperbolicStretch" version="256" enabled="true">
+         <time start="2025-12-24T14:41:55.471Z" span="0.21381133"/>
+         <parameter id="stretchType" value="ST_GeneralisedHyperbolic"/>
+         <parameter id="stretchChannel" value="SC_Blue"/>
+         <parameter id="inverse" value="false"/>
+         <parameter id="stretchFactor" value="1.820"/>
+         <parameter id="localIntensity" value="0.000"/>
+         <parameter id="symmetryPoint" value="0.220000"/>
+         <parameter id="highlightProtection" value="0.300000"/>
+         <parameter id="shadowProtection" value="0.100000"/>
+         <parameter id="blackPoint" value="0.000000"/>
+         <parameter id="whitePoint" value="1.000000"/>
+         <parameter id="colourBlend" value="1.000"/>
+         <parameter id="clipType" value="CT_RGBBlend"/>
+         <parameter id="useRGBWorkingSpace" value="false"/>
+      </instance>
+      <instance class="GeneralizedHyperbolicStretch" version="256" enabled="true">
+         <time start="2025-12-24T14:41:55.705Z" span="0.47886812"/>
+         <parameter id="stretchType" value="ST_GeneralisedHyperbolic"/>
+         <parameter id="stretchChannel" value="SC_RGB"/>
+         <parameter id="inverse" value="false"/>
+         <parameter id="stretchFactor" value="1.380"/>
+         <parameter id="localIntensity" value="0.000"/>
+         <parameter id="symmetryPoint" value="0.172574"/>
+         <parameter id="highlightProtection" value="0.270000"/>
+         <parameter id="shadowProtection" value="0.000000"/>
+         <parameter id="blackPoint" value="0.000000"/>
+         <parameter id="whitePoint" value="1.000000"/>
+         <parameter id="colourBlend" value="1.000"/>
+         <parameter id="clipType" value="CT_RGBBlend"/>
+         <parameter id="useRGBWorkingSpace" value="false"/>
+      </instance>
+      <instance class="GeneralizedHyperbolicStretch" version="256" enabled="true">
+         <time start="2025-12-24T14:41:56.205Z" span="0.15354721"/>
+         <parameter id="stretchType" value="ST_GeneralisedHyperbolic"/>
+         <parameter id="stretchChannel" value="SC_Red"/>
+         <parameter id="inverse" value="false"/>
+         <parameter id="stretchFactor" value="1.380"/>
+         <parameter id="localIntensity" value="0.000"/>
+         <parameter id="symmetryPoint" value="0.417063"/>
+         <parameter id="highlightProtection" value="0.570000"/>
+         <parameter id="shadowProtection" value="0.260000"/>
+         <parameter id="blackPoint" value="0.000000"/>
+         <parameter id="whitePoint" value="1.000000"/>
+         <parameter id="colourBlend" value="1.000"/>
+         <parameter id="clipType" value="CT_RGBBlend"/>
+         <parameter id="useRGBWorkingSpace" value="false"/>
+      </instance>
+      <instance class="GeneralizedHyperbolicStretch" version="256" enabled="true">
+         <time start="2025-12-24T14:41:56.380Z" span="0.2004285"/>
+         <parameter id="stretchType" value="ST_GeneralisedHyperbolic"/>
+         <parameter id="stretchChannel" value="SC_Blue"/>
+         <parameter id="inverse" value="false"/>
+         <parameter id="stretchFactor" value="1.740"/>
+         <parameter id="localIntensity" value="0.000"/>
+         <parameter id="symmetryPoint" value="0.206985"/>
+         <parameter id="highlightProtection" value="0.340000"/>
+         <parameter id="shadowProtection" value="0.050000"/>
+         <parameter id="blackPoint" value="0.000000"/>
+         <parameter id="whitePoint" value="1.000000"/>
+         <parameter id="colourBlend" value="1.000"/>
+         <parameter id="clipType" value="CT_RGBBlend"/>
+         <parameter id="useRGBWorkingSpace" value="false"/>
+      </instance>
+      <instance class="GeneralizedHyperbolicStretch" version="256" enabled="true">
+         <time start="2025-12-24T14:41:56.605Z" span="0.19416529"/>
+         <parameter id="stretchType" value="ST_GeneralisedHyperbolic"/>
+         <parameter id="stretchChannel" value="SC_Blue"/>
+         <parameter id="inverse" value="false"/>
+         <parameter id="stretchFactor" value="1.740"/>
+         <parameter id="localIntensity" value="0.000"/>
+         <parameter id="symmetryPoint" value="0.206985"/>
+         <parameter id="highlightProtection" value="0.340000"/>
+         <parameter id="shadowProtection" value="0.050000"/>
+         <parameter id="blackPoint" value="0.000000"/>
+         <parameter id="whitePoint" value="1.000000"/>
+         <parameter id="colourBlend" value="1.000"/>
+         <parameter id="clipType" value="CT_RGBBlend"/>
+         <parameter id="useRGBWorkingSpace" value="false"/>
+      </instance>
+      <instance class="GeneralizedHyperbolicStretch" version="256" enabled="true">
+         <time start="2025-12-24T14:41:56.821Z" span="0.18607117"/>
+         <parameter id="stretchType" value="ST_GeneralisedHyperbolic"/>
+         <parameter id="stretchChannel" value="SC_Red"/>
+         <parameter id="inverse" value="false"/>
+         <parameter id="stretchFactor" value="1.480"/>
+         <parameter id="localIntensity" value="0.000"/>
+         <parameter id="symmetryPoint" value="0.228868"/>
+         <parameter id="highlightProtection" value="0.340000"/>
+         <parameter id="shadowProtection" value="0.130000"/>
+         <parameter id="blackPoint" value="0.000000"/>
+         <parameter id="whitePoint" value="1.000000"/>
+         <parameter id="colourBlend" value="1.000"/>
+         <parameter id="clipType" value="CT_RGBBlend"/>
+         <parameter id="useRGBWorkingSpace" value="false"/>
+      </instance>
+   </instance>
+   <icon id="STF" instance="STF_instance" xpos="1528" ypos="8" workspace="Workspace01"/>
+   <icon id="VerticalMirror" instance="VerticalMirror_instance" xpos="1528" ypos="40" workspace="Workspace01"/>
+   <icon id="StarX" instance="StarX_instance" xpos="1528" ypos="264" workspace="Workspace01"/>
+   <icon id="NoiseX" instance="NoiseX_instance" xpos="1528" ypos="296" workspace="Workspace01"/>
+   <icon id="GHS" instance="GHS_instance" xpos="1528" ypos="360" workspace="Workspace01"/>
+   <icon id="SPCC" instance="SPCC_instance" xpos="1528" ypos="200" workspace="Workspace01"/>
    <icon id="StarRecombine" instance="StarRecombine_instance" xpos="1568" ypos="72" workspace="Workspace03"/>
-   <icon id="Hist" instance="Hist_instance" xpos="1544" ypos="424" workspace="Workspace01"/>
-   <icon id="DynamicCrop" instance="DynamicCrop_instance" xpos="1544" ypos="456" workspace="Workspace01"/>
-   <icon id="Rescale" instance="Rescale_instance" xpos="1544" ypos="488" workspace="Workspace01"/>
-   <icon id="Curves" instance="Curves_instance" xpos="1544" ypos="536" workspace="Workspace01"/>
-   <icon id="Saturation" instance="Saturation_instance" xpos="1544" ypos="568" workspace="Workspace01"/>
-   <icon id="RangeSelection" instance="RangeSelection_instance" xpos="1544" ypos="600" workspace="Workspace01"/>
-   <icon id="BlurX" instance="BlurX_instance" xpos="1544" ypos="264" workspace="Workspace01"/>
-   <icon id="PixelMath" instance="PixelMath_instance" xpos="1544" ypos="632" workspace="Workspace01"/>
-   <icon id="ColorCalibration" instance="ColorCalibration_instance" xpos="1544" ypos="696" workspace="Workspace01"/>
-   <icon id="ChannelCombination" instance="ChannelCombination_instance" xpos="1544" ypos="728" workspace="Workspace01"/>
-   <icon id="BkgNeutralization" instance="BkgNeutralization_instance" xpos="1544" ypos="168" workspace="Workspace01"/>
-   <icon id="LinearFit" instance="LinearFit_instance" xpos="1544" ypos="824" workspace="Workspace01"/>
-   <icon id="LRGBCombination" instance="LRGBCombination_instance" xpos="1544" ypos="760" workspace="Workspace01"/>
-   <icon id="HaMinusR" instance="HaMinusR_instance" xpos="1544" ypos="920" workspace="Workspace01"/>
-   <icon id="SPFC" instance="SPFC_instance" xpos="1544" ypos="104" workspace="Workspace01"/>
-   <icon id="MSGC" instance="MSGC_instance" xpos="1544" ypos="136" workspace="Workspace01"/>
-   <icon id="RGBPlusHa" instance="RGBPlusHa_instance" xpos="1544" ypos="952" workspace="Workspace01"/>
+   <icon id="Hist" instance="Hist_instance" xpos="1528" ypos="392" workspace="Workspace01"/>
+   <icon id="DynamicCrop" instance="DynamicCrop_instance" xpos="1528" ypos="424" workspace="Workspace01"/>
+   <icon id="Rescale" instance="Rescale_instance" xpos="1528" ypos="456" workspace="Workspace01"/>
+   <icon id="Curves" instance="Curves_instance" xpos="1528" ypos="488" workspace="Workspace01"/>
+   <icon id="Saturation" instance="Saturation_instance" xpos="1528" ypos="520" workspace="Workspace01"/>
+   <icon id="RangeSelection" instance="RangeSelection_instance" xpos="1528" ypos="552" workspace="Workspace01"/>
+   <icon id="BlurX" instance="BlurX_instance" xpos="1528" ypos="232" workspace="Workspace01"/>
+   <icon id="PixelMath" instance="PixelMath_instance" xpos="1528" ypos="584" workspace="Workspace01"/>
+   <icon id="ColorCalibration" instance="ColorCalibration_instance" xpos="1528" ypos="648" workspace="Workspace01"/>
+   <icon id="ChannelCombination" instance="ChannelCombination_instance" xpos="1528" ypos="680" workspace="Workspace01"/>
+   <icon id="BkgNeutralization" instance="BkgNeutralization_instance" xpos="1528" ypos="168" workspace="Workspace01"/>
+   <icon id="LinearFit" instance="LinearFit_instance" xpos="1528" ypos="744" workspace="Workspace01"/>
+   <icon id="LRGBCombination" instance="LRGBCombination_instance" xpos="1528" ypos="712" workspace="Workspace01"/>
+   <icon id="HaMinusR" instance="HaMinusR_instance" xpos="1528" ypos="808" workspace="Workspace01"/>
+   <icon id="SPFC" instance="SPFC_instance" xpos="1528" ypos="104" workspace="Workspace01"/>
+   <icon id="MSGC" instance="MSGC_instance" xpos="1528" ypos="136" workspace="Workspace01"/>
+   <icon id="RGBPlusHa" instance="RGBPlusHa_instance" xpos="1528" ypos="840" workspace="Workspace01"/>
    <icon id="HSS" instance="HSS_instance" xpos="1552" ypos="8" workspace="Workspace02"/>
    <icon id="STF1" instance="STF1_instance" xpos="1552" ypos="40" workspace="Workspace02"/>
    <icon id="DBE1" instance="DBE1_instance" xpos="1552" ypos="104" workspace="Workspace02"/>
@@ -1462,9 +1648,10 @@ k2=0.8</parameter>
    <icon id="Process52" instance="Process52_instance" xpos="1568" ypos="296" workspace="Workspace03"/>
    <icon id="Process53" instance="Process53_instance" xpos="1568" ypos="328" workspace="Workspace03"/>
    <icon id="Process54" instance="Process54_instance" xpos="1568" ypos="360" workspace="Workspace03"/>
-   <icon id="BlurXCorrectOnly" instance="BlurXCorrectOnly_instance" xpos="1544" ypos="72" workspace="Workspace01"/>
-   <icon id="arcsinh" instance="arcsinh_instance" xpos="1544" ypos="664" workspace="Workspace01"/>
-   <icon id="BlurX_StarX" instance="BlurX_StarX_instance" xpos="1544" ypos="360" workspace="Workspace01"/>
+   <icon id="BlurXCorrectOnly" instance="BlurXCorrectOnly_instance" xpos="1528" ypos="72" workspace="Workspace01"/>
+   <icon id="arcsinh" instance="arcsinh_instance" xpos="1528" ypos="616" workspace="Workspace01"/>
+   <icon id="BlurX_StarX" instance="BlurX_StarX_instance" xpos="1528" ypos="328" workspace="Workspace01"/>
    <icon id="ColorSaturation" instance="ColorSaturation_instance" xpos="1552" ypos="408" workspace="Workspace02"/>
    <icon id="Process541" instance="Process541_instance" xpos="1568" ypos="448" workspace="Workspace02"/>
+   <icon id="Process531" instance="Process531_instance" xpos="1528" ypos="776" workspace="Workspace01"/>
 </xpsm>
