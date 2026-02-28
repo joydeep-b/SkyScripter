@@ -112,11 +112,14 @@ def get_session_data(directory):
                     filter = header['FILTER'].strip()
                 else:
                     filter = 'Unknown'
-                duration = header['EXPTIME']
+                duration = float(header['EXPTIME'])
                 gain = header['GAIN']
-                sensorCooling = header['CCD-TEMP']
+                if 'CCD-TEMP' in header:
+                    sensorCooling = float(header['CCD-TEMP'])
+                else:
+                    sensorCooling = 0
                 if 'FOCUSTEM' in header:
-                    temperature = header['FOCUSTEM']
+                    temperature = float(header['FOCUSTEM'])
                 else:
                     temperature = -1
                 
@@ -125,11 +128,10 @@ def get_session_data(directory):
                     # Try matching just the first letter
                     if filter and filter[0] in filter_lookup:
                         filter = filter[0]
-                        print(f"\nInfo: Using filter '{filter}' for {file}")
+                        # print(f"\nInfo: Using filter '{filter}' for {file}")
                     else:
                         print(f"\nWarning: Unknown filter '{filter}' in {file}, using 'H' as default")
                         filter = 'H'
-                
                 session = Session(date, filter, duration, gain, sensorCooling,
                                   default_values['darks'], default_values['flats'],
                                   default_values['bias'], default_values['bortle'], temperature)
