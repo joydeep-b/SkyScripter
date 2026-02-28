@@ -21,6 +21,7 @@ FILTER_ALIAS_MAP = {
     "O": "O",
     "OIII": "O",
     "O3": "O",
+    "OXYGENIII": "O",
     
     "S": "S",
     "SII": "S",
@@ -39,6 +40,23 @@ FILTER_ALIAS_MAP = {
     "B": "B",
     "BLUE": "B",
 }
+
+FILENAME_FILTER_HINTS = [
+    ("HYDROGENALPHA", "H"),
+    ("HALPHA", "H"),
+    ("HII", "H"),
+    ("OXYGENIII", "O"),
+    ("OIII", "O"),
+    ("O3", "O"),
+    ("SULFURII", "S"),
+    ("SII", "S"),
+    ("S2", "S"),
+    ("LUMINANCE", "L"),
+    ("LUM", "L"),
+    ("RED", "R"),
+    ("GREEN", "G"),
+    ("BLUE", "B"),
+]
 
 
 def parse_args():
@@ -89,22 +107,36 @@ def normalize_filter_key(filter_value: str) -> str:
     return re.sub(r"[^A-Z0-9]", "", filter_value.strip().upper())
 
 
-def sanitize_name(name: str, default: str = "Unknown") -> str:
+def sanitize_name(name: str) -> str | None:
     cleaned = re.sub(r"[^A-Za-z0-9._-]+", "_", name.strip())
     cleaned = cleaned.strip("._-")
-    return cleaned or default
+    return cleaned or None
 
 
-def canonical_filter_name(raw_filter: str | None) -> str:
+def canonical_filter_name(raw_filter: str | None) -> str | None:
     if raw_filter is None:
-        return "Unknown"
+        return None
     raw_filter = str(raw_filter).strip()
     if not raw_filter:
-        return "Unknown"
+        return None
     key = normalize_filter_key(raw_filter)
     if key in FILTER_ALIAS_MAP:
         return FILTER_ALIAS_MAP[key]
-    return sanitize_name(raw_filter, default="Unknown")
+    return sanitize_name(raw_filter)
+
+
+def infer_filter_from_filename(file_path: Path) -> tuple[str | None, str]:
+    filename_key = normalize_filter_key(file_path.stem)
+    for hint, canonical in FILENAME_FILTER_HINTS:
+        if hint in filename_key:
+            return canonical, hint
+    return None, "NO_MATCH"
+
+
+def write_filter_lookup_report(output_dir: Path, rows: list[str]) -> Path:
+    report_path = output_dir / "filter_lookup_report.tsv"
+    report_path.write_text("\n".join(rows) + "\n", encoding="utf-8")
+    return report_path
 
 
 def discover_fits_files(input_dir: Path) -> list[Path]:
@@ -144,7 +176,8 @@ def cleanup_old_symlinks(output_dir: Path, dry_run: bool) -> int:
 def link_name_from_relative_path(input_dir: Path, fits_file: Path) -> str:
     relative = fits_file.relative_to(input_dir)
     joined = "__".join(relative.parts)
-    return sanitize_name(joined, default=fits_file.name)
+    sanitized = sanitize_name(joined)
+    return sanitized if sanitized is not None else fits_file.name
 
 
 def make_unique_link_path(filter_dir: Path, base_name: str, target: Path) -> Path:
@@ -167,7 +200,9 @@ def make_unique_link_path(filter_dir: Path, base_name: str, target: Path) -> Pat
         index += 1
 
 
-def get_filter_and_exptime(fits_file: Path) -> tuple[str, float | None]:
+def get_filter_and_exptime(
+    fits_file: Path,
+) -> tuple[str | None, float | None, str | None]:
     with fits.open(fits_file) as hdul:
         header = hdul[0].header
         raw_filter = header["FILTER"].strip() if "FILTER" in header else None
@@ -177,7 +212,7 @@ def get_filter_and_exptime(fits_file: Path) -> tuple[str, float | None]:
                 exptime = float(header["EXPTIME"])
             except (TypeError, ValueError):
                 exptime = None
-    return canonical_filter_name(raw_filter), exptime
+    return canonical_filter_name(raw_filter), exptime, raw_filter
 
 
 def main():
@@ -206,20 +241,69 @@ def main():
     per_filter_count = Counter()
     per_filter_seconds = Counter()
     warning_count = 0
+    missing_filter_count = 0
+    filename_lookup_used_count = 0
     error_count = 0
     linked_count = 0
+    report_rows = [
+        "\t".join(
+            [
+                "source_file",
+                "fits_filter_raw",
+                "fits_filter_canonical",
+                "filename_lookup_hint",
+                "filename_lookup_canonical",
+                "final_filter",
+                "lookup_status",
+            ]
+        )
+    ]
 
     total_files = len(all_files)
     print(f"Processing {total_files} files...")
 
     for idx, fits_file in enumerate(all_files, start=1):
         try:
-            canonical_filter, exptime = get_filter_and_exptime(fits_file)
+            canonical_filter, exptime, raw_filter = get_filter_and_exptime(fits_file)
         except Exception as exc:
             error_count += 1
             print(f"Warning: failed to read FITS header from {fits_file}: {exc}", file=sys.stderr)
             update_progress(idx, total_files, prefix="Processing")
             continue
+
+        filename_lookup_hint = ""
+        filename_lookup_filter = ""
+        lookup_status = "fits_header"
+        if canonical_filter is None:
+            inferred_filter, matched_hint = infer_filter_from_filename(fits_file)
+            filename_lookup_hint = matched_hint
+            if inferred_filter is not None:
+                canonical_filter = inferred_filter
+                filename_lookup_filter = inferred_filter
+                filename_lookup_used_count += 1
+                lookup_status = "filename_fallback"
+            else:
+                missing_filter_count += 1
+                lookup_status = "lookup_failed"
+                report_rows.append(
+                    "\t".join(
+                        [
+                            str(fits_file),
+                            str(raw_filter or ""),
+                            "",
+                            filename_lookup_hint,
+                            "",
+                            "",
+                            lookup_status,
+                        ]
+                    )
+                )
+                print(
+                    f"Warning: unable to determine filter for sub '{fits_file}'; skipping.",
+                    file=sys.stderr,
+                )
+                update_progress(idx, total_files, prefix="Processing")
+                continue
 
         if exptime is not None and exptime > args.max_sub_duration:
             warning_count += 1
@@ -236,6 +320,20 @@ def main():
         if not args.dry_run:
             filter_dir.mkdir(parents=True, exist_ok=True)
             link_path.symlink_to(fits_file.resolve())
+
+        report_rows.append(
+            "\t".join(
+                [
+                    str(fits_file),
+                    str(raw_filter or ""),
+                    str(canonical_filter_name(raw_filter) or ""),
+                    filename_lookup_hint,
+                    filename_lookup_filter,
+                    canonical_filter,
+                    lookup_status,
+                ]
+            )
+        )
 
         per_filter_count[canonical_filter] += 1
         if exptime is not None:
@@ -261,7 +359,18 @@ def main():
         f"{format_hms(total_seconds_all):>18}"
     )
     print(f"{'duration_warnings':<22}{warning_count}")
+    print(f"{'missing_filter_warnings':<22}{missing_filter_count}")
+    print(f"{'filename_lookup_used':<22}{filename_lookup_used_count}")
     print(f"{'header_read_errors':<22}{error_count}")
+    report_relpath = Path("filter_lookup_report.tsv")
+    if not args.dry_run:
+        write_filter_lookup_report(output_dir, report_rows)
+    if filename_lookup_used_count > 0 and not args.dry_run:
+        print(
+            f"Warning: filename-based filter lookups were used for "
+            f"{filename_lookup_used_count} file(s). See report: {report_relpath}",
+            file=sys.stderr,
+        )
     if args.dry_run:
         print("  mode: dry-run")
 
