@@ -3,7 +3,7 @@
 ********************************************************************
 PixInsight XML Process Serialization Module - XPSM 1.0
 ********************************************************************
-Generated on 2026-01-13T13:55:46.946Z
+Generated on 2026-03-03T20:14:26.762Z
 PixInsight Core 1.9.3 (x64)
 Copyright (c) 2003-2025 Pleiades Astrophoto
 ********************************************************************
@@ -1343,7 +1343,7 @@ k2=0.8</parameter>
    </instance>
    <instance class="ProcessContainer" id="BlurX_StarX_instance">
       <instance class="BlurXTerminator" version="256" enabled="true">
-         <time start="2026-01-02T21:16:47.748Z" span="11.399034"/>
+         <time start="2026-03-02T20:12:18.400Z" span="15.579914"/>
          <parameter id="ai_file">BlurXTerminator.4.mlpackage</parameter>
          <parameter id="correct_only" value="false"/>
          <parameter id="correct_first" value="false"/>
@@ -1356,7 +1356,7 @@ k2=0.8</parameter>
          <parameter id="sharpen_nonstellar" value="0.50"/>
       </instance>
       <instance class="StarXTerminator" version="256" enabled="true">
-         <time start="2026-01-02T21:16:59.170Z" span="10.494007"/>
+         <time start="2026-03-02T20:12:34.002Z" span="11.137555"/>
          <parameter id="ai_file">StarXTerminator.lite.nonoise.11.mlpackage</parameter>
          <parameter id="stars" value="false"/>
          <parameter id="unscreen" value="false"/>
@@ -1601,6 +1601,24 @@ k2=0.8</parameter>
          <parameter id="useRGBWorkingSpace" value="false"/>
       </instance>
    </instance>
+   <instance class="MultiscaleAdaptiveStretch" version="2" id="MAS_instance">
+      <parameter id="aggressiveness" value="0.70"/>
+      <parameter id="targetBackground" value="0.150"/>
+      <parameter id="dynamicRangeCompression" value="0.40"/>
+      <parameter id="contrastRecovery" value="true"/>
+      <parameter id="scaleSeparation" value="1024"/>
+      <parameter id="contrastRecoveryIntensity" value="1.000"/>
+      <parameter id="previewLargeScale" value="false"/>
+      <parameter id="saturationEnabled" value="true"/>
+      <parameter id="saturationAmount" value="0.75"/>
+      <parameter id="saturationBoost" value="0.50"/>
+      <parameter id="saturationLightnessMask" value="true"/>
+      <parameter id="backgroundROIEnabled" value="false"/>
+      <parameter id="backgroundROIX0" value="0"/>
+      <parameter id="backgroundROIY0" value="0"/>
+      <parameter id="backgroundROIWidth" value="0"/>
+      <parameter id="backgroundROIHeight" value="0"/>
+   </instance>
    <icon id="STF" instance="STF_instance" xpos="1528" ypos="8" workspace="Workspace01"/>
    <icon id="VerticalMirror" instance="VerticalMirror_instance" xpos="1528" ypos="40" workspace="Workspace01"/>
    <icon id="StarX" instance="StarX_instance" xpos="1528" ypos="264" workspace="Workspace01"/>
@@ -1609,22 +1627,22 @@ k2=0.8</parameter>
    <icon id="SPCC" instance="SPCC_instance" xpos="1528" ypos="200" workspace="Workspace01"/>
    <icon id="StarRecombine" instance="StarRecombine_instance" xpos="1568" ypos="72" workspace="Workspace03"/>
    <icon id="Hist" instance="Hist_instance" xpos="1528" ypos="392" workspace="Workspace01"/>
-   <icon id="DynamicCrop" instance="DynamicCrop_instance" xpos="1528" ypos="424" workspace="Workspace01"/>
-   <icon id="Rescale" instance="Rescale_instance" xpos="1528" ypos="456" workspace="Workspace01"/>
-   <icon id="Curves" instance="Curves_instance" xpos="1528" ypos="488" workspace="Workspace01"/>
-   <icon id="Saturation" instance="Saturation_instance" xpos="1528" ypos="520" workspace="Workspace01"/>
-   <icon id="RangeSelection" instance="RangeSelection_instance" xpos="1528" ypos="552" workspace="Workspace01"/>
+   <icon id="DynamicCrop" instance="DynamicCrop_instance" xpos="1528" ypos="456" workspace="Workspace01"/>
+   <icon id="Rescale" instance="Rescale_instance" xpos="1528" ypos="488" workspace="Workspace01"/>
+   <icon id="Curves" instance="Curves_instance" xpos="1528" ypos="520" workspace="Workspace01"/>
+   <icon id="Saturation" instance="Saturation_instance" xpos="1528" ypos="552" workspace="Workspace01"/>
+   <icon id="RangeSelection" instance="RangeSelection_instance" xpos="1528" ypos="584" workspace="Workspace01"/>
    <icon id="BlurX" instance="BlurX_instance" xpos="1528" ypos="232" workspace="Workspace01"/>
-   <icon id="PixelMath" instance="PixelMath_instance" xpos="1528" ypos="584" workspace="Workspace01"/>
-   <icon id="ColorCalibration" instance="ColorCalibration_instance" xpos="1528" ypos="648" workspace="Workspace01"/>
-   <icon id="ChannelCombination" instance="ChannelCombination_instance" xpos="1528" ypos="680" workspace="Workspace01"/>
+   <icon id="PixelMath" instance="PixelMath_instance" xpos="1528" ypos="616" workspace="Workspace01"/>
+   <icon id="ColorCalibration" instance="ColorCalibration_instance" xpos="1528" ypos="680" workspace="Workspace01"/>
+   <icon id="ChannelCombination" instance="ChannelCombination_instance" xpos="1528" ypos="712" workspace="Workspace01"/>
    <icon id="BkgNeutralization" instance="BkgNeutralization_instance" xpos="1528" ypos="168" workspace="Workspace01"/>
-   <icon id="LinearFit" instance="LinearFit_instance" xpos="1528" ypos="744" workspace="Workspace01"/>
-   <icon id="LRGBCombination" instance="LRGBCombination_instance" xpos="1528" ypos="712" workspace="Workspace01"/>
-   <icon id="HaMinusR" instance="HaMinusR_instance" xpos="1528" ypos="808" workspace="Workspace01"/>
+   <icon id="LinearFit" instance="LinearFit_instance" xpos="1528" ypos="776" workspace="Workspace01"/>
+   <icon id="LRGBCombination" instance="LRGBCombination_instance" xpos="1528" ypos="744" workspace="Workspace01"/>
+   <icon id="HaMinusR" instance="HaMinusR_instance" xpos="1528" ypos="840" workspace="Workspace01"/>
    <icon id="SPFC" instance="SPFC_instance" xpos="1528" ypos="104" workspace="Workspace01"/>
    <icon id="MSGC" instance="MSGC_instance" xpos="1528" ypos="136" workspace="Workspace01"/>
-   <icon id="RGBPlusHa" instance="RGBPlusHa_instance" xpos="1528" ypos="840" workspace="Workspace01"/>
+   <icon id="RGBPlusHa" instance="RGBPlusHa_instance" xpos="1528" ypos="872" workspace="Workspace01"/>
    <icon id="HSS" instance="HSS_instance" xpos="1552" ypos="8" workspace="Workspace02"/>
    <icon id="STF1" instance="STF1_instance" xpos="1552" ypos="40" workspace="Workspace02"/>
    <icon id="DBE1" instance="DBE1_instance" xpos="1552" ypos="104" workspace="Workspace02"/>
@@ -1649,9 +1667,10 @@ k2=0.8</parameter>
    <icon id="Process53" instance="Process53_instance" xpos="1568" ypos="328" workspace="Workspace03"/>
    <icon id="Process54" instance="Process54_instance" xpos="1568" ypos="360" workspace="Workspace03"/>
    <icon id="BlurXCorrectOnly" instance="BlurXCorrectOnly_instance" xpos="1528" ypos="72" workspace="Workspace01"/>
-   <icon id="arcsinh" instance="arcsinh_instance" xpos="1528" ypos="616" workspace="Workspace01"/>
+   <icon id="arcsinh" instance="arcsinh_instance" xpos="1528" ypos="648" workspace="Workspace01"/>
    <icon id="BlurX_StarX" instance="BlurX_StarX_instance" xpos="1528" ypos="328" workspace="Workspace01"/>
    <icon id="ColorSaturation" instance="ColorSaturation_instance" xpos="1552" ypos="408" workspace="Workspace02"/>
    <icon id="Process541" instance="Process541_instance" xpos="1568" ypos="448" workspace="Workspace02"/>
-   <icon id="Process531" instance="Process531_instance" xpos="1528" ypos="776" workspace="Workspace01"/>
+   <icon id="Process531" instance="Process531_instance" xpos="1528" ypos="808" workspace="Workspace01"/>
+   <icon id="MAS" instance="MAS_instance" xpos="1528" ypos="424" workspace="Workspace01"/>
 </xpsm>

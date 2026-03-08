@@ -22,7 +22,7 @@ import discord
 
 BASE_DIR = Path(__file__).resolve().parent
 DEFAULT_POWER_SCRIPT = BASE_DIR.parent / "power.sh"
-LOG_FILE = BASE_DIR / "sfro_discord_bot.log"
+LOG_FILE = BASE_DIR / "automation.log"
 
 # Set up root logger
 logging.basicConfig(
@@ -33,14 +33,12 @@ logging.basicConfig(
         logging.FileHandler(LOG_FILE)  # file
     ],
 )
-logger = logging.getLogger("sfro.discord.bot")
+logger = logging.getLogger("sfro.automation")
 
-# You MUST enable message content intent both in code and in the Dev Portal.
 intents = discord.Intents.default()
 intents.message_content = True
 intents.guilds = True
 intents.messages = True
-
 
 @dataclass
 class BotConfig:
