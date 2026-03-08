@@ -176,6 +176,13 @@ def format_hms(total_seconds: float) -> str:
     return f"{hours:02d}:{minutes:02d}:{secs:02d}"
 
 
+def format_hm_compact(total_seconds: float) -> str:
+    seconds = int(round(total_seconds))
+    hours = seconds // 3600
+    minutes = (seconds % 3600) // 60
+    return f"{hours}:{minutes:02d}"
+
+
 def is_hidden_path(path: Path) -> bool:
     return any(part.startswith(".") for part in path.parts)
 
@@ -689,16 +696,16 @@ def main():
     filters = sorted(per_filter_count.keys())
     users = sorted(per_user_filter_seconds.keys())
     user_col_width = max(4, len("User"), max((len(user) for user in users), default=0))
-    all_time_strings = [format_hms(total_seconds_all)]
+    all_time_strings = [format_hm_compact(total_seconds_all)]
     for filter_name in filters:
-        all_time_strings.append(format_hms(float(per_filter_seconds[filter_name])))
+        all_time_strings.append(format_hm_compact(float(per_filter_seconds[filter_name])))
     for user_name in users:
         user_total_seconds = 0.0
         for filter_name in filters:
             value = float(per_user_filter_seconds[user_name].get(filter_name, 0.0))
-            all_time_strings.append(format_hms(value))
+            all_time_strings.append(format_hm_compact(value))
             user_total_seconds += value
-        all_time_strings.append(format_hms(user_total_seconds))
+        all_time_strings.append(format_hm_compact(user_total_seconds))
     time_col_width = max(
         8,
         len("Total"),
@@ -718,13 +725,13 @@ def main():
         for filter_name in filters:
             value = float(per_user_filter_seconds[user_name].get(filter_name, 0.0))
             user_total_seconds += value
-            cells.append(f"{format_hms(value):>{time_col_width}}")
-        cells.append(f"{format_hms(user_total_seconds):>{time_col_width}}")
+            cells.append(f"{format_hm_compact(value):>{time_col_width}}")
+        cells.append(f"{format_hm_compact(user_total_seconds):>{time_col_width}}")
         print(" ".join(cells))
     total_cells = [f"{'TOTAL':<{user_col_width}}"]
     for filter_name in filters:
-        total_cells.append(f"{format_hms(float(per_filter_seconds[filter_name])):>{time_col_width}}")
-    total_cells.append(f"{format_hms(total_seconds_all):>{time_col_width}}")
+        total_cells.append(f"{format_hm_compact(float(per_filter_seconds[filter_name])):>{time_col_width}}")
+    total_cells.append(f"{format_hm_compact(total_seconds_all):>{time_col_width}}")
     print("-" * len(contrib_header))
     print(" ".join(total_cells))
 
