@@ -689,33 +689,44 @@ def main():
     filters = sorted(per_filter_count.keys())
     users = sorted(per_user_filter_seconds.keys())
     user_col_width = max(4, len("User"), max((len(user) for user in users), default=0))
+    all_time_strings = [format_hms(total_seconds_all)]
+    for filter_name in filters:
+        all_time_strings.append(format_hms(float(per_filter_seconds[filter_name])))
+    for user_name in users:
+        user_total_seconds = 0.0
+        for filter_name in filters:
+            value = float(per_user_filter_seconds[user_name].get(filter_name, 0.0))
+            all_time_strings.append(format_hms(value))
+            user_total_seconds += value
+        all_time_strings.append(format_hms(user_total_seconds))
     time_col_width = max(
         8,
         len("Total"),
         max((len(filter_name) for filter_name in filters), default=0),
+        max((len(text) for text in all_time_strings), default=0),
     )
-    contrib_header = (
-        f"{'User':<{user_col_width}}"
-        + "".join(f"{filter_name:>{time_col_width}}" for filter_name in filters)
-        + f"{'Total':>{time_col_width}}"
+    contrib_header = " ".join(
+        [f"{'User':<{user_col_width}}"]
+        + [f"{filter_name:>{time_col_width}}" for filter_name in filters]
+        + [f"{'Total':>{time_col_width}}"]
     )
     print(contrib_header)
     print("-" * len(contrib_header))
     for user_name in users:
         user_total_seconds = 0.0
-        row = f"{user_name:<{user_col_width}}"
+        cells = [f"{user_name:<{user_col_width}}"]
         for filter_name in filters:
             value = float(per_user_filter_seconds[user_name].get(filter_name, 0.0))
             user_total_seconds += value
-            row += f"{format_hms(value):>{time_col_width}}"
-        row += f"{format_hms(user_total_seconds):>{time_col_width}}"
-        print(row)
-    total_row = f"{'TOTAL':<{user_col_width}}"
+            cells.append(f"{format_hms(value):>{time_col_width}}")
+        cells.append(f"{format_hms(user_total_seconds):>{time_col_width}}")
+        print(" ".join(cells))
+    total_cells = [f"{'TOTAL':<{user_col_width}}"]
     for filter_name in filters:
-        total_row += f"{format_hms(float(per_filter_seconds[filter_name])):>{time_col_width}}"
-    total_row += f"{format_hms(total_seconds_all):>{time_col_width}}"
+        total_cells.append(f"{format_hms(float(per_filter_seconds[filter_name])):>{time_col_width}}")
+    total_cells.append(f"{format_hms(total_seconds_all):>{time_col_width}}")
     print("-" * len(contrib_header))
-    print(total_row)
+    print(" ".join(total_cells))
 
     print(f"{'duration_warnings':<22}{warning_count}")
     print(f"{'missing_filter_warnings':<22}{missing_filter_count}")
