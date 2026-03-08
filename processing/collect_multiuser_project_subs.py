@@ -4,7 +4,7 @@ import argparse
 import hashlib
 import re
 import sys
-from collections import Counter
+from collections import Counter, defaultdict
 from datetime import datetime
 from pathlib import Path
 
@@ -437,6 +437,7 @@ def main():
 
     per_filter_count = Counter()
     per_filter_seconds = Counter()
+    per_user_filter_seconds = defaultdict(Counter)
     warning_count = 0
     missing_filter_count = 0
     filename_lookup_used_count = 0
@@ -656,9 +657,14 @@ def main():
             )
         )
 
+        relative_path = fits_file.relative_to(input_dir)
+        user_name = relative_path.parts[0] if len(relative_path.parts) > 1 else "(root)"
+        exptime_seconds = float(exptime) if exptime is not None else 0.0
+
         per_filter_count[canonical_filter] += 1
         if exptime is not None:
             per_filter_seconds[canonical_filter] += exptime
+        per_user_filter_seconds[user_name][canonical_filter] += exptime_seconds
         linked_count += 1
         update_progress(idx, len(records), prefix="Processing")
 
@@ -679,6 +685,38 @@ def main():
         f"{'TOTAL':<12}{linked_count:>10d}{total_seconds_all:>14.1f}"
         f"{format_hms(total_seconds_all):>18}"
     )
+    print("\nPer-user contributions:")
+    filters = sorted(per_filter_count.keys())
+    users = sorted(per_user_filter_seconds.keys())
+    user_col_width = max(4, len("User"), max((len(user) for user in users), default=0))
+    time_col_width = max(
+        8,
+        len("Total"),
+        max((len(filter_name) for filter_name in filters), default=0),
+    )
+    contrib_header = (
+        f"{'User':<{user_col_width}}"
+        + "".join(f"{filter_name:>{time_col_width}}" for filter_name in filters)
+        + f"{'Total':>{time_col_width}}"
+    )
+    print(contrib_header)
+    print("-" * len(contrib_header))
+    for user_name in users:
+        user_total_seconds = 0.0
+        row = f"{user_name:<{user_col_width}}"
+        for filter_name in filters:
+            value = float(per_user_filter_seconds[user_name].get(filter_name, 0.0))
+            user_total_seconds += value
+            row += f"{format_hms(value):>{time_col_width}}"
+        row += f"{format_hms(user_total_seconds):>{time_col_width}}"
+        print(row)
+    total_row = f"{'TOTAL':<{user_col_width}}"
+    for filter_name in filters:
+        total_row += f"{format_hms(float(per_filter_seconds[filter_name])):>{time_col_width}}"
+    total_row += f"{format_hms(total_seconds_all):>{time_col_width}}"
+    print("-" * len(contrib_header))
+    print(total_row)
+
     print(f"{'duration_warnings':<22}{warning_count}")
     print(f"{'missing_filter_warnings':<22}{missing_filter_count}")
     print(f"{'filename_lookup_used':<22}{filename_lookup_used_count}")
