@@ -21,7 +21,7 @@ def main():
   parser = argparse.ArgumentParser(
       description='Set tracking details for an INDI device')
   parser.add_argument('-d', '--device', type=str, 
-                      help='INDI device name', default='Star Adventurer GTi')
+                      help='INDI device name', default='SkyAdventurer GTi')
   args = parser.parse_args()
   print("Using device %s" % args.device)
 
