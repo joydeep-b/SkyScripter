@@ -120,7 +120,7 @@ def main():
   parser = argparse.ArgumentParser(
       description='Read site details from an INDI device')
   parser.add_argument('-d', '--device', type=str, 
-                      help='INDI device name', default='Star Adventurer GTi')
+                      help='INDI device name', default='SkyAdventurer GTi')
   parser.add_argument('-m', '--meridian-flip-angle', type=float, 
                       help='HA limit to trigger meridian flip', default=1/60)
   parser.add_argument('--min-altitude', type=float, 
