@@ -155,7 +155,7 @@ class IndiCamera(IndiClient):
     if exposure is None:
       exposure = self.exposure
     logging.info(f"Capturing image to {filename}")
-    command = f"{self.indi_cam_client} --output {filename} --mode {self.mode} --gain {gain} --offset {self.offset} --exposure {exposure}"
+    command = f"{self.indi_cam_client} --device \"{self.device}\" --timeout 5 --output {filename} --mode {self.mode} --gain {gain} --offset {self.offset} --exposure {exposure}"
     exec_or_fail(command)
 
 class IndiMount(IndiClient):

@@ -10,6 +10,7 @@ import time
 
 sys.path.insert(0, os.path.dirname(__file__))
 
+from sky_scripter.config import Config
 from sky_scripter.lib_indi import IndiMount, IndiCamera, IndiFocuser
 from sky_scripter.lib_phd2 import Phd2Client
 
@@ -56,7 +57,7 @@ def test_focuser(focuser_name):
   foc = IndiFocuser(focuser_name)
   pos0 = foc.get_focus()
   print(f"       Initial position: {pos0}")
-  foc.set_focus(pos0 + 10)
+  foc.set_focus(pos0 + 30)
   pos1 = foc.get_focus()
   foc.set_focus(pos0)
   pos2 = foc.get_focus()
@@ -83,7 +84,7 @@ def test_fits_headers():
   path = "/tmp/test_capture.fits"
   with fits.open(path) as hdul:
     header = hdul[0].header
-    check_keys = ["EXPOSURE", "DATE-OBS", "CCD-TEMP", "GAIN",
+    check_keys = ["EXPTIME", "DATE-OBS", "CCD-TEMP", "GAIN",
                    "OFFSET", "XBINNING", "YBINNING", "INSTRUME"]
     found = []
     for k in check_keys:
@@ -110,7 +111,7 @@ def test_roof_status(status_file):
     content = f.readline().strip()
   return f"status={content}"
 
-def test_websocket_server():
+def test_websocket_server(ws_port, http_port):
   from sky_scripter.alert_bus import AlertBus
   from sky_scripter.web_monitor.server import MonitorServer
 
@@ -120,6 +121,9 @@ def test_websocket_server():
     focus_position = 0
     focus_fwhm = 0.0
     _terminate = False
+    _schedule = None
+    _active_session_idx = 0
+    _completed = set()
     @property
     def status(self):
       return {}
@@ -127,15 +131,17 @@ def test_websocket_server():
     def on_entry(self, cb): pass
     def get_recent(self, n): return []
 
+  test_ws_port = ws_port + 10000
+  test_http_port = http_port + 10000
   alert_bus = AlertBus()
   stub = _Stub()
   srv = MonitorServer(stub, stub, stub, stub, alert_bus, _StubLogger(),
-                      port=18765, http_port=18080)
+                      port=test_ws_port, http_port=test_http_port)
   srv.start()
   time.sleep(0.5)
 
   async def _check():
-    async with __import__('websockets').connect("ws://localhost:18765") as ws:
+    async with __import__('websockets').connect(f"ws://localhost:{test_ws_port}") as ws:
       msg = await asyncio.wait_for(ws.recv(), timeout=3)
       data = json.loads(msg)
       assert data.get("type") == "status", f"Unexpected: {data}"
@@ -144,36 +150,44 @@ def test_websocket_server():
 
 def main():
   parser = argparse.ArgumentParser(description="Daytime hardware test")
-  parser.add_argument("--mount", default="ZWO AM5")
-  parser.add_argument("--camera", default="QHY CCD QHY268M-b93fd94")
-  parser.add_argument("--focuser", default="ZWO EAF")
-  parser.add_argument("--roof-status-file", default=None)
+  parser.add_argument("--config", default="sky_scripter.json",
+                      help="Path to sky_scripter.json config file")
   parser.add_argument("--skip-mount-move", action="store_true")
   args = parser.parse_args()
 
+  cfg = Config(args.config)
+  mount = cfg.get("devices", "mount")
+  camera = cfg.get("devices", "camera")
+  focuser = cfg.get("devices", "focuser")
+  roof_status_file = cfg.get("roof", "status_file")
+  ws_port = cfg.get("web", "ws_port", default=8765)
+  http_port = cfg.get("web", "http_port", default=8080)
+
   print("\n=== HARDWARE TEST ===")
+  print(f"Config: {cfg._path}")
+  print(f"  mount={mount}  camera={camera}  focuser={focuser}")
 
   run_test("INDI server connectivity", test_indi_server)
-  run_test("Mount RA/Dec readout", lambda: test_mount_readout(args.mount))
+  run_test("Mount RA/Dec readout", lambda: test_mount_readout(mount))
 
   if args.skip_mount_move:
     skip_test("Mount park/unpark", "--skip-mount-move")
   else:
-    run_test("Mount park/unpark", lambda: test_mount_park_unpark(args.mount))
+    run_test("Mount park/unpark", lambda: test_mount_park_unpark(mount))
 
-  run_test("Focuser position read/move", lambda: test_focuser(args.focuser))
-  run_test("Filter wheel cycling", lambda: test_filter_wheel(args.camera))
-  run_test("Camera 1s dark capture", lambda: test_camera_capture(args.camera))
+  run_test("Focuser position read/move", lambda: test_focuser(focuser))
+  run_test("Filter wheel cycling", lambda: test_filter_wheel(camera))
+  run_test("Camera 1s dark capture", lambda: test_camera_capture(camera))
   run_test("FITS header verification", test_fits_headers)
-  run_test("Cooler temperature readout", lambda: test_cooler(args.camera))
+  run_test("Cooler temperature readout", lambda: test_cooler(camera))
   run_test("PHD2 connection", test_phd2)
 
-  if args.roof_status_file:
-    run_test("Roof status", lambda: test_roof_status(args.roof_status_file))
+  if roof_status_file:
+    run_test("Roof status", lambda: test_roof_status(roof_status_file))
   else:
-    skip_test("Roof status", "no --roof-status-file")
+    skip_test("Roof status", "no roof status_file configured")
 
-  run_test("WebSocket server", test_websocket_server)
+  run_test("WebSocket server", lambda: test_websocket_server(ws_port, http_port))
 
   passed = sum(1 for s, _ in results if s == "PASS")
   failed = sum(1 for s, _ in results if s == "FAIL")

@@ -4,6 +4,17 @@ SITE_LONGITUDE=360-97.702354
 SITE_LATITUDE=30.266485
 SITE_ELEVATION=140.0
 
+./power.sh on
+
+echo "Waiting for camera to initialize..."
+for i in $(seq 30 -1 1); do
+  printf "\rStarting in %2ds..." "$i"
+  sleep 1
+done
+echo -e "\rCamera initialization wait complete.              "
+echo -e "\nQHY and ZWO devices:"
+lsusb | grep "QHY"
+lsusb | grep "ZWO"
 
 # Function to set time and location.
 set_time_location() {
@@ -65,24 +76,36 @@ connect_focuser() {
 # Connect both the imaging (QHY 268M) and guiding (ASI 120MM) cameras.
 connect_cameras() {
   echo "Connecting to QHY 268M camera"
-  indi_setprop "QHY CCD QHY268M-b93fd94.CONNECTION.CONNECT=On"
+  indi_setprop "QHY CCD QHY268M.CONNECTION.CONNECT=On"
   retcode=$?
   if [ "$retcode" -ne 0 ]; then
       echo "Failed to connect to camera"
       exit 1
   fi
   sleep 2
-  indi_setprop "QHY CCD QHY268M-b93fd94.ACTIVE_DEVICES.ACTIVE_TELESCOPE=ZWO AM5"
+  indi_setprop "QHY CCD QHY268M.ACTIVE_DEVICES.ACTIVE_TELESCOPE=ZWO AM5"
   retcode=$?
   if [ "$retcode" -ne 0 ]; then
       echo "Failed to set active telescope"
       exit 1
   fi
-  echo "Connected to ASI 120MM camera"
-  indi_setprop "ZWO CCD ASI120MM Mini.CONNECTION.CONNECT=On"
+  indi_setprop "QHY CCD QHY268M.ACTIVE_DEVICES.ACTIVE_FILTER=QHY CCD QHY268M"
   retcode=$?
   if [ "$retcode" -ne 0 ]; then
-      echo "Failed to connect to camera"
+      echo "Failed to set active filter"
+      exit 1
+  fi
+  indi_setprop "QHY CCD QHY268M.ACTIVE_DEVICES.ACTIVE_FOCUSER=ZWO EAF"
+  retcode=$?
+  if [ "$retcode" -ne 0 ]; then
+      echo "Failed to set active focuser"
+      exit 1
+  fi
+  echo "Connecting to PlayerOne Sedna-M"
+  indi_setprop "PlayerOne CCD Sedna-M.CONNECTION.CONNECT=On"
+  retcode=$?
+  if [ "$retcode" -ne 0 ]; then
+      echo "Failed to connect to PlayerOne Sedna-M"
       exit 1
   fi
   echo "Cameras connected"
@@ -91,7 +114,7 @@ connect_cameras() {
 INDI_RUNNING=$(pgrep indiserver)
 if [ -z "$INDI_RUNNING" ]; then
     echo "Starting INDI server"
-    screen -mdS indi indiserver indi_lx200am5 indi_asi_focuser indi_qhy_ccd indi_asi_ccd
+    screen -mdS indi indiserver indi_lx200am5 indi_asi_focuser indi_qhy_ccd indi_playerone_ccd
     sleep 1
 else
     echo "INDI server already running"

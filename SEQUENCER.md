@@ -103,7 +103,28 @@ Then edit `sky_scripter.json`:
 Only override what differs from the defaults. Unspecified keys keep their
 built-in values (see the full `sky_scripter.json` for all available settings).
 
-### 2. Define a night plan
+### 2. Run hardware tests (daytime)
+
+Before your first session, verify that all devices in your config are
+reachable. The test script reads device names, roof status file, and web
+ports directly from `sky_scripter.json`:
+
+```bash
+python test_hardware.py
+```
+
+To use a config file in a non-default location:
+
+```bash
+python test_hardware.py --config /path/to/sky_scripter.json
+```
+
+This checks INDI server, mount, focuser, filter wheel, camera, cooler, PHD2,
+and optionally roof status and the web monitor. No sky needed. Add
+`--skip-mount-move` to skip the park/unpark test that physically moves the
+mount.
+
+### 3. Define a night plan
 
 A night plan is a Python script or JSON file describing what to image.
 
@@ -165,18 +186,7 @@ coordinates, plus filter sequences as `(exposure_seconds, count)` tuples.
 }
 ```
 
-### 3. Run hardware tests (daytime)
-
-Before your first session, verify all connections:
-
-```bash
-python test_hardware.py
-```
-
-This checks INDI server, mount, focuser, filter wheel, camera, cooler, PHD2,
-and optionally roof status and the web monitor. No sky needed.
-
-### 4. Run on-sky tests (first clear night)
+### 5. Run on-sky tests (first clear night)
 
 Walk through each subsystem interactively with human confirmation:
 
@@ -187,7 +197,7 @@ python test_on_sky.py --target Vega
 Tests plate-solve alignment, autofocus, guided capture, dithering, guide
 star loss recovery, and meridian flip handling.
 
-### 5. Run a full session
+### 6. Run a full session
 
 ```python
 # run_tonight.py

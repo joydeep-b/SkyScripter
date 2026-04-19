@@ -16,12 +16,12 @@ using std::string;
 DEFINE_string(server, "localhost", "INDI server hostname");
 DEFINE_int32(port, 7624, "INDI server port");
 // INDI Camera settings.
-DEFINE_string(device, "QHY CCD QHY268M-b93fd94", "INDI device name");
+DEFINE_string(device, "QHY CCD QHY268M", "INDI device name");
 DEFINE_string(ccd_blob_name, "CCD1", "Name of the CCD blob property");
 DEFINE_double(exposure, 1.0, "Exposure time in seconds");
-DEFINE_int32(mode, 0, "CCD read mode");
-DEFINE_int32(gain, 0, "CCD gain");
-DEFINE_int32(offset, 0, "CCD offset");
+DEFINE_int32(mode, 5, "CCD read mode");
+DEFINE_int32(gain, 56, "CCD gain");
+DEFINE_int32(offset, 20, "CCD offset");
 // Program settings.
 DEFINE_int32(timeout, 1, "Timeout in seconds while waiting for INDI properties");
 DEFINE_string(output, "image.fits", "Output filename");
