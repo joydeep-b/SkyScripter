@@ -67,14 +67,20 @@ tests/
 
 test_hardware.py       Daytime hardware connectivity checklist
 test_on_sky.py         Interactive on-sky subsystem tests
-.config.json           Global site/device/parameter configuration
+sky_scripter.json      Global site/device/parameter configuration
 ```
 
 ## Quick Start
 
 ### 1. Configure your site
 
-Edit `.config.json` with your observatory location and hardware:
+Copy the example config and edit it with your observatory location and hardware:
+
+```bash
+cp sky_scripter.json.example sky_scripter.json
+```
+
+Then edit `sky_scripter.json`:
 
 ```json
 {
@@ -95,7 +101,7 @@ Edit `.config.json` with your observatory location and hardware:
 ```
 
 Only override what differs from the defaults. Unspecified keys keep their
-built-in values (see the full `.config.json` for all available settings).
+built-in values (see the full `sky_scripter.json` for all available settings).
 
 ### 2. Define a night plan
 
@@ -257,7 +263,7 @@ The `CaptureManager` waits on the emergency event during exposures, so even a
 
 ## Web Dashboard
 
-The web monitor runs on two ports (configurable in `.config.json`):
+The web monitor runs on two ports (configurable in `sky_scripter.json`):
 - **HTTP** (default 8080): serves the dashboard at `http://host:8080`
 - **WebSocket** (default 8765): real-time status updates
 
@@ -292,7 +298,7 @@ focus positions and apply filter offsets without a full autofocus run.
 
 ## Global Configuration
 
-`.config.json` stores site-specific and hardware defaults. The `Config` class
+`sky_scripter.json` stores site-specific and hardware defaults. The `Config` class
 deep-merges user overrides onto built-in defaults, so you only need to specify
 values that differ from the defaults.
 

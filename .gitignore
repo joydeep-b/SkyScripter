@@ -13,3 +13,4 @@ build
 bin
 .discord_channel_id
 .discord_token
+sky_scripter.json

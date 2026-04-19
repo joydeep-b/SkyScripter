@@ -1,7 +1,7 @@
 import json
 import os
 
-DEFAULT_CONFIG_PATH = os.path.join(os.path.dirname(__file__), '..', '.config.json')
+DEFAULT_CONFIG_PATH = os.path.join(os.path.dirname(__file__), '..', 'sky_scripter.json')
 
 DEFAULTS = {
   "site": {
@@ -79,7 +79,7 @@ def _deep_merge(base, override):
 
 
 class Config:
-  """Global configuration loaded from .config.json with built-in defaults."""
+  """Global configuration loaded from sky_scripter.json with built-in defaults."""
 
   def __init__(self, path=None):
     self._data = dict(DEFAULTS)
@@ -115,7 +115,7 @@ class Config:
 
   @staticmethod
   def generate_default(path=None):
-    """Write a default .config.json for the user to edit."""
+    """Write a default sky_scripter.json for the user to edit."""
     path = path or DEFAULT_CONFIG_PATH
     with open(path, 'w') as f:
       json.dump(DEFAULTS, f, indent=2)
