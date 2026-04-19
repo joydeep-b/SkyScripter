@@ -34,11 +34,11 @@ sys.path.append(os.getcwd())
 
 from sky_scripter.lib_gphoto import GphotoClient
 from sky_scripter.lib_indi import IndiCamera, IndiFocuser, IndiMount
-from sky_scripter.algorithms import auto_focus, align_to_object, measure_stars
+from sky_scripter.algorithms import align_to_object
+from sky_scripter.autofocus import auto_focus, measure_stars
 from sky_scripter.util import init_logging, print_and_log, parse_coordinates
 from sky_scripter.lib_phd2 import Phd2Client
 from sky_scripter.lib_rachio import RachioClient, get_rachio_key
-from sky_scripter.algorithms import auto_focus
 
 # Global variable to indicate if the capture should be terminated - set by
 # signal handler, and checked by the main loop.
@@ -182,10 +182,6 @@ def run_alignment(mount: IndiMount,
   if phd2client is not None:
     phd2client.start_guiding()
 
-def signal_handler(signum, frame):
-  global terminate
-  terminate = True
-
 def get_args():
   parser = argparse.ArgumentParser(description='Automated batch capture of a target')
   # Target to image.
@@ -285,10 +281,10 @@ def print_and_log_mount_state(mount, args):
       (time_to_flip_hours, time_to_flip_minutes, time_to_flip_seconds)
   print_and_log(log_string)
 
-def check_disk_space():
+def check_disk_space(path):
   # Minimum desired space: 20 GB
   min_desired_space = 20 * 1024 * 1024 * 1024
-  statvfs = os.statvfs(os.getcwd())
+  statvfs = os.statvfs(path)
   free_space = statvfs.f_frsize * statvfs.f_bavail
   if free_space < min_desired_space:
     print_and_log(f"Low disk space: {free_space / (1024 * 1024 * 1024):.2f} GB")
@@ -312,7 +308,7 @@ def handle_meridian_flip(mount, phd2client, camera, focuser, coordinates, args):
   if camera is not None:
     if focuser is not None:
       print_and_log("Running auto focus")
-      run_auto_focus(camera, focuser, args)
+      run_auto_focus(camera, focuser, 'L', args)
     print_and_log("Resuming capture")
 
 def test_alignment(args, parser):
@@ -516,10 +512,10 @@ def main():
   signal.signal(signal.SIGINT, signal_handler)
   signal.signal(signal.SIGTERM, signal_handler)
 
-  check_disk_space()
   coordinates = parse_coordinates(args, parser)
   # check_sprinklers()
   capture_dir = set_up_capture_directory(args, coordinates)
+  check_disk_space(capture_dir)
   capture_settings = load_capture_settings()
   print("Connecting to devices")
   mount = IndiMount(args.mount, simulate=args.simulate)
@@ -537,7 +533,7 @@ def main():
   run_alignment(mount, camera, coordinates, phd2client, args)
   print_and_log_mount_state(mount, args)
   print_and_log('Starting guiding')
-  # start_guiding(phd2client)
+  start_guiding(phd2client)
   if not args.skip_initial_focus:
     print_and_log('Running initial auto focus')
     run_auto_focus(camera, focuser, "L",  args)
@@ -551,7 +547,7 @@ def main():
       exposure = seq['exposure']
       repeat = seq['repeat']
       camera.change_filter(filter)
-      # run_auto_focus(camera, focuser, filter, args)
+      run_auto_focus(camera, focuser, filter, args)
       for i in range(repeat):
         print_and_log_mount_state(mount, args)
         if need_meridian_flip(mount, args):
@@ -559,7 +555,7 @@ def main():
           t_last_focus = time.time()
         if time.time() - t_last_focus > args.focus_interval * 60:
           print_and_log("Running auto focus")
-          # run_auto_focus(camera, focuser, args)
+          run_auto_focus(camera, focuser, 'L', args)
           t_last_focus = time.time()
         if (i + 1) % args.dither_period == 0:
           print_and_log("Dithering...")
@@ -578,7 +574,7 @@ def main():
         alt, _ = mount.get_alt_az()
 
   # End of capture: Stop guiding, park the mount, print summary.
-  # phd2client.stop_guiding()
+  phd2client.stop_guiding()
   mount.park()
   if terminate:
     print_and_log("Capture terminated by user")

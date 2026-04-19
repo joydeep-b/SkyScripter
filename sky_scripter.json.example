@@ -1,0 +1,63 @@
+{
+  "site": {
+    "latitude": null,
+    "longitude": null,
+    "elevation": 0
+  },
+  "devices": {
+    "mount": "ZWO AM5",
+    "camera": "QHY CCD QHY268M-b93fd94",
+    "focuser": "ZWO EAF"
+  },
+  "phd2": {
+    "host": "localhost",
+    "port": 4400
+  },
+  "capture": {
+    "gain": 56,
+    "offset": 20,
+    "mode": 5,
+    "capture_dir": "~/Pictures"
+  },
+  "focus": {
+    "gain": 70,
+    "offset": 20,
+    "mode": 5,
+    "step": 6,
+    "num_steps": 7,
+    "exposure_broadband": 2,
+    "exposure_narrowband": 4,
+    "interval_minutes": 60,
+    "temp_threshold": 2.0,
+    "calibration_path": "focus_calibration.json"
+  },
+  "cooler": {
+    "target_temp": -10.0,
+    "warmup_rate": 2.0,
+    "warmup_interval": 30
+  },
+  "guiding": {
+    "rms_threshold": 2.0,
+    "drift_timeout": 60.0,
+    "dither_pixels": 4,
+    "dither_settle_pixels": 0.5,
+    "dither_settle_timeout": 60
+  },
+  "safety": {
+    "disk_warning_gb": 20.0,
+    "disk_critical_gb": 5.0,
+    "min_altitude": 0
+  },
+  "schedule": {
+    "start_offset": 0,
+    "end_offset": 0
+  },
+  "roof": {
+    "status_file": null,
+    "poll_interval": 5.0
+  },
+  "web": {
+    "ws_port": 8765,
+    "http_port": 8080
+  }
+}
