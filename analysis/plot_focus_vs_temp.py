@@ -164,12 +164,13 @@ def plot_hfr_histogram(ax: plt.Axes, data: Dict[str, List[AutofocusResult]]) -> 
             continue
         color = FILTER_COLORS.get(filt, "black")
         ax.hist(
-            hfrs, bins=bins, alpha=0.5, color=color, label=filt, edgecolor="none",
+            hfrs, bins=bins, alpha=0.5, color=color, label=filt,
+            edgecolor="none", density=True,
         )
 
     ax.set_xlim(0, 3)
     ax.set_xlabel("HFR (pixels)", fontsize=13)
-    ax.set_ylabel("Count", fontsize=13)
+    ax.set_ylabel("Density", fontsize=13)
     ax.set_title("Best-Focus HFR Distribution by Filter", fontsize=15)
     ax.legend(title="Filter", fontsize=11, title_fontsize=12)
     ax.grid(True, alpha=0.3)
