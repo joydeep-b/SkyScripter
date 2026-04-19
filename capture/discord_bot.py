@@ -35,6 +35,31 @@ def ExecuteCommand(logging, command):
     logging.info(f"Command '{command}' returned {result.returncode}")
     return result
 
+def extract_text_from_message(message: discord.Message) -> str:
+    parts = []
+    # plain text
+    if message.content:
+        parts.append(message.content)
+
+    # embeds (most bots use these)
+    for e in message.embeds:
+        # safest is to use to_dict() and pull strings
+        d = e.to_dict()
+        for key in ("title", "description"):
+            if d.get(key):
+                parts.append(d[key])
+        for f in d.get("fields", []):
+            if f.get("name"):
+                parts.append(f["name"])
+            if f.get("value"):
+                parts.append(f["value"])
+        # optional extras
+        if d.get("footer", {}).get("text"):
+            parts.append(d["footer"]["text"])
+        if d.get("author", {}).get("name"):
+            parts.append(d["author"]["name"])
+    return "\n".join(parts).strip()
+
 class WatchClient(discord.Client):
     async def on_ready(self):
         logging.info(f"Logged in as {self.user} (id={self.user.id})")
@@ -63,12 +88,13 @@ class WatchClient(discord.Client):
         if TARGET_CHANNEL_ID and message.channel.id != TARGET_CHANNEL_ID:
             return
 
-        # Print a simple line per message
-        # You can enrich this with attachments, embeds, etc.
         author = f"{message.author} (id={message.author.id})"
         where = f"#{getattr(message.channel, 'name', 'DM')} (id={message.channel.id})"
-        logging.info(f"[{where}] {author}: {message.content!r}")
-        if "opening" in message.content.lower():
+
+        text = extract_text_from_message(message)
+        logging.info(f"[{where}] {author}: {text!r}")
+        
+        if "opening" in text.lower():
             logging.info(f"Roof opening detected")
             result = ExecuteCommand(logging, POWER_ON_SCRIPT + " on")
             logging.info(f"Waiting 60 seconds to power on...")
@@ -78,7 +104,7 @@ class WatchClient(discord.Client):
             result = ExecuteCommand(logging,
                 "qdbus org.kde.kstars /KStars/Ekos/Scheduler start")
             logging.info(f"Scheduler started with result: {result}")
-        elif "closing" in message.content.lower():
+        elif "closing" in text.lower():
             logging.info(f"Roof closing detected")
             logging.info(f"Stopping scheduler")
             result = ExecuteCommand(logging, 
@@ -98,6 +124,10 @@ class WatchClient(discord.Client):
         # Example: handle attachments
         for a in message.attachments:
             logging.info(f"  attachment: {a.filename} -> {a.url}")
+
+        # optional: dump raw embed dicts once for debugging
+        if message.embeds:
+            logging.debug(f"Embeds: {[e.to_dict() for e in message.embeds]}")
 
 def exit_handler(signum, frame):
     logging.info(f"Exiting with signal {signum}")

@@ -11,4 +11,5 @@ indi_cam_client/indi_cam_client
 indi_cam_client/test_client
 build
 bin
-
+.discord_channel_id
+.discord_token
