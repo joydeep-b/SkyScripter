@@ -6,53 +6,53 @@
 <title>Sky Scripter Monitor</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
-body { background: #1a1a2e; color: #cc4444; font-family: 'Courier New', monospace; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
-#banner { display: none; background: #cc4444; color: #1a1a2e; text-align: center; padding: 6px; font-weight: bold; font-size: 14px; }
-#tiles { display: flex; flex-wrap: wrap; gap: 8px; padding: 8px; flex: 1; min-height: 0; }
-.tile { background: #16213e; border: 1px solid #333; border-radius: 6px; padding: 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+body { background: #1a1a2e; color: #ee8888; font-family: 'Courier New', monospace; font-size: 16px; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+#banner { display: none; background: #ff6666; color: #1a1a2e; text-align: center; padding: 8px; font-weight: bold; font-size: 16px; }
+#tiles { display: flex; flex-wrap: wrap; gap: 10px; padding: 10px; flex: 1; min-height: 0; }
+.tile { background: #16213e; border: 1px solid #444; border-radius: 6px; padding: 14px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
 .tile-main { flex: 2 1 300px; min-width: 280px; }
 .tile-sm { flex: 1 1 200px; min-width: 180px; }
-.tile h2 { font-size: 13px; color: #ff6666; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid #333; padding-bottom: 4px; margin-bottom: 2px; }
-.status-row { display: flex; align-items: center; gap: 8px; }
-.dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-.dot-green { background: #44cc44; box-shadow: 0 0 4px #44cc44; }
-.dot-yellow { background: #cccc44; box-shadow: 0 0 4px #cccc44; }
-.dot-red { background: #cc4444; box-shadow: 0 0 4px #cc4444; }
-.dot-gray { background: #555; }
-.state-text { font-size: 15px; color: #ff6666; font-weight: bold; }
-.label { color: #884444; font-size: 12px; }
-.value { color: #cc4444; font-size: 13px; }
-.highlight { color: #ff6666; }
-.row { display: flex; justify-content: space-between; font-size: 12px; }
-.progress-bar { background: #0f3460; border-radius: 3px; height: 14px; overflow: hidden; position: relative; }
-.progress-fill { background: #cc4444; height: 100%; transition: width 0.5s; }
-.progress-text { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #ff6666; }
-.big-text { font-size: 28px; font-weight: bold; color: #ff6666; text-align: center; padding: 8px 0; }
-.alerts { font-size: 11px; color: #cc4444; max-height: 60px; overflow-y: auto; }
-.alerts div { border-top: 1px solid #222; padding: 2px 0; }
+.tile h2 { font-size: 15px; color: #ff8888; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid #444; padding-bottom: 5px; margin-bottom: 4px; }
+.status-row { display: flex; align-items: center; gap: 10px; }
+.dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+.dot-green { background: #55ee55; box-shadow: 0 0 6px #55ee55; }
+.dot-yellow { background: #eeee55; box-shadow: 0 0 6px #eeee55; }
+.dot-red { background: #ee5555; box-shadow: 0 0 6px #ee5555; }
+.dot-gray { background: #666; }
+.state-text { font-size: 18px; color: #ffaaaa; font-weight: bold; }
+.label { color: #cc8888; font-size: 15px; }
+.value { color: #ffaaaa; font-size: 16px; }
+.highlight { color: #ffbbbb; }
+.row { display: flex; justify-content: space-between; font-size: 15px; }
+.progress-bar { background: #0f3460; border-radius: 3px; height: 18px; overflow: hidden; position: relative; }
+.progress-fill { background: #ee5555; height: 100%; transition: width 0.5s; }
+.progress-text { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 13px; color: #ffcccc; }
+.big-text { font-size: 32px; font-weight: bold; color: #ffaaaa; text-align: center; padding: 10px 0; }
+.alerts { font-size: 14px; color: #ee8888; max-height: 80px; overflow-y: auto; }
+.alerts div { border-top: 1px solid #333; padding: 3px 0; }
 canvas { width: 100%; height: 50px; }
-button.abort { background: #cc4444; color: #1a1a2e; border: none; border-radius: 4px; padding: 6px 18px; font-family: inherit; font-weight: bold; cursor: pointer; font-size: 13px; align-self: flex-start; }
-button.abort:hover { background: #ff6666; }
-#night-plan { display: flex; align-items: center; gap: 6px; padding: 6px 8px; background: #0f0f23; border-bottom: 1px solid #333; min-height: 34px; flex-wrap: wrap; }
-#night-plan .plan-label { font-size: 11px; color: #884444; text-transform: uppercase; letter-spacing: 1px; flex-shrink: 0; }
-.plan-slot { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 3px; font-size: 11px; border: 1px solid #333; white-space: nowrap; }
+button.abort { background: #ee5555; color: #1a1a2e; border: none; border-radius: 4px; padding: 8px 22px; font-family: inherit; font-weight: bold; cursor: pointer; font-size: 15px; align-self: flex-start; }
+button.abort:hover { background: #ff8888; }
+#night-plan { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: #0f0f23; border-bottom: 1px solid #444; min-height: 38px; flex-wrap: wrap; }
+#night-plan .plan-label { font-size: 14px; color: #cc8888; text-transform: uppercase; letter-spacing: 1px; flex-shrink: 0; }
+.plan-slot { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 3px; font-size: 14px; border: 1px solid #444; white-space: nowrap; }
 .plan-slot .slot-target { font-weight: bold; }
-.plan-slot .slot-time { color: #884444; }
-.plan-slot .slot-filters { color: #884444; font-size: 10px; }
-.plan-active { border-color: #44cc44; color: #44cc44; background: rgba(68,204,68,0.1); }
-.plan-completed { border-color: #555; color: #555; text-decoration: line-through; background: rgba(85,85,85,0.05); }
-.plan-upcoming { border-color: #cccc44; color: #cccc44; background: rgba(204,204,68,0.05); }
-.plan-waiting { border-color: #444; color: #666; }
-#log-panel { height: 30vh; min-height: 120px; background: #0f0f23; border-top: 1px solid #333; display: flex; flex-direction: column; }
-#log-panel h2 { font-size: 12px; color: #ff6666; padding: 6px 10px 4px; letter-spacing: 1px; }
-#log-stream { flex: 1; overflow-y: auto; padding: 0 10px 6px; font-size: 11px; line-height: 1.5; }
+.plan-slot .slot-time { color: #cc8888; }
+.plan-slot .slot-filters { color: #cc8888; font-size: 13px; }
+.plan-active { border-color: #55ee55; color: #55ee55; background: rgba(85,238,85,0.1); }
+.plan-completed { border-color: #666; color: #666; text-decoration: line-through; background: rgba(102,102,102,0.05); }
+.plan-upcoming { border-color: #eeee55; color: #eeee55; background: rgba(238,238,85,0.05); }
+.plan-waiting { border-color: #555; color: #888; }
+#log-panel { height: 30vh; min-height: 120px; background: #0f0f23; border-top: 1px solid #444; display: flex; flex-direction: column; }
+#log-panel h2 { font-size: 14px; color: #ff8888; padding: 8px 12px 5px; letter-spacing: 1px; }
+#log-stream { flex: 1; overflow-y: auto; padding: 0 12px 8px; font-size: 14px; line-height: 1.6; }
 .log-entry { white-space: pre-wrap; word-break: break-all; }
-.log-capture { color: #5588cc; }
-.log-guide { color: #44aa66; }
-.log-mount { color: #9966cc; }
-.log-safety { color: #cc8844; }
-.log-orchestrator { color: #aaaaaa; }
-.log-alert { color: #ff4444; background: rgba(204,68,68,0.1); }
+.log-capture { color: #77aaee; }
+.log-guide { color: #66cc88; }
+.log-mount { color: #bb88ee; }
+.log-safety { color: #eeaa66; }
+.log-orchestrator { color: #cccccc; }
+.log-alert { color: #ff6666; background: rgba(238,85,85,0.12); }
 </style>
 </head>
 <body>
@@ -116,10 +116,12 @@ button.abort:hover { background: #ff6666; }
 const $ = id => document.getElementById(id);
 let ws, rmsHistory = [];
 
-function connect() {
-  ws = new WebSocket('ws://' + location.hostname + ':8765');
+let wsPort = null;
+
+function connectWs() {
+  ws = new WebSocket('ws://' + location.hostname + ':' + wsPort);
   ws.onopen = () => { $('banner').style.display = 'none'; };
-  ws.onclose = () => { $('banner').style.display = 'block'; setTimeout(connect, 3000); };
+  ws.onclose = () => { $('banner').style.display = 'block'; setTimeout(connectWs, 3000); };
   ws.onerror = () => { ws.close(); };
   ws.onmessage = e => {
     const msg = JSON.parse(e.data);
@@ -127,6 +129,16 @@ function connect() {
     else if (msg.type === 'log') addLog(msg);
     else if (msg.type === 'alert') handleAlert(msg);
   };
+}
+
+function connect() {
+  fetch('/config').then(r => r.json()).then(cfg => {
+    wsPort = cfg.ws_port;
+    connectWs();
+  }).catch(() => {
+    wsPort = 8765;
+    connectWs();
+  });
 }
 
 function setDot(id, color) {

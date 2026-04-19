@@ -12,6 +12,30 @@ import websockets
 logger = logging.getLogger(__name__)
 
 
+def _make_handler(static_dir: str, ws_port: int):
+    """Build an HTTP handler that serves static files and a /config endpoint."""
+
+    class _Handler(SimpleHTTPRequestHandler):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, directory=static_dir, **kwargs)
+
+        def do_GET(self):
+            if self.path == "/config":
+                body = json.dumps({"ws_port": ws_port}).encode()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+                return
+            super().do_GET()
+
+        def log_message(self, fmt, *args):
+            pass
+
+    return _Handler
+
+
 class MonitorServer:
     def __init__(self, orchestrator, guide_wd, roof_wd, safety_wd,
                  alert_bus, struct_logger, port=8765, http_port=8080):
@@ -35,7 +59,8 @@ class MonitorServer:
 
         static_dir = os.path.join(os.path.dirname(__file__), "static")
         os.makedirs(static_dir, exist_ok=True)
-        handler = partial(SimpleHTTPRequestHandler, directory=static_dir)
+        ws_port = self.port
+        handler = _make_handler(static_dir, ws_port)
         http = HTTPServer(("0.0.0.0", self.http_port), handler)
         http_thread = threading.Thread(target=http.serve_forever, daemon=True)
         http_thread.start()
