@@ -45,6 +45,16 @@ You can install these with `pip3 install -r requirements.txt`
 * `python batch_solve.py` - Batch plate-solving and star analysis of images in a directory, useful for extracting metrics of image quality (number of stars, FWHM) during a session. Sample graph:
 ![Sample graph](sample_data/star_data_example.png)
 
+* `plot_focus_vs_temp.py` - Plots autofocus position vs. temperature and HFR distribution from Ekos `.analyze` logs. By default, it looks in `~/.local/share/kstars/analyze` for logs, and plots L,R,G,B,H,S,O filters.
+
+```bash
+python3 analysis/plot_focus_vs_temp.py
+python3 analysis/plot_focus_vs_temp.py --filters=L,R,G
+python3 analysis/plot_focus_vs_temp.py /path/to/analyze/logs
+```
+
+![Focus vs Temperature](sample_data/focus_vs_temp.png)
+
 * `noise_plot.py` - Analyzes noise statistics and signal-to-noise ratio (SNR) for different stack sizes. This script helps determine the optimal number of frames to stack for achieving desired SNR targets.
 
 ### Noise Analysis with noise_plot.py

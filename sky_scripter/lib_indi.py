@@ -64,6 +64,9 @@ class IndiFocuser(IndiClient):
   def get_focus(self) -> int:
     return int(self.read("ABS_FOCUS_POSITION.FOCUS_ABSOLUTE_POSITION"))
 
+  def get_max_focus(self) -> int:
+    return int(self.read("FOCUS_MAX.FOCUS_MAX_VALUE"))
+
   def set_focus(self, value, max_error=5, timeout=30):
     self.write("ABS_FOCUS_POSITION", "FOCUS_ABSOLUTE_POSITION", value)
     current_value = self.get_focus()
