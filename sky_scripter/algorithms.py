@@ -43,6 +43,10 @@ def align_to_object(mount: IndiMount,
     camera.capture_image(filename)
     print('Plate solve', end=' | ', flush=True)
     ra, dec = run_plate_solve_astap(filename)
+    if ra is None or dec is None:
+      print("No solution")
+      logging.warning("Plate solve failed for %s; skipping sync", filename)
+      continue
     print('Sync', end=' | ', flush=True)
     mount.sync(ra, dec)
     t_end = astropy.time.Time.now()
@@ -60,7 +64,6 @@ def align_to_object(mount: IndiMount,
                  f"Iteration time: {(t_end - t_start).sec:4.1f}, " +
                  f"Filename: {filename}")
     if error < threshold:
-      complete = True
       print_and_log(f"Alignment complete in {iteration} iterations")
       return True
 

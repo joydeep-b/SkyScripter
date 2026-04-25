@@ -21,12 +21,21 @@ def main():
   parser = argparse.ArgumentParser(
       description='Set tracking details for an INDI device')
   parser.add_argument('-d', '--device', type=str, 
-                      help='INDI device name', default='SkyAdventurer GTi')
+                      help='INDI device name', default='ZWO AM5')
   args = parser.parse_args()
   print("Using device %s" % args.device)
 
   mount = IndiMount(args.device)
 
+  parked_state = mount.get_parked_state()
+  print("Current parked state: %s" % parked_state)
+  desired_parked_state = input("Select desired parked state: [P]arked, [U]nparked (default = Unchanged): ")
+  if desired_parked_state == "p":
+    logging.info("Parking mount")
+    mount.park()
+  elif desired_parked_state == "u":
+    logging.info("Unparking mount")
+    mount.unpark()
   tracking_mode = mount.get_tracking_mode()
   print("Current tracking mode: %s" % tracking_mode)
   desired_tracking_mode = input("Select desired tracking mode: [S]idereal, [L]unar, S[o]lar (default = Unchanged) : ")

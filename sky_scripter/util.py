@@ -6,6 +6,7 @@ import time
 import re
 import shutil
 import tempfile
+import math
 from astroquery.simbad import Simbad
 from astropy.coordinates import SkyCoord, FK5, ICRS
 import astropy.units as units
@@ -59,8 +60,7 @@ def exec_or_fail(command, allowed_return_codes=[0]):
 if sys.platform == 'darwin':
   astap_path_autodetected = '/Applications/astap.app/Contents/MacOS/astap'
 else:
-  # Get the path to the astap executable from `which astap`
-  astap_path_autodetected = exec_or_fail('which astap').strip()
+  astap_path_autodetected = shutil.which('astap')
 
 def exec_or_pass(command, allowed_return_codes=[0]):
   result = subprocess.run(command, capture_output=True, text=True)
@@ -114,7 +114,30 @@ def parse_coordinates(args, parser):
     coordinates = c.ra.hour, c.dec.deg
   return coordinates
 
+
+class StarDetectionError(RuntimeError):
+  """Siril ran incorrectly or returned output we could not interpret."""
+
+
+def get_siril_path():
+  if sys.platform == 'darwin':
+    return '/Applications/Siril.app/Contents/MacOS/Siril'
+  return shutil.which('siril-cli') or shutil.which('siril')
+
+
+def _summarize_process_output(result):
+  parts = []
+  if result.stdout:
+    parts.append("stdout:\n" + result.stdout[-4000:])
+  if result.stderr:
+    parts.append("stderr:\n" + result.stderr[-4000:])
+  return "\n".join(parts) if parts else "<no stdout/stderr>"
+
+
 def run_plate_solve_astap(file, astap_path=astap_path_autodetected):
+  if astap_path is None:
+    logging.warning("ASTAP executable not found")
+    return None, None
   astap_cli_command = [astap_path + " -f " + file + " -r 180"]
   astap_output = exec_or_fail(astap_cli_command)
   # Define the regex pattern, to match output like this:
@@ -154,11 +177,10 @@ def run_plate_solve_astap(file, astap_path=astap_path_autodetected):
 def run_star_detect_siril(image_file):
   with tempfile.TemporaryDirectory() as tmpdirname:
     shutil.copy(image_file, tmpdirname)
-    # If MacOS, use the Siril.app version
-    if sys.platform == 'darwin':
-      SIRIL_PATH = '/Applications/Siril.app/Contents/MacOS/Siril'
-    else:
-      SIRIL_PATH = '/home/joydeepb/Downloads/Siril-1.2.5-x86_64.AppImage'
+    siril_path = get_siril_path()
+    if siril_path is None or (os.path.isabs(siril_path)
+                              and not os.path.exists(siril_path)):
+      raise StarDetectionError(f"siril executable not found: {siril_path}")
     siril_commands = f"""requires 1.2.0
 convert light
 # calibrate_single light_00001 -bias="=2048" -debayer -cfa -equalize_cfa
@@ -169,30 +191,47 @@ setfindstar -radius=3 -sigma=0.5 -roundness=0.8 -focal=403.2 -pixelsize=4.39 -mo
 findstar
 close
 """
-    # Define the command to run
-    siril_cli_command = [SIRIL_PATH, "-d", tmpdirname, "-s", "-"]
-    # Run the command and capture output
+    siril_cli_command = [siril_path, "-d", tmpdirname, "-s", "-"]
     try:
       result = subprocess.run(siril_cli_command,
                               input=siril_commands,
                               text=True,
                               capture_output=True,
-                              check=True)
-      if result.returncode != 0:
-        print("Error running Siril.")
-        exit(1)
-      # print(result.stdout)
-      # Extract the number of stars detected, and the FWHM. Sample output:
-      # Found 343 Gaussian profile stars in image, channel #0 (FWHM 5.428217)
-      regex = r"Found ([0-9]+) [a-z,A-Z]* profile stars in image, channel #[0-9] \(FWHM ([0-9]+\.[0-9]+)\)"
-      match = re.search(regex, result.stdout)
-      if not match:
+                              check=False)
+    except OSError as e:
+      raise StarDetectionError(f"Could not execute Siril: {e}") from e
+    if result.returncode != 0:
+      raise StarDetectionError(
+          f"Siril star detection failed with code {result.returncode}\n"
+          f"{_summarize_process_output(result)}")
+
+    output = result.stdout + "\n" + result.stderr
+    # Sample: log: Found 343 Gaussian profile stars in image, channel #0 (FWHM 5.428217)
+    regex = re.compile(
+        r"^log: Found\s+(\d+)\s+([A-Za-z]+)\s+profile stars in image, "
+        r"channel #(\d+) \(FWHM ([0-9]+(?:\.[0-9]+)?)\)$",
+        re.MULTILINE)
+    matches = regex.findall(output)
+    if not matches:
+      # Siril's findstar omits the "Found N profile stars" line entirely
+      # when it detects 0 stars. Detect this by the presence of the
+      # "Findstar: processing for channel" line without a following Found.
+      findstar_ran = re.search(
+          r"^log: Findstar:\s+processing for channel",
+          output, re.MULTILINE)
+      no_stars = re.search(r"\b(no stars?|0 stars?)\b", output, re.I)
+      if findstar_ran or no_stars:
         return None, None
-      num_stars, fwhm = match.groups()
-      if float(fwhm) < 0 or int(num_stars) < 0 or float(fwhm) > 10:
-        print_and_log(f"WARNING: Invalid FWHM and number of stars: {fwhm}, {num_stars}", level=logging.WARNING)
-        print_and_log(f"Full output:\n {result.stdout}\n", level=logging.WARNING)
-      # print(f"Detected '{num_stars}' stars with FWHM '{fwhm}' full output:\n {result.stdout}\n")
-      return int(num_stars), float(fwhm)
-    except subprocess.CalledProcessError as e:
+      raise StarDetectionError(
+          "Could not parse Siril star-detection output\n"
+          f"{_summarize_process_output(result)}")
+
+    num_stars, _profile, _channel, fwhm = matches[-1]
+    num_stars, fwhm = int(num_stars), float(fwhm)
+    if num_stars <= 0:
       return None, None
+    if not math.isfinite(fwhm) or fwhm <= 0:
+      raise StarDetectionError(
+          f"Siril returned invalid FWHM: stars={num_stars}, FWHM={fwhm}\n"
+          f"{_summarize_process_output(result)}")
+    return num_stars, fwhm

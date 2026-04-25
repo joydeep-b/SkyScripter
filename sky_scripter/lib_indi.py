@@ -159,6 +159,16 @@ class IndiCamera(IndiClient):
     exec_or_fail(command)
 
 class IndiMount(IndiClient):
+  def get_parked_state(self) -> Literal["PARKED", "UNPARKED", "Unknown"]:
+    parked_state = self.read("TELESCOPE_PARK.PARK")
+    if parked_state == "On":
+      return "PARKED"
+    elif parked_state == "Off":
+      return "UNPARKED"
+    else:
+      logging.error("Get parked state: unknown state")
+      return "Unknown"
+    
   def park(self):
     self.write("TELESCOPE_PARK", "PARK", "On")
     while self.read("TELESCOPE_PARK.PARK") != "On":

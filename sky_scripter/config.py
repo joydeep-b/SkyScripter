@@ -30,6 +30,8 @@ DEFAULTS = {
     "mode": 5,
     "step": 6,
     "num_steps": 7,
+    "min_position": None,
+    "max_position": None,
     "exposure_broadband": 2,
     "exposure_narrowband": 4,
     "interval_minutes": 60,

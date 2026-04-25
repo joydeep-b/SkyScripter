@@ -15,13 +15,17 @@ class FocusManager:
   def __init__(self, focuser: IndiFocuser, camera: IndiCamera,
                alert_bus: AlertBus, logger: StructuredLogger,
                calibration_path: str = 'focus_calibration.json',
-               focus_step: int = 6, num_steps: int = 7):
+               focus_step: int = 6, num_steps: int = 7,
+               min_position: int | None = None,
+               max_position: int | None = None):
     self.focuser = focuser
     self.camera = camera
     self.alert_bus = alert_bus
     self.logger = logger
     self.focus_step = focus_step
     self.num_steps = num_steps
+    self.min_position = min_position
+    self.max_position = max_position
     self.last_focus_time = None
     self.last_focus_temp = None
     self.last_focus_filter = None
@@ -39,7 +43,8 @@ class FocusManager:
     try:
       best_focus, best_fwhm, results, plot_file = auto_focus(
           self.focuser, self.camera, self.focus_step, self.num_steps,
-          filter_name=filter_name)
+          filter_name=filter_name, min_position=self.min_position,
+          max_position=self.max_position)
     except Exception:
       logging.exception("Autofocus failed")
       return None, None
