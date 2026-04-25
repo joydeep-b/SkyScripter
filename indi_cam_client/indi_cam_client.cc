@@ -59,6 +59,10 @@ public:
   }
 
   void updateProperty(INDI::Property property) override {
+    if (strcmp(property.getBaseDevice().getDeviceName(), FLAGS_device.c_str()) != 0) {
+      if (FLAGS_v > 1) printf("Ignoring update from device %s\n", property.getBaseDevice().getDeviceName());
+      return;
+    }
     if (FLAGS_v > 0 && strcmp(property.getName(), "CCD_EXPOSURE") == 0) {
       INDI::PropertyViewNumber* nvp = property.getNumber();
       INDI::WidgetViewNumber* wvn = nvp->at(0);
@@ -124,6 +128,15 @@ public:
       std::cerr << "Exposure element is null" << std::endl;
       exit(1);
     }
+    // Sanity check: refuse to send the exposure command unless the cached
+    // property still belongs to the device we were asked to control.
+    const char* exp_device = exposureElement->getDeviceName();
+    if (!exp_device || strcmp(exp_device, FLAGS_device.c_str()) != 0) {
+      fprintf(stderr,
+              "ERROR: cached CCD_EXPOSURE belongs to device '%s' but expected '%s'\n",
+              exp_device ? exp_device : "(null)", FLAGS_device.c_str());
+      exit(1);
+    }
     if (FLAGS_v > 0) printf("Setting exposure to %f\n", FLAGS_exposure);
     wvn->value = FLAGS_exposure;
     sendNewNumber(exposureElement);
@@ -140,6 +153,14 @@ int main(int argc, char** argv) {
   gflags::ParseCommandLineFlags(&argc, &argv, true);
   CameraClient client;
   client.setServer(FLAGS_server.c_str(), FLAGS_port);
+
+  // Restrict libindi to only create the BaseDevice/properties for our target
+  // camera. Without this, properties (notably CCD_EXPOSURE) from other cameras
+  // attached to the same INDI server (e.g. a guide cam driven by PHD2) end up
+  // in our client's memory, where libindi's network thread keeps mutating
+  // their values and our cached PropertyView pointer can race onto the wrong
+  // device.
+  client.watchDevice(FLAGS_device.c_str());
 
   // INDI::BaseClient::connectServer() is stupid and pollutes stderr with debug messages that can't
   // be turned off, and even more stupidly it does not print any usefull logs when there is an
