@@ -40,6 +40,31 @@ intents.message_content = True
 intents.guilds = True
 intents.messages = True
 
+
+def extract_text_from_message(message: discord.Message) -> str:
+    """Collect searchable text from message content and embeds."""
+    parts = []
+    if message.content:
+        parts.append(message.content)
+
+    for embed in message.embeds:
+        data = embed.to_dict()
+        for key in ("title", "description"):
+            if data.get(key):
+                parts.append(data[key])
+        for field in data.get("fields", []):
+            if field.get("name"):
+                parts.append(field["name"])
+            if field.get("value"):
+                parts.append(field["value"])
+        if data.get("footer", {}).get("text"):
+            parts.append(data["footer"]["text"])
+        if data.get("author", {}).get("name"):
+            parts.append(data["author"]["name"])
+
+    return "\n".join(parts).strip()
+
+
 @dataclass
 class BotConfig:
     token: str
@@ -160,8 +185,9 @@ class EkosWatchClient(discord.Client):
 
         author = f"{message.author} (id={message.author.id})"
         where = f"#{getattr(message.channel, 'name', 'DM')} (id={message.channel.id})"
-        content_lower = message.content.lower()
-        logger.info("[%s] %s: %r", where, author, message.content)
+        text = extract_text_from_message(message)
+        content_lower = text.lower()
+        logger.info("[%s] %s: %r", where, author, text)
 
         if self.config.open_keyword in content_lower:
             await self.handle_opening()
@@ -170,6 +196,9 @@ class EkosWatchClient(discord.Client):
 
         for attachment in message.attachments:
             logger.info("attachment: %s -> %s", attachment.filename, attachment.url)
+
+        if message.embeds:
+            logger.debug("Embeds: %s", [embed.to_dict() for embed in message.embeds])
 
     async def handle_opening(self):
         logger.info("Roof opening detected")
