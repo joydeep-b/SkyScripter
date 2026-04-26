@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Observatory</title>
+  <title>Observatory Panel</title>
   <style>
     :root { --bg:#0f1419; --card:#1a2332; --border:#2d3a4d; --text:#e8eef5; --muted:#9aa8b8; --accent:#5b9fd4; --ok:#3ecf8e; --warn:#e6b84d; --bad:#e85d5d; --font:system-ui,-apple-system,"Segoe UI",Roboto,Ubuntu,sans-serif; }
     * { box-sizing: border-box; }
@@ -18,7 +18,15 @@
     main { padding: 1rem; width: 100%; }
     .grid { display: grid; gap: 1rem; grid-template-columns: repeat(3, minmax(0, 1fr)); }
     @media (max-width: 950px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-    @media (max-width: 640px) { .grid { grid-template-columns: 1fr; } }
+    @media (max-width: 640px) {
+      main { padding: 0.75rem; }
+      .grid { grid-template-columns: minmax(0, 1fr); }
+      .row, .outlet { min-width: 0; }
+      .outlet { flex-wrap: wrap; }
+      .value, .outlet-status, .device-status { min-width: 0; }
+      .device-status { grid-template-columns: minmax(0, 1fr) auto; }
+      .device-status button { grid-column: 1 / -1; }
+    }
     section.card {
       background: var(--card); border: 1px solid var(--border); border-radius: 12px;
       padding: 1rem 1.1rem;
@@ -69,13 +77,13 @@
 </head>
 <body>
   <header>
-    <h1>Observatory</h1>
+    <h1>Observatory Panel</h1>
     <span class="meta" id="hdr-updated">Updated —</span>
   </header>
   <main>
     <div class="grid" style="margin-top:1rem">
       <section class="card" id="card-power">
-        <h2>Power</h2>
+        <h2>DLI Power</h2>
         <div id="power-body"></div>
         <div class="toolbar">
           <button type="button" class="primary" id="pwr-all-on">All on</button>
@@ -92,6 +100,7 @@
         <h2>INDI <span id="indi-badge" class="badge">—</span></h2>
         <div class="row"><span class="label">Server</span><span class="value" id="indi-run">—</span></div>
         <div id="indi-err" class="msgbox" style="display:none"></div>
+        <div id="indi-resolve-note" class="msgbox" style="display:none; max-height:4rem"></div>
         <ul class="devices" id="indi-devs"></ul>
         <div class="toolbar">
           <button type="button" class="primary" id="indi-start">Start server</button>
@@ -109,6 +118,9 @@
       </section>
       <section class="card">
         <h2>Equipment</h2>
+        <div class="row"><span class="label">INDI mount</span><span class="value" id="eq-mount-name">—</span></div>
+        <div class="row"><span class="label">INDI camera</span><span class="value" id="eq-camera-name">—</span></div>
+        <div class="row"><span class="label">INDI focuser</span><span class="value" id="eq-focuser-name">—</span></div>
         <div class="row"><span class="label">Mount</span><span class="value" id="mount-park">—</span></div>
         <div class="row"><span class="label">RA / Dec</span><span class="value" id="mount-radec">—</span></div>
         <div class="toolbar">
@@ -178,8 +190,7 @@
     return j;
   }
 
-  async function doPost(path, body, label) {
-    if (!confirm(label)) return;
+  async function doPost(path, body) {
     try {
       await post(path, body);
       await refresh();
@@ -209,11 +220,11 @@
       const bOn = document.createElement('button');
       bOn.textContent = 'On';
       bOn.className = 'primary';
-      bOn.onclick = () => doPost('/api/power', { outlet: o.id, on: true }, 'Turn outlet ' + o.id + ' ON?');
+      bOn.onclick = () => doPost('/api/power', { outlet: o.id, on: true });
       const bOff = document.createElement('button');
       bOff.textContent = 'Off';
       bOff.className = 'danger';
-      bOff.onclick = () => doPost('/api/power', { outlet: o.id, on: false }, 'Turn outlet ' + o.id + ' OFF?');
+      bOff.onclick = () => doPost('/api/power', { outlet: o.id, on: false });
       btns.appendChild(bOn);
       btns.appendChild(bOff);
       row.appendChild(btns);
@@ -251,6 +262,14 @@
       ie.style.display = 'none';
       ie.textContent = '';
     }
+    const irn = $('indi-resolve-note');
+    if (indi.device_resolution_note) {
+      irn.style.display = 'block';
+      irn.textContent = indi.device_resolution_note;
+    } else {
+      irn.style.display = 'none';
+      irn.textContent = '';
+    }
     const ul = $('indi-devs');
     ul.innerHTML = '';
     (indi.devices || []).forEach((name) => {
@@ -287,6 +306,11 @@
     $('host-up').textContent = fmtUptime(h.uptime_s);
     $('host-lt').textContent = h.local_time || '—';
 
+    const rd = (d.indi && d.indi.resolved_devices) || {};
+    $('eq-mount-name').textContent = rd.mount || '—';
+    $('eq-camera-name').textContent = rd.camera || '—';
+    $('eq-focuser-name').textContent = rd.focuser || '—';
+
     const mc = d.mount_camera || {};
     const mount = mc.mount || {};
     const cam = mc.camera || {};
@@ -314,12 +338,12 @@
     return String(s).replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
 
-  $('pwr-all-on').onclick = () => doPost('/api/power', { all: true, on: true }, 'Turn ALL outlets ON?');
-  $('pwr-all-off').onclick = () => doPost('/api/power', { all: true, on: false }, 'Turn ALL outlets OFF?');
-  $('indi-start').onclick = () => doPost('/api/indi', { action: 'start' }, 'Start INDI server?');
-  $('indi-stop').onclick = () => doPost('/api/indi', { action: 'stop' }, 'Stop INDI server?');
-  $('mount-park-btn').onclick = () => doPost('/api/indi', { action: 'park' }, 'Park mount?');
-  $('mount-unpark-btn').onclick = () => doPost('/api/indi', { action: 'unpark' }, 'Unpark mount?');
+  $('pwr-all-on').onclick = () => doPost('/api/power', { all: true, on: true });
+  $('pwr-all-off').onclick = () => doPost('/api/power', { all: true, on: false });
+  $('indi-start').onclick = () => doPost('/api/indi', { action: 'start' });
+  $('indi-stop').onclick = () => doPost('/api/indi', { action: 'stop' });
+  $('mount-park-btn').onclick = () => doPost('/api/indi', { action: 'park' });
+  $('mount-unpark-btn').onclick = () => doPost('/api/indi', { action: 'unpark' });
   $('set-temp-btn').onclick = async () => {
     try {
       await post('/api/indi', { action: 'set_temp', temperature: Number($('temp-select').value) });

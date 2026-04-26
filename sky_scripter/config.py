@@ -67,6 +67,17 @@ DEFAULTS = {
     "ws_port": 8765,
     "http_port": 8080,
   },
+  "observatory_panel": {
+    "http_port": 8080,
+    "indi_drivers": "indi_lx200am5 indi_asi_focuser indi_qhy_ccd indi_playerone_ccd",
+  },
+  "dli": {
+    "host": "192.168.0.100",
+    "user": "admin",
+    "password": "",
+    "outlets": [0, 1, 2],
+    "labels": ["Dew Heater", "Camera", "Mount"],
+  },
 }
 
 

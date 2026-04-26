@@ -23,6 +23,12 @@ In addition to the above, you will need the following:
   
 You can install these with `pip3 install -r requirements.txt`
 
+## Tests
+
+**Policy:** pytest only runs a **small set of core-algorithm tests** under `tests/` (scheduling, sequence planning, INDI getprop parsing). Do not expand the suite with panel, config, or hardware integration tests without updating that policy; see **[AGENTS.md](AGENTS.md)**.
+
+From the repo root, `pytest` only collects **`tests/`** (see `pytest.ini`). Root-level `test_hardware.py` and `test_on_sky.py` are **not** pytest suites (they use `test_*` for human-oriented checks and real INDI/PHD2). Run them explicitly, e.g. `python3 test_hardware.py` or `python3 test_on_sky.py --help`.
+
 
 ## Setup Scripts
 

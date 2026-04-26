@@ -1,0 +1,68 @@
+# Observatory Panel systemd unit (example).
+#
+# Install:
+#   sudo cp setup/observatory-panel.service.example \
+#       /etc/systemd/system/observatory-panel.service
+#   sudoedit /etc/systemd/system/observatory-panel.service   # edit User, paths, env vars
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now observatory-panel.service
+#
+# Edit at minimum:
+#   - User= / Group=         account that owns the repo and runs the panel
+#   - WorkingDirectory=      absolute path to the sky_scripter repo
+#   - ExecStart=             absolute path to python3 in your conda base (or other env)
+#   - Environment=PATH=... conda bin first so the same interpreter and deps as an interactive shell
+#   - Environment=SKY_SCRIPTER_CONFIG=... absolute path to sky_scripter.json
+#   - Environment=OBSERVATORY_BIND_HOST=...   IPv4 to bind (often the WireGuard address)
+#   - Environment=DLI_PASSWORD=...            DLI digest password
+#
+# If the bind address only appears after a VPN comes up, also add an ordering
+# dependency on that unit, for example:
+#   After=network-online.target wg-quick@wg0.service
+#   Wants=network-online.target wg-quick@wg0.service
+
+[Unit]
+Description=Observatory Panel HTTP server (sky_scripter)
+Documentation=https://github.com/joydeepb/sky_scripter
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=joydeepb
+Group=joydeepb
+WorkingDirectory=/home/joydeepb/sky_scripter
+
+# Conda base: use the same python as `conda activate base` (adjust if you use Anaconda or a named env).
+Environment=PATH=/home/joydeepb/miniconda3/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+# Explicit config path avoids depending on where Python imports the package from.
+Environment=SKY_SCRIPTER_CONFIG=/home/joydeepb/sky_scripter/sky_scripter.json
+
+# Required: IPv4 the server must bind to. The process exits if it is not local.
+Environment=OBSERVATORY_BIND_HOST=10.0.0.1
+# Required for real outlet status/control. Replace with the DLI digest password.
+Environment=DLI_PASSWORD=CHANGE_ME
+
+# Optional overrides (uncomment and edit as needed; defaults come from sky_scripter.json).
+#Environment=OBSERVATORY_HTTP_PORT=8080
+#Environment=DLI_HOST=192.168.0.100
+#Environment=DLI_USER=admin
+#Environment=DLI_OUTLETS=0,1,2
+#Environment=DLI_LABELS=Dew Heater,Camera,Mount
+#Environment=CAPTURE_DIR=/home/joydeepb/Pictures
+#Environment=INDI_DRIVERS=indi_lx200am5 indi_asi_focuser indi_qhy_ccd indi_playerone_ccd
+
+ExecStart=/home/joydeepb/miniconda3/bin/python3 -m sky_scripter.observatory_panel.server
+
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+# Light hardening; relax if it interferes with INDI / DLI access on your host.
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

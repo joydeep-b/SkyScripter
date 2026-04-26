@@ -14,3 +14,10 @@ bin
 .discord_channel_id
 .discord_token
 sky_scripter.json
+.align
+.align
+.discord_bot.log
+.ekos_logs
+.focus
+.logs
+power.sh

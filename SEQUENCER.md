@@ -60,10 +60,10 @@ analysis/
   focus_calibrator.py  Offline focus-vs-temperature model fitting
 
 tests/
-  test_alert_bus.py    AlertBus unit tests
+  (pytest: core algorithms only — see AGENTS.md)
   test_sequence.py     Sequence DSL unit tests
   test_scheduler.py    NightScheduler unit tests
-  test_config.py       Config loader unit tests
+  test_indi_service.py INDI getprop parsing / device resolution helpers
 
 test_hardware.py       Daytime hardware connectivity checklist
 test_on_sky.py         Interactive on-sky subsystem tests
