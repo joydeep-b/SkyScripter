@@ -19,11 +19,13 @@ FOCUS_LOG_COLUMNS = [
 ]
 
 
-def measure_stars(camera: IndiCamera):
+def measure_stars(camera: IndiCamera, logger: logging.Logger | None = None):
+  if logger is None:
+    logger = logging.getLogger(__name__)
   with tempfile.TemporaryDirectory() as tmpdir:
     image_file = os.path.join(tmpdir, time.strftime("%Y-%m-%dT%H:%M:%S.fits"))
     camera.capture_image(image_file)
-    return run_star_detect_siril(image_file)
+    return run_star_detect_siril(image_file, logger=logger)
 
 
 def _clamp_focus(value, focus_min, focus_max):
@@ -37,8 +39,11 @@ def _positions(start, stop, step):
   return values
 
 
-def _sweep(focuser, camera, positions, backlash, hard_min, hard_max):
+def _sweep(focuser, camera, positions, backlash, hard_min, hard_max,
+           logger: logging.Logger | None = None):
   """Sweep focus positions in order, returning list of (pos, num_stars, fwhm)."""
+  if logger is None:
+    logger = logging.getLogger(__name__)
   positions = sorted(set(_clamp_focus(p, hard_min, hard_max) for p in positions))
   if positions:
     focuser.set_focus(_clamp_focus(positions[0] - backlash, hard_min, hard_max))
@@ -46,7 +51,7 @@ def _sweep(focuser, camera, positions, backlash, hard_min, hard_max):
   for pos in positions:
     focuser.set_focus(pos)
     try:
-      num_stars, fwhm = measure_stars(camera)
+      num_stars, fwhm = measure_stars(camera, logger=logger)
     except StarDetectionError as e:
       print_and_log(f"  Focus:{pos:6d}  Star detection error: {e}",
                     level=logging.ERROR)
@@ -120,8 +125,10 @@ def _append_focus_log(filter_name, temperature, initial_focus, best_focus,
 
 def _finish(focuser, camera, all_results, p, vertex, r_squared, backlash,
             filter_name, temperature, initial_focus, focus_min, focus_max,
-            hard_min, hard_max):
+            hard_min, hard_max, logger: logging.Logger | None = None):
   """Move to best focus, verify, save plot and log. Returns the 4-tuple."""
+  if logger is None:
+    logger = logging.getLogger(__name__)
   if p is not None and p[0] > 0:
     best_focus = _clamp_focus(vertex, hard_min, hard_max)
     best_fwhm = float(np.polyval(p, vertex))
@@ -133,7 +140,7 @@ def _finish(focuser, camera, all_results, p, vertex, r_squared, backlash,
   focuser.set_focus(_clamp_focus(best_focus - backlash, hard_min, hard_max))
   focuser.set_focus(best_focus)
 
-  num_stars, verify_fwhm = measure_stars(camera)
+  num_stars, verify_fwhm = measure_stars(camera, logger=logger)
   print_and_log(f"Best focus: {best_focus}  FWHM: {best_fwhm:.3f}  "
                 f"Verified FWHM: {verify_fwhm}  R²: {r_squared:.3f}")
 
@@ -155,9 +162,12 @@ def auto_focus(focuser: IndiFocuser,
                max_extensions: int = 3,
                timeout: int = 300,
                min_position: int | None = None,
-               max_position: int | None = None):
+               max_position: int | None = None,
+               logger: logging.Logger | None = None):
   """Autofocus with adaptive range extension and coarse-sweep fallback.
   Returns (best_focus, best_fwhm, results, plot_file)."""
+  if logger is None:
+    logger = logging.getLogger(__name__)
   os.makedirs(os.path.join('.focus', 'images'), exist_ok=True)
   initial_focus = focuser.get_focus()
   focuser_max = focuser.get_max_focus()
@@ -198,7 +208,7 @@ def auto_focus(focuser: IndiFocuser,
     if new_positions:
       print_and_log(f"Sweep [{focus_min}, {focus_max}] step={focus_step}")
       results = _sweep(focuser, camera, new_positions, backlash,
-                       hard_min, hard_max)
+                       hard_min, hard_max, logger=logger)
       all_results.extend(results)
       sampled_positions.update(new_positions)
 
@@ -210,7 +220,7 @@ def auto_focus(focuser: IndiFocuser,
       print_and_log(f"Good fit: vertex={vertex:.1f} R²={r_squared:.3f}")
       return _finish(focuser, camera, all_results, p, vertex, r_squared,
                      backlash, filter_name, temperature, initial_focus,
-                     focus_min, focus_max, hard_min, hard_max)
+                     focus_min, focus_max, hard_min, hard_max, logger=logger)
 
     # Monotonic data means we never bracketed a minimum. Jump straight to the coarse sweep.
     monotonic = _is_monotonic(all_results)
@@ -241,7 +251,7 @@ def auto_focus(focuser: IndiFocuser,
       coarse_positions = _positions(hard_min, hard_max, coarse_step)
       print_and_log(f"Coarse sweep [{hard_min}, {hard_max}] step={coarse_step}")
       coarse_results = _sweep(focuser, camera, coarse_positions, backlash,
-                              hard_min, hard_max)
+                              hard_min, hard_max, logger=logger)
       tried_coarse = True
       if coarse_results:
         best_coarse = min(coarse_results, key=lambda r: r[2])
@@ -264,7 +274,7 @@ def auto_focus(focuser: IndiFocuser,
       print_and_log("All fallbacks exhausted, using best discrete sample")
       return _finish(focuser, camera, all_results, p, vertex, r_squared,
                      backlash, filter_name, temperature, initial_focus,
-                     focus_min, focus_max, hard_min, hard_max)
+                     focus_min, focus_max, hard_min, hard_max, logger=logger)
 
     print_and_log("ERROR: Autofocus failed, no usable data")
     focuser.set_focus(_clamp_focus(initial_focus - backlash, hard_min,

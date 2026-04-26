@@ -40,11 +40,12 @@ class FocusManager:
     self.camera.set_capture_settings(mode=5, gain=70, offset=20,
                                      exposure=exposure)
     self.camera.change_filter(filter_name)
+    autofocus_logger = logging.getLogger('sky_scripter.autofocus')
     try:
       best_focus, best_fwhm, results, plot_file = auto_focus(
           self.focuser, self.camera, self.focus_step, self.num_steps,
           filter_name=filter_name, min_position=self.min_position,
-          max_position=self.max_position)
+          max_position=self.max_position, logger=autofocus_logger)
     except Exception:
       logging.exception("Autofocus failed")
       return None, None

@@ -8,13 +8,16 @@ from sky_scripter.structured_log import StructuredLogger
 class MountManager:
   def __init__(self, mount: IndiMount, camera: IndiCamera, alert_bus: AlertBus,
                logger: StructuredLogger, meridian_flip_angle: float = 0.3,
-               align_threshold: float = 20.0):
+               align_threshold: float = 20.0, focal_length_mm: float = None,
+               pixel_size_um: float = None):
     self.mount = mount
     self.camera = camera
     self.alert_bus = alert_bus
     self.logger = logger
     self.meridian_flip_angle = meridian_flip_angle
     self.align_threshold = align_threshold
+    self.focal_length_mm = focal_length_mm
+    self.pixel_size_um = pixel_size_um
 
   def slew_and_center(self, ra: float, dec: float) -> bool:
     self.logger.log("mount", "slew_start", ra=ra, dec=dec)
@@ -23,7 +26,9 @@ class MountManager:
     self.camera.change_filter('L')
     try:
       for attempt in range(2):
-        if align_to_object(self.mount, self.camera, ra, dec, self.align_threshold):
+        if align_to_object(self.mount, self.camera, ra, dec, self.align_threshold,
+                         focal_length_mm=self.focal_length_mm,
+                         pixel_size_um=self.pixel_size_um):
           self.logger.log("mount", "align_complete", ra=ra, dec=dec, attempts=attempt + 1)
           return True
         print_and_log(f"Alignment attempt {attempt + 1} failed, retrying...")

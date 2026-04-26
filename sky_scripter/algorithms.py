@@ -11,13 +11,15 @@ parent_dir = os.path.dirname(script_dir)
 sys.path.append(parent_dir)
 
 from sky_scripter.lib_indi import IndiMount, IndiCamera
-from sky_scripter.util import run_plate_solve_astap, print_and_log
+from sky_scripter.util import run_plate_solve_siril, print_and_log
 
 def align_to_object(mount: IndiMount,
                     camera: IndiCamera,
                     ra_target, dec_target,
                     threshold,
-                    max_iterations=10):
+                    max_iterations=10,
+                    focal_length_mm=None,
+                    pixel_size_um=None):
   image_dir = os.path.join(os.getcwd(), '.align')
   os.makedirs(image_dir, exist_ok=True)
   def compute_error(ra_target, dec_target, ra, dec):
@@ -42,7 +44,8 @@ def align_to_object(mount: IndiMount,
     filename = image_filename()
     camera.capture_image(filename)
     print('Plate solve', end=' | ', flush=True)
-    ra, dec = run_plate_solve_astap(filename)
+    ra, dec = run_plate_solve_siril(filename, focal_length_mm=focal_length_mm,
+                                    pixel_size_um=pixel_size_um)
     if ra is None or dec is None:
       print("No solution")
       logging.warning("Plate solve failed for %s; skipping sync", filename)

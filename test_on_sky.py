@@ -19,7 +19,8 @@ from sky_scripter.focus_manager import FocusManager
 from sky_scripter.capture_manager import CaptureManager
 from sky_scripter.guide_watchdog import GuideWatchdog, GuideCommander
 from sky_scripter.config import Config
-from sky_scripter.util import lookup_object_coordinates, get_siril_path
+from sky_scripter.util import (lookup_object_coordinates, get_siril_path,
+                               init_logging)
 
 
 LOG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.logs')
@@ -450,6 +451,7 @@ def run(rt):
   phd2_host = cfg.get('phd2', 'host', default='localhost')
   phd2_port = cfg.get('phd2', 'port', default=4400)
   os.makedirs(LOG_DIR, exist_ok=True)
+  init_logging('test_on_sky')
   rt.alert_bus = AlertBus()
   rt.slog = StructuredLogger("test_on_sky")
   log_event(rt, "runner", "start", args=vars(args),
@@ -464,7 +466,9 @@ def run(rt):
   mount = IndiMount(mount_name)
   camera = IndiCamera(camera_name)
   focuser = IndiFocuser(focuser_name)
-  rt.mount_mgr = MountManager(mount, camera, rt.alert_bus, rt.slog)
+  rt.mount_mgr = MountManager(mount, camera, rt.alert_bus, rt.slog,
+                               focal_length_mm=cfg.get('optics', 'focal_length_mm'),
+                               pixel_size_um=cfg.get('optics', 'pixel_size_um'))
   rt.focus_mgr = FocusManager(
       focuser, camera, rt.alert_bus, rt.slog,
       calibration_path=cfg.get('focus', 'calibration_path',

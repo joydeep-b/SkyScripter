@@ -134,12 +134,47 @@ def _summarize_process_output(result):
   return "\n".join(parts) if parts else "<no stdout/stderr>"
 
 
-def run_plate_solve_astap(file, astap_path=astap_path_autodetected):
+def run_plate_solve_astap(file, astap_path=astap_path_autodetected, timeout=120,
+                          focal_length_mm=None, pixel_size_um=None,
+                          search_radius_deg=30):
   if astap_path is None:
     logging.warning("ASTAP executable not found")
     return None, None
-  astap_cli_command = [astap_path + " -f " + file + " -r 180"]
-  astap_output = exec_or_fail(astap_cli_command)
+  # ASTAP is a GTK application and needs a display even in CLI mode. When no
+  # DISPLAY is set (e.g. running under a terminal/ssh session without X
+  # forwarding), wrap with xvfb-run so it gets a virtual framebuffer.
+  xvfb = shutil.which('xvfb-run')
+  if not os.environ.get('DISPLAY') and xvfb:
+    prefix = xvfb + ' -a '
+  else:
+    prefix = ''
+  fov_flag = ''
+  if focal_length_mm and pixel_size_um:
+    # Compute the image diagonal FOV in degrees so ASTAP knows the scale.
+    # Using the shorter axis (height) as ASTAP expects the image height FOV.
+    try:
+      from astropy.io import fits as _fits
+      with _fits.open(file) as hdul:
+        naxis2 = hdul[0].header.get('NAXIS2', 0)
+      if naxis2 > 0:
+        scale_arcsec_per_px = 206265.0 * (pixel_size_um * 1e-3) / focal_length_mm
+        fov_deg = naxis2 * scale_arcsec_per_px / 3600.0
+        fov_flag = f' -fov {fov_deg:.2f}'
+    except Exception as e:
+      logging.warning("Could not compute FOV for ASTAP: %s", e)
+  astap_cli_command = (prefix + astap_path + " -f " + file
+                       + f" -r {search_radius_deg}" + fov_flag)
+  try:
+    result = subprocess.run(astap_cli_command, capture_output=True, text=True,
+                            shell=True, timeout=timeout)
+  except subprocess.TimeoutExpired:
+    logging.warning("ASTAP timed out after %ds for %s", timeout, file)
+    return None, None
+  if result.returncode != 0:
+    logging.warning("ASTAP returned %d for %s; stderr: %s; stdout: %s",
+                    result.returncode, file, result.stderr, result.stdout)
+    return None, None
+  astap_output = result.stdout
   # Define the regex pattern, to match output like this:
   # Solution found: 05: 36 03.8	-05° 27 14
   regex = r"Solution found: ([\ ]*[0-9]+): ([\ ]*[0-9]+) ([\ ]*[0-9]+\.[0-9]+)\t([+-])([\ ]*[0-9]+)° ([\ ]*[0-9]+) ([\ ]*[0-9]+\.[0-9]+)"
@@ -174,7 +209,84 @@ def run_plate_solve_astap(file, astap_path=astap_path_autodetected):
   return alpha, delta
 
 
-def run_star_detect_siril(image_file):
+def run_plate_solve_siril(image_file, focal_length_mm=None, pixel_size_um=None,
+                          timeout=120, logger=None):
+  """Plate-solve image_file using Siril and return (ra_hours, dec_deg) in JNow.
+
+  Returns (None, None) on failure. Coordinates are J2000 from Siril then
+  converted to JNow to match the rest of the pipeline.
+  """
+  if logger is None:
+    logger = logging.getLogger(__name__)
+  siril_path = get_siril_path()
+  if siril_path is None or (os.path.isabs(siril_path)
+                             and not os.path.exists(siril_path)):
+    logger.warning("Siril executable not found: %s", siril_path)
+    return None, None
+
+  fl_flag = f' -focal={focal_length_mm:.2f}' if focal_length_mm else ''
+  px_flag = f' -pixelsize={pixel_size_um:.2f}' if pixel_size_um else ''
+  # Use the absolute path directly; Siril accepts it even when CWD differs.
+  # -force re-solves even if WCS headers are already present.
+  # -noflip avoids modifying the original image orientation.
+  siril_commands = (
+      f'requires 1.2.0\n'
+      f'load {image_file}\n'
+      f'platesolve -force{fl_flag}{px_flag} -noflip\n'
+      f'close\n'
+  )
+  with tempfile.TemporaryDirectory() as tmpdirname:
+    siril_cli_command = [siril_path, '-d', tmpdirname, '-s', '-']
+    logger.info("Running Siril plate solve for %s", image_file)
+    try:
+      result = subprocess.run(siril_cli_command, input=siril_commands,
+                              text=True, capture_output=True, check=False,
+                              timeout=timeout)
+    except subprocess.TimeoutExpired:
+      logger.warning("Siril plate solve timed out after %ds for %s",
+                     timeout, image_file)
+      return None, None
+    except OSError as e:
+      logger.warning("Could not execute Siril: %s", e)
+      return None, None
+
+  output = result.stdout + '\n' + result.stderr
+  logger.info("Siril plate solve returncode=%d for %s", result.returncode,
+              image_file)
+  logger.debug("Siril plate solve output for %s:\n%s", image_file, output)
+
+  if 'Siril solve succeeded' not in output:
+    logger.warning("Siril plate solve failed for %s:\n%s", image_file,
+                   _summarize_process_output(result))
+    return None, None
+
+  # Sample: log: Image center: alpha: 13 45 56.186, delta: +27 22 49.443
+  match = re.search(
+      r'log: Image center: alpha:\s+(\d+)\s+(\d+)\s+([\d.]+),\s*'
+      r'delta:\s*([+-]?\d+)\s+(\d+)\s+([\d.]+)',
+      output)
+  if not match:
+    logger.warning("Siril plate solve succeeded but could not parse center "
+                   "for %s:\n%s", image_file, output[-2000:])
+    return None, None
+
+  ra_h, ra_m, ra_s, dec_d, dec_m, dec_s = match.groups()
+  alpha = float(ra_h) + float(ra_m) / 60 + float(ra_s) / 3600
+  dec_sign = -1 if dec_d.startswith('-') else 1
+  delta = dec_sign * (abs(float(dec_d)) + float(dec_m) / 60 + float(dec_s) / 3600)
+
+  logger.info("Siril plate solve result for %s: RA=%.4f Dec=%.4f (J2000)",
+              image_file, alpha, delta)
+
+  # Convert J2000 to JNow to match the rest of the pipeline.
+  c = SkyCoord(alpha, delta, unit=(units.hourangle, units.deg), frame=ICRS())
+  jnow_coord = c.transform_to(FK5(equinox=astropy.time.Time.now()))
+  return jnow_coord.ra.hour, jnow_coord.dec.deg
+
+
+def run_star_detect_siril(image_file, logger=None):
+  if logger is None:
+    logger = logging.getLogger(__name__)
   with tempfile.TemporaryDirectory() as tmpdirname:
     shutil.copy(image_file, tmpdirname)
     siril_path = get_siril_path()
@@ -192,6 +304,8 @@ findstar
 close
 """
     siril_cli_command = [siril_path, "-d", tmpdirname, "-s", "-"]
+    logger.info("Running siril for %s: %s", image_file,
+                ' '.join(siril_cli_command))
     try:
       result = subprocess.run(siril_cli_command,
                               input=siril_commands,
@@ -206,12 +320,20 @@ close
           f"{_summarize_process_output(result)}")
 
     output = result.stdout + "\n" + result.stderr
+    logger.info("Siril returncode=%d for %s", result.returncode, image_file)
+    logger.info("Siril stdout (%d bytes) for %s:\n%s",
+                len(result.stdout), image_file, result.stdout)
+    logger.info("Siril stderr (%d bytes) for %s:\n%s",
+                len(result.stderr), image_file, result.stderr)
+
     # Sample: log: Found 343 Gaussian profile stars in image, channel #0 (FWHM 5.428217)
     regex = re.compile(
         r"^log: Found\s+(\d+)\s+([A-Za-z]+)\s+profile stars in image, "
         r"channel #(\d+) \(FWHM ([0-9]+(?:\.[0-9]+)?)\)$",
         re.MULTILINE)
     matches = regex.findall(output)
+    logger.info("Siril regex matches for %s (%d total): %r",
+                image_file, len(matches), matches)
     if not matches:
       # Siril's findstar omits the "Found N profile stars" line entirely
       # when it detects 0 stars. Detect this by the presence of the
@@ -221,13 +343,21 @@ close
           output, re.MULTILINE)
       no_stars = re.search(r"\b(no stars?|0 stars?)\b", output, re.I)
       if findstar_ran or no_stars:
+        logger.info("Siril reported no stars for %s "
+                    "(findstar_ran=%s, no_stars=%s)",
+                    image_file, bool(findstar_ran), bool(no_stars))
         return None, None
       raise StarDetectionError(
           "Could not parse Siril star-detection output\n"
           f"{_summarize_process_output(result)}")
 
-    num_stars, _profile, _channel, fwhm = matches[-1]
-    num_stars, fwhm = int(num_stars), float(fwhm)
+    num_stars_raw, _profile, _channel, fwhm_raw = matches[-1]
+    logger.info("Siril selected match for %s: num_stars_raw=%r profile=%r "
+                "channel=%r fwhm_raw=%r",
+                image_file, num_stars_raw, _profile, _channel, fwhm_raw)
+    num_stars, fwhm = int(num_stars_raw), float(fwhm_raw)
+    logger.info("Siril parsed values for %s: num_stars=%d fwhm=%r",
+                image_file, num_stars, fwhm)
     if num_stars <= 0:
       return None, None
     if not math.isfinite(fwhm) or fwhm <= 0:
