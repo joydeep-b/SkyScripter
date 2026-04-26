@@ -54,7 +54,7 @@ class RachioClient:
     self.api_key = api_key
     self.person_id = self.get_person_id()
     self.device = self.get_first_device()
-    logging.info(f"Rachio API Key: {api_key} Person ID: {self.person_id}, Device ID: {self.device['id']}")
+    # logging.info(f"Rachio API Key: {api_key} Person ID: {self.person_id}, Device ID: {self.device['id']}")
 
 def main():
   print('Checking for upcoming Rachio events...')

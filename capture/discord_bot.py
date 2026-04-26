@@ -150,8 +150,6 @@ async def main():
     except FileNotFoundError:
         print("No .discord_channel_id file found. Please create one with the channel ID.")
         sys.exit(1)
-    print(f"TOKEN: {TOKEN}")
-    print(f"TARGET_CHANNEL_ID: {TARGET_CHANNEL_ID}")
     client = WatchClient(intents=intents)
     try:
         await client.start(TOKEN)
