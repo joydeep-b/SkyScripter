@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Observatory</title>
+  <style>
+    :root { --bg:#0f1419; --card:#1a2332; --border:#2d3a4d; --text:#e8eef5; --muted:#9aa8b8; --accent:#5b9fd4; --ok:#3ecf8e; --warn:#e6b84d; --bad:#e85d5d; --font:system-ui,-apple-system,"Segoe UI",Roboto,Ubuntu,sans-serif; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: var(--font); background: var(--bg); color: var(--text); line-height: 1.45; font-size: 15px; }
+    header {
+      padding: 1rem 1.25rem; border-bottom: 1px solid var(--border);
+      display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem;
+      position: sticky; top: 0; background: rgba(15,20,25,0.92); backdrop-filter: blur(8px); z-index: 10;
+    }
+    header h1 { margin: 0; font-size: 1.15rem; font-weight: 600; letter-spacing: 0.02em; }
+    .meta { color: var(--muted); font-size: 0.85rem; flex: 1; min-width: 140px; }
+    main { padding: 1rem; width: 100%; }
+    .grid { display: grid; gap: 1rem; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    @media (max-width: 950px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (max-width: 640px) { .grid { grid-template-columns: 1fr; } }
+    section.card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+      padding: 1rem 1.1rem;
+    }
+    section.card h2 {
+      margin: 0 0 0.75rem; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em;
+      color: var(--muted); font-weight: 600;
+    }
+    .badge {
+      display: inline-block; padding: 0.15rem 0.5rem; border-radius: 6px; font-size: 0.8rem; font-weight: 600;
+      background: #2a3545; color: var(--text);
+    }
+    .badge.ok { background: rgba(62,207,142,0.2); color: var(--ok); }
+    .badge.bad { background: rgba(232,93,93,0.2); color: var(--bad); }
+    .badge.warn { background: rgba(230,184,77,0.2); color: var(--warn); }
+    .row { display: flex; justify-content: space-between; gap: 0.5rem; padding: 0.35rem 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .row:last-child { border-bottom: none; }
+    .label { color: var(--muted); flex-shrink: 0; }
+    .value { text-align: right; word-break: break-word; }
+    .msgbox {
+      margin-top: 0.5rem; padding: 0.65rem; background: rgba(0,0,0,0.25); border-radius: 8px;
+      font-size: 0.9rem; color: var(--muted); white-space: pre-wrap; max-height: 8rem; overflow: auto;
+    }
+    .outlet {
+      display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
+      padding: 0.5rem 0; border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .outlet:last-child { border-bottom: none; }
+    .outlet-status { display: grid; grid-template-columns: 11ch auto; align-items: center; gap: 0.75rem; min-height: 2.2rem; }
+    .device-status { display: grid; grid-template-columns: 20ch max-content 5.5rem; align-items: center; gap: 0.75rem; margin: 0.25rem 0; }
+    .device-status button { justify-self: start; }
+    .roof-card { display: flex; flex-direction: column; }
+    .roof-card .row { padding-top: 0.15rem; }
+    .roof-card .msgbox { flex: 1; max-height: none; min-height: 8rem; }
+    .btns { display: flex; gap: 0.35rem; flex-shrink: 0; }
+    button {
+      font: inherit; cursor: pointer; border-radius: 8px; border: 1px solid var(--border);
+      background: #243044; color: var(--text); padding: 0.4rem 0.65rem; font-size: 0.85rem;
+    }
+    button.primary { background: var(--accent); border-color: #4a8ec2; color: #0a0f14; font-weight: 600; }
+    button.danger { background: rgba(232,93,93,0.25); border-color: var(--bad); color: #ffb4b4; }
+    .toolbar { margin-top: 0.75rem; display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    ul.devices { margin: 0; padding-left: 1.1rem; color: var(--muted); font-size: 0.9rem; }
+    .cooler-controls { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.75rem; }
+    select { background: #121a24; color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 0.4rem 0.65rem; font: inherit; }
+    .foot { text-align: center; color: var(--muted); font-size: 0.8rem; padding: 1.5rem 1rem 2rem; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Observatory</h1>
+    <span class="meta" id="hdr-updated">Updated —</span>
+  </header>
+  <main>
+    <div class="grid" style="margin-top:1rem">
+      <section class="card" id="card-power">
+        <h2>Power</h2>
+        <div id="power-body"></div>
+        <div class="toolbar">
+          <button type="button" class="primary" id="pwr-all-on">All on</button>
+          <button type="button" class="danger" id="pwr-all-off">All off</button>
+        </div>
+      </section>
+      <section class="card roof-card" id="card-roof">
+        <h2>Roof <span id="roof-badge" class="badge">—</span></h2>
+        <div class="row"><span class="label">Time</span><span class="value" id="roof-time">—</span></div>
+        <div class="msgbox" id="roof-msg">—</div>
+        <div class="row" id="roof-note-row" style="display:none"><span class="label">Note</span><span class="value" id="roof-note"></span></div>
+      </section>
+      <section class="card" id="card-indi">
+        <h2>INDI <span id="indi-badge" class="badge">—</span></h2>
+        <div class="row"><span class="label">Server</span><span class="value" id="indi-run">—</span></div>
+        <div id="indi-err" class="msgbox" style="display:none"></div>
+        <ul class="devices" id="indi-devs"></ul>
+        <div class="toolbar">
+          <button type="button" class="primary" id="indi-start">Start server</button>
+          <button type="button" class="danger" id="indi-stop">Stop server</button>
+        </div>
+      </section>
+      <section class="card">
+        <h2>Host</h2>
+        <div class="row"><span class="label">Disk (free / total)</span><span class="value" id="host-disk">—</span></div>
+        <div class="row"><span class="label">Disk used</span><span class="value" id="host-pct">—</span></div>
+        <div class="row"><span class="label">Load (1m)</span><span class="value" id="host-load">—</span></div>
+        <div class="row"><span class="label">Memory</span><span class="value" id="host-mem">—</span></div>
+        <div class="row"><span class="label">Uptime</span><span class="value" id="host-up">—</span></div>
+        <div class="row"><span class="label">Local time</span><span class="value" id="host-lt">—</span></div>
+      </section>
+      <section class="card">
+        <h2>Equipment</h2>
+        <div class="row"><span class="label">Mount</span><span class="value" id="mount-park">—</span></div>
+        <div class="row"><span class="label">RA / Dec</span><span class="value" id="mount-radec">—</span></div>
+        <div class="toolbar">
+          <button type="button" class="primary" id="mount-park-btn">Park</button>
+          <button type="button" id="mount-unpark-btn">Unpark</button>
+        </div>
+        <div class="row"><span class="label">Camera temp</span><span class="value" id="cam-temp">—</span></div>
+        <div class="row"><span class="label">Focuser temp</span><span class="value" id="focuser-temp">—</span></div>
+        <div class="row"><span class="label">Cooler</span><span class="value" id="cam-cooler">—</span></div>
+        <div class="cooler-controls">
+          <select id="temp-select">
+            <option value="-10">-10°C</option>
+            <option value="0">0°C</option>
+            <option value="5">5°C</option>
+          </select>
+          <button type="button" class="primary" id="set-temp-btn">Set temp</button>
+          <button type="button" class="danger" id="cooler-off-btn">Cooler off</button>
+        </div>
+        <div id="mount-camera-error" class="msgbox" style="display:none; max-height:4rem"></div>
+      </section>
+      <section class="card">
+        <h2>Last action</h2>
+        <div class="row"><span class="label">Time</span><span class="value" id="act-time">—</span></div>
+        <div class="row"><span class="label">What</span><span class="value" id="act-what">—</span></div>
+        <div class="row"><span class="label">OK</span><span class="value" id="act-ok">—</span></div>
+        <div class="msgbox" id="act-detail" style="max-height:4rem">—</div>
+      </section>
+    </div>
+  </main>
+  <script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+
+  function fmtUptime(sec) {
+    if (sec == null) return '—';
+    const s = Math.floor(sec);
+    const d = Math.floor(s / 86400);
+    const h = Math.floor((s % 86400) / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    return (d ? d + 'd ' : '') + h + 'h ' + m + 'm';
+  }
+
+  function fmtTime(s) {
+    if (!s) return '—';
+    const d = new Date(s);
+    return isNaN(d) ? s : d.toLocaleString();
+  }
+
+  function roofBadgeClass(st) {
+    const u = (st || '').toUpperCase();
+    if (u === 'OPEN') return 'ok';
+    if (u === 'CLOSED') return 'bad';
+    return 'bad';
+  }
+
+  function setBadge(el, text, cls) {
+    el.textContent = text;
+    el.className = 'badge ' + (cls || '');
+  }
+
+  async function post(path, body) {
+    const r = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const txt = await r.text();
+    let j = {};
+    try { j = JSON.parse(txt); } catch (_) {}
+    if (!r.ok) throw new Error(j.error || j.detail || txt || r.status);
+    return j;
+  }
+
+  async function doPost(path, body, label) {
+    if (!confirm(label)) return;
+    try {
+      await post(path, body);
+      await refresh();
+    } catch (e) {
+      alert(String(e.message || e));
+    }
+  }
+
+  async function refresh() {
+    const r = await fetch('/api/status');
+    const d = await r.json();
+    $('hdr-updated').textContent = 'Updated ' + new Date().toLocaleTimeString();
+
+    const pwr = d.power || {};
+    const ob = $('power-body');
+    ob.innerHTML = '';
+    (pwr.outlets || []).forEach((o) => {
+      const on = o.on === true;
+      const reach = o.reachable !== false;
+      const row = document.createElement('div');
+      row.className = 'outlet';
+      row.innerHTML = '<div class="outlet-status"><strong>' + escapeHtml(o.label || ('Outlet ' + o.id)) + '</strong> ' +
+        '<span class="badge ' + (on ? 'ok' : 'bad') + '">' + (on ? 'ON' : 'OFF') + '</span>' +
+        (reach ? '' : ' <span class="badge bad">?</span>') + '</div>';
+      const btns = document.createElement('div');
+      btns.className = 'btns';
+      const bOn = document.createElement('button');
+      bOn.textContent = 'On';
+      bOn.className = 'primary';
+      bOn.onclick = () => doPost('/api/power', { outlet: o.id, on: true }, 'Turn outlet ' + o.id + ' ON?');
+      const bOff = document.createElement('button');
+      bOff.textContent = 'Off';
+      bOff.className = 'danger';
+      bOff.onclick = () => doPost('/api/power', { outlet: o.id, on: false }, 'Turn outlet ' + o.id + ' OFF?');
+      btns.appendChild(bOn);
+      btns.appendChild(bOff);
+      row.appendChild(btns);
+      ob.appendChild(row);
+    });
+    if (pwr.error) {
+      const e = document.createElement('div');
+      e.className = 'msgbox';
+      e.textContent = pwr.error;
+      ob.appendChild(e);
+    }
+
+    const roof = d.roof || {};
+    const rb = $('roof-badge');
+    setBadge(rb, roof.state || 'UNKNOWN', roofBadgeClass(roof.state));
+    $('roof-time').textContent = fmtTime(roof.timestamp);
+    $('roof-msg').textContent = roof.message || '—';
+    const nr = $('roof-note-row');
+    if (roof.note) {
+      nr.style.display = 'flex';
+      $('roof-note').textContent = roof.note;
+    } else {
+      nr.style.display = 'none';
+    }
+
+    const indi = d.indi || {};
+    const ir = indi.server_running;
+    setBadge($('indi-badge'), ir ? 'Running' : 'Stopped', ir ? 'ok' : 'bad');
+    $('indi-run').textContent = ir ? 'indiserver running' : 'indiserver not running';
+    const ie = $('indi-err');
+    if (indi.raw_error) {
+      ie.style.display = 'block';
+      ie.textContent = indi.raw_error;
+    } else {
+      ie.style.display = 'none';
+      ie.textContent = '';
+    }
+    const ul = $('indi-devs');
+    ul.innerHTML = '';
+    (indi.devices || []).forEach((name) => {
+      const c = (indi.connections || {})[name] || 'UNKNOWN';
+      const li = document.createElement('li');
+      const cls = c === 'CONNECTED' ? 'ok' : (c === 'DISCONNECTED' ? 'bad' : 'warn');
+      li.innerHTML = '<span class="device-status"><span>' + escapeHtml(name) + '</span><span class="badge ' + cls + '">' + c + '</span></span>';
+      const btn = document.createElement('button');
+      btn.textContent = 'Connect';
+      btn.className = 'primary';
+      btn.disabled = c !== 'DISCONNECTED';
+      btn.style.visibility = c === 'DISCONNECTED' ? 'visible' : 'hidden';
+      btn.onclick = async () => {
+        try {
+          await post('/api/indi', { action: 'connect', device: name });
+          await refresh();
+        } catch (e) {
+          alert(String(e.message || e));
+        }
+      };
+      li.querySelector('.device-status').appendChild(btn);
+      ul.appendChild(li);
+    });
+
+    const h = d.host || {};
+    const df = h.disk_free_gb != null ? h.disk_free_gb + ' GB' : '—';
+    const dt = h.disk_total_gb != null ? h.disk_total_gb + ' GB' : '—';
+    $('host-disk').textContent = df + ' / ' + dt;
+    $('host-pct').textContent = h.disk_pct_used != null ? h.disk_pct_used + '%' : '—';
+    $('host-load').textContent = (h.loadavg && h.loadavg[0] != null) ? String(h.loadavg[0]) : '—';
+    if (h.mem_used_mb != null && h.mem_total_mb != null) {
+      $('host-mem').textContent = Math.round(h.mem_used_mb) + ' / ' + Math.round(h.mem_total_mb) + ' MiB used';
+    } else $('host-mem').textContent = '—';
+    $('host-up').textContent = fmtUptime(h.uptime_s);
+    $('host-lt').textContent = h.local_time || '—';
+
+    const mc = d.mount_camera || {};
+    const mount = mc.mount || {};
+    const cam = mc.camera || {};
+    $('mount-park').textContent = mount.parked || '—';
+    $('mount-radec').textContent = (mount.ra || '—') + ' / ' + (mount.dec || '—');
+    $('cam-temp').textContent = cam.temperature != null ? Number(cam.temperature).toFixed(1) + '°C' : '—';
+    $('focuser-temp').textContent = cam.focuser_temperature != null ? Number(cam.focuser_temperature).toFixed(1) + '°C' : '—';
+    $('cam-cooler').textContent = (cam.cooler || '—') + (cam.cooler_power != null ? ' · ' + Number(cam.cooler_power).toFixed(0) + '%' : '');
+    if (mc.error) {
+      $('mount-camera-error').style.display = 'block';
+      $('mount-camera-error').textContent = mc.error;
+    } else {
+      $('mount-camera-error').style.display = 'none';
+      $('mount-camera-error').textContent = '';
+    }
+
+    const lc = d.last_command || {};
+    $('act-time').textContent = fmtTime(lc.time);
+    $('act-what').textContent = lc.what || '—';
+    $('act-ok').textContent = lc.ok == null ? '—' : String(lc.ok);
+    $('act-detail').textContent = lc.detail || '—';
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  $('pwr-all-on').onclick = () => doPost('/api/power', { all: true, on: true }, 'Turn ALL outlets ON?');
+  $('pwr-all-off').onclick = () => doPost('/api/power', { all: true, on: false }, 'Turn ALL outlets OFF?');
+  $('indi-start').onclick = () => doPost('/api/indi', { action: 'start' }, 'Start INDI server?');
+  $('indi-stop').onclick = () => doPost('/api/indi', { action: 'stop' }, 'Stop INDI server?');
+  $('mount-park-btn').onclick = () => doPost('/api/indi', { action: 'park' }, 'Park mount?');
+  $('mount-unpark-btn').onclick = () => doPost('/api/indi', { action: 'unpark' }, 'Unpark mount?');
+  $('set-temp-btn').onclick = async () => {
+    try {
+      await post('/api/indi', { action: 'set_temp', temperature: Number($('temp-select').value) });
+      await refresh();
+    } catch (e) {
+      alert(String(e.message || e));
+    }
+  };
+  $('cooler-off-btn').onclick = async () => {
+    try {
+      await post('/api/indi', { action: 'cooler_off' });
+      await refresh();
+    } catch (e) {
+      alert(String(e.message || e));
+    }
+  };
+
+  refresh().catch((e) => { $('hdr-updated').textContent = 'Status error — ' + (e.message || e); console.error(e); });
+  setInterval(() => { refresh().catch(() => {}); }, 3000);
+})();
+  </script>
+</body>
+</html>
