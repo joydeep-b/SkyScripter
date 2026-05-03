@@ -108,7 +108,13 @@ def parse_args():
         "--max-sub-duration",
         type=float,
         default=600.0,
-        help="Warn if EXPTIME is longer than this (seconds). Default: 600",
+        help="Skip subs with EXPTIME longer than this (seconds). Default: 600",
+    )
+    parser.add_argument(
+        "--min-sub-duration",
+        type=float,
+        default=0.0,
+        help="Skip subs with EXPTIME shorter than this (seconds). Default: 0",
     )
     parser.add_argument(
         "--max-moon-phase",
@@ -143,6 +149,15 @@ def parse_args():
 
     if args.max_moon_phase is not None and not (0.0 <= args.max_moon_phase <= 100.0):
         parser.error("--max-moon-phase must be between 0 and 100.")
+
+    if args.min_sub_duration < 0.0:
+        parser.error("--min-sub-duration must be >= 0.")
+
+    if args.max_sub_duration <= 0.0:
+        parser.error("--max-sub-duration must be > 0.")
+
+    if args.min_sub_duration > args.max_sub_duration:
+        parser.error("--min-sub-duration cannot be greater than --max-sub-duration.")
 
     if (args.site_lat is None) ^ (args.site_lon is None):
         parser.error("--site-lat and --site-lon must be provided together.")
@@ -556,13 +571,25 @@ def main():
                 update_progress(idx, len(records), prefix="Processing")
                 continue
 
+        if exptime is not None and exptime < args.min_sub_duration:
+            warning_count += 1
+            print(
+                f"Warning: EXPTIME={exptime:.3f}s is below min-sub-duration "
+                f"{args.min_sub_duration:.3f}s for {fits_file}; skipping.",
+                file=sys.stderr,
+            )
+            update_progress(idx, len(records), prefix="Processing")
+            continue
+
         if exptime is not None and exptime > args.max_sub_duration:
             warning_count += 1
             print(
                 f"Warning: EXPTIME={exptime:.3f}s exceeds max-sub-duration "
-                f"{args.max_sub_duration:.3f}s for {fits_file}",
+                f"{args.max_sub_duration:.3f}s for {fits_file}; skipping.",
                 file=sys.stderr,
             )
+            update_progress(idx, len(records), prefix="Processing")
+            continue
 
         if moon_filter_enabled:
             moon_key = record["moon_key"]
