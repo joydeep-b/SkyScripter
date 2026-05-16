@@ -19,6 +19,7 @@ import os
 import sys
 import threading
 import urllib.error
+import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
@@ -28,6 +29,7 @@ from socketserver import ThreadingMixIn
 
 from sky_scripter.config import Config
 from sky_scripter.dli_power import DliPowerSwitch
+from sky_scripter.observatory_panel.fits_preview import FitsPreviewService, build_config_from_env
 from sky_scripter import indi_service
 from sky_scripter.system_status import host_status as build_host_status
 
@@ -97,6 +99,8 @@ _DLI = DliPowerSwitch(
 _MOUNT_ALIASES = indi_service.normalize_device_aliases(_cfg["devices"]["mount"])
 _CAMERA_ALIASES = indi_service.normalize_device_aliases(_cfg["devices"]["camera"])
 _FOCUSER_ALIASES = indi_service.normalize_device_aliases(_cfg["devices"]["focuser"])
+
+_FITS_PREVIEW = FitsPreviewService(build_config_from_env(_REPO_ROOT, _CAPTURE_DIR))
 
 _cmd_lock = threading.Lock()
 _last_cmd: dict = {"time": None, "what": "", "ok": None, "detail": ""}
@@ -408,6 +412,7 @@ def build_status() -> dict:
             resolved=resolved_devices if not ierr else None,
         ),
         "host": build_host_status(_CAPTURE_DIR),
+        "fits_preview": _FITS_PREVIEW.status(),
         "last_command": dict(_last_cmd),
     }
 
@@ -438,7 +443,8 @@ class _Handler(BaseHTTPRequestHandler):
             pass
 
     def do_GET(self) -> None:
-        if self.path == "/api/status":
+        parsed = urllib.parse.urlparse(self.path)
+        if parsed.path == "/api/status":
             try:
                 data = json.dumps(build_status(), default=str).encode("utf-8")
                 self._send(HTTPStatus.OK, data)
@@ -446,7 +452,18 @@ class _Handler(BaseHTTPRequestHandler):
                 logger.exception("GET /api/status failed: %s", e)
                 self._send(HTTPStatus.INTERNAL_SERVER_ERROR, json.dumps({"error": str(e)}).encode())
             return
-        if self.path in ("/", "/index.html"):
+        if parsed.path.startswith("/api/fits-preview/"):
+            preview_id = urllib.parse.unquote(parsed.path.rsplit("/", 1)[-1])
+            path = _FITS_PREVIEW.preview_path(preview_id)
+            if not path:
+                self._send(HTTPStatus.NOT_FOUND, b"{\"error\":\"preview not found\"}")
+                return
+            try:
+                self._send(HTTPStatus.OK, path.read_bytes(), "image/jpeg")
+            except OSError:
+                self._send(HTTPStatus.NOT_FOUND, b"{\"error\":\"preview not found\"}")
+            return
+        if parsed.path in ("/", "/index.html"):
             static = os.path.join(os.path.dirname(__file__), "static", "index.html")
             try:
                 html = open(static, "rb").read()
@@ -632,12 +649,14 @@ def main() -> None:
     except OSError as e:
         logger.error("Failed to bind %s:%s: %s", host, _HTTP_PORT, e)
         raise SystemExit(1)
+    _FITS_PREVIEW.start()
     logger.info("Observatory panel http://%s:%s/ log file %s", host, _HTTP_PORT, _log_file)
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
         pass
     finally:
+        _FITS_PREVIEW.stop()
         httpd.server_close()
 
 

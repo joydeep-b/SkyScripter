@@ -52,6 +52,11 @@ Environment=DLI_PASSWORD=CHANGE_ME
 #Environment=DLI_LABELS=Dew Heater,Camera,Mount
 #Environment=CAPTURE_DIR=/home/joydeepb/Pictures
 #Environment=INDI_DRIVERS=indi_lx200am5 indi_asi_focuser indi_qhy_ccd indi_playerone_ccd
+#Environment=FITS_PREVIEW_ENABLED=true
+#Environment=FITS_PREVIEW_CAPTURE_DIR=/home/joydeepb/Pictures
+#Environment=FITS_PREVIEW_MASTER_DARK_DIR=/home/joydeepb/masters/dark
+#Environment=FITS_PREVIEW_MASTER_FLAT_DIR=/home/joydeepb/masters/flat
+#Environment=FITS_PREVIEW_CACHE_DIR=/home/joydeepb/sky_scripter/.cache/observatory_panel/fits_previews
 
 ExecStart=/home/joydeepb/miniconda3/bin/python3 -m sky_scripter.observatory_panel.server
 

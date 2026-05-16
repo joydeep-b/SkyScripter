@@ -61,6 +61,28 @@
     .roof-card { display: flex; flex-direction: column; }
     .roof-card .row { padding-top: 0.15rem; }
     .roof-card .msgbox { flex: 1; max-height: none; min-height: 8rem; }
+    .fits-preview-card { grid-column: span 3; }
+    .preview-frame {
+      min-height: 16rem; display: flex; align-items: center; justify-content: center;
+      background: rgba(0,0,0,0.25); border-radius: 10px; overflow: hidden; margin-bottom: 0.75rem;
+    }
+    .preview-frame img { display: block; max-width: 100%; max-height: 60vh; object-fit: contain; cursor: zoom-in; }
+    .preview-zoom {
+      position: fixed; inset: 0; z-index: 100; display: none; align-items: center; justify-content: center;
+      background: rgba(0,0,0,0.92); padding: 1rem; cursor: zoom-out;
+    }
+    .preview-zoom.open { display: flex; }
+    .preview-zoom img { max-width: 100%; max-height: 100%; object-fit: contain; }
+    .preview-zoom-hint {
+      position: fixed; top: 0.75rem; left: 50%; transform: translateX(-50%);
+      color: var(--muted); background: rgba(0,0,0,0.55); border-radius: 999px; padding: 0.3rem 0.75rem;
+      font-size: 0.85rem; pointer-events: none;
+    }
+    @media (max-width: 640px) {
+      .fits-preview-card { grid-column: auto; }
+      .preview-frame { min-height: 10rem; }
+      .preview-frame img { max-height: 45vh; }
+    }
     .btns { display: flex; gap: 0.35rem; flex-shrink: 0; }
     button {
       font: inherit; cursor: pointer; border-radius: 8px; border: 1px solid var(--border);
@@ -148,8 +170,25 @@
         <div class="row"><span class="label">OK</span><span class="value" id="act-ok">—</span></div>
         <div class="msgbox" id="act-detail" style="max-height:4rem">—</div>
       </section>
+      <section class="card fits-preview-card" id="card-fits-preview">
+        <h2>FITS Preview <span id="fits-preview-badge" class="badge">—</span></h2>
+        <div class="preview-frame">
+          <img id="fits-preview-img" alt="Latest FITS preview" style="display:none" />
+          <div class="msgbox" id="fits-preview-empty">No preview yet</div>
+        </div>
+        <div class="row"><span class="label">Source</span><span class="value" id="fits-preview-source">—</span></div>
+        <div class="row"><span class="label">Capture time</span><span class="value" id="fits-preview-capture-time">—</span></div>
+        <div class="row"><span class="label">Filter / exposure</span><span class="value" id="fits-preview-filter-exposure">—</span></div>
+        <div class="row"><span class="label">Calibration</span><span class="value" id="fits-preview-calibration">—</span></div>
+        <div class="row"><span class="label">Watcher</span><span class="value" id="fits-preview-watcher">—</span></div>
+        <div id="fits-preview-error" class="msgbox" style="display:none; max-height:4rem"></div>
+      </section>
     </div>
   </main>
+  <div class="preview-zoom" id="fits-preview-zoom" aria-hidden="true" title="Click to close">
+    <div class="preview-zoom-hint">Click to return</div>
+    <img id="fits-preview-zoom-img" alt="Full-size FITS preview" />
+  </div>
   <script>
 (function () {
   const $ = (id) => document.getElementById(id);
@@ -176,9 +215,29 @@
     return 'bad';
   }
 
+  function previewBadgeClass(st) {
+    const u = (st || '').toLowerCase();
+    if (u === 'ready' || u === 'watching') return 'ok';
+    if (u === 'processing' || u === 'starting' || u === 'disabled') return 'warn';
+    return 'bad';
+  }
+
   function setBadge(el, text, cls) {
     el.textContent = text;
     el.className = 'badge ' + (cls || '');
+  }
+
+  function openPreviewZoom() {
+    const src = $('fits-preview-img').getAttribute('src');
+    if (!src) return;
+    $('fits-preview-zoom-img').setAttribute('src', src);
+    $('fits-preview-zoom').classList.add('open');
+    $('fits-preview-zoom').setAttribute('aria-hidden', 'false');
+  }
+
+  function closePreviewZoom() {
+    $('fits-preview-zoom').classList.remove('open');
+    $('fits-preview-zoom').setAttribute('aria-hidden', 'true');
   }
 
   async function post(path, body) {
@@ -248,6 +307,39 @@
       $('roof-note').textContent = roof.note;
     } else {
       nr.style.display = 'none';
+    }
+
+    const fp = d.fits_preview || {};
+    setBadge($('fits-preview-badge'), fp.state || 'unknown', previewBadgeClass(fp.state));
+    const previewImg = $('fits-preview-img');
+    const previewEmpty = $('fits-preview-empty');
+    if (fp.preview_url) {
+      if (previewImg.getAttribute('src') !== fp.preview_url) previewImg.setAttribute('src', fp.preview_url);
+      previewImg.style.display = 'block';
+      previewEmpty.style.display = 'none';
+    } else {
+      previewImg.removeAttribute('src');
+      previewImg.style.display = 'none';
+      previewEmpty.style.display = 'block';
+      previewEmpty.textContent = fp.enabled === false ? 'FITS preview disabled' : 'No preview yet';
+    }
+    $('fits-preview-source').textContent = fp.source_file ? fp.source_file.split('/').pop() : '—';
+    $('fits-preview-capture-time').textContent = fmtTime(fp.capture_time);
+    const filterText = fp.filter || '—';
+    const exposureText = fp.exposure_seconds != null ? Number(fp.exposure_seconds).toFixed(0) + 's' : '—';
+    $('fits-preview-filter-exposure').textContent = filterText + ' / ' + exposureText;
+    const cal = fp.calibration || {};
+    const calParts = [];
+    if (cal.dark) calParts.push('dark: ' + cal.dark.split('/').pop());
+    if (cal.flat) calParts.push('flat: ' + cal.flat.split('/').pop());
+    $('fits-preview-calibration').textContent = calParts.length ? calParts.join(' · ') : 'none';
+    $('fits-preview-watcher').textContent = (fp.watcher || '—') + (fp.note ? ' · ' + fp.note : '');
+    if (fp.error) {
+      $('fits-preview-error').style.display = 'block';
+      $('fits-preview-error').textContent = fp.error;
+    } else {
+      $('fits-preview-error').style.display = 'none';
+      $('fits-preview-error').textContent = '';
     }
 
     const indi = d.indi || {};
@@ -340,6 +432,8 @@
 
   $('pwr-all-on').onclick = () => doPost('/api/power', { all: true, on: true });
   $('pwr-all-off').onclick = () => doPost('/api/power', { all: true, on: false });
+  $('fits-preview-img').onclick = openPreviewZoom;
+  $('fits-preview-zoom').onclick = closePreviewZoom;
   $('indi-start').onclick = () => doPost('/api/indi', { action: 'start' });
   $('indi-stop').onclick = () => doPost('/api/indi', { action: 'stop' });
   $('mount-park-btn').onclick = () => doPost('/api/indi', { action: 'park' });

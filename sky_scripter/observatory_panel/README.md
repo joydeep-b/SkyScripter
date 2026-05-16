@@ -34,12 +34,37 @@ From another host on the VPN, open `http://<your-WG-IPv4>:8080/` (or the host an
 | `DLI_LABELS` | Comma-separated labels aligned with outlets. |
 | `CAPTURE_DIR` | Path used for disk free space (default from `capture.capture_dir`). |
 | `INDI_DRIVERS` | Space-separated driver names passed to `indiserver` (default from `observatory_panel.indi_drivers`). |
+| `FITS_PREVIEW_ENABLED` | Enable the FITS preview worker (`true` by default; set `false` to disable). |
+| `FITS_PREVIEW_CAPTURE_DIR` | Directory watched for new `.fit` / `.fits` files (default: `CAPTURE_DIR`). |
+| `FITS_PREVIEW_MASTER_DARK_DIR` | Master dark directory (default: `~/masters/dark`). |
+| `FITS_PREVIEW_MASTER_FLAT_DIR` | Master flat directory (default: `~/masters/flat`). |
+| `FITS_PREVIEW_CACHE_DIR` | JPEG preview cache directory (default: `.cache/observatory_panel/fits_previews` under the repo root). |
 
 INDI mount/camera/focuser **roles** are configured under `devices` in repo-root `sky_scripter.json`. Each role may be a single string (one device name) or a **list of aliases** in priority order. The panel resolves the live name from the current `indi_getprop` snapshot: it picks the first alias that exists, or falls back to capability detection (e.g. `TELESCOPE_PARK` for mount, `CCD_TEMPERATURE` for camera, `FOCUS_TEMPERATURE` for focuser). When KStars/Ekos uses different names than your scripts, add both names to the list.
 
 **Collecting names:** start INDI each way (script vs Ekos), then run `indi_getprop -t 2` and note the device prefixes in the output (or save the full snapshot to a file). Add those strings as aliases under `devices.mount`, `devices.camera`, and `devices.focuser`.
 
 Discord credentials are read from repo-root `.discord_token` and `.discord_channel_id`.
+
+## FITS preview pane
+
+The panel runs a background FITS preview worker inside the same `observatory-panel.service` process. It performs one startup scan to find the newest existing capture, then uses Linux file events from `inotifywait` to queue new files without repeatedly walking large capture trees. A slow reconciliation scan catches missed events and new nested target/filter directories.
+
+Install the Linux watcher dependency:
+
+```bash
+sudo apt install inotify-tools
+```
+
+Preview generation uses Siril only. If `siril-cli` or `siril` is not on `PATH`, the FITS Preview card reports an error instead of using a fallback renderer.
+
+The preview card reads capture metadata from the FITS header: `DATE-OBS` for capture time, `FILTER` for filter, and `EXPTIME` for exposure seconds.
+
+Calibration is best-effort:
+
+- Darks are matched from `FITS_PREVIEW_MASTER_DARK_DIR` by rounded `EXPTIME`, nearest available master temperature among `-10` and `0` using `CCD-TEMP`, and matching `READMODE`, `GAIN`, and `OFFSET` when those headers are present. The expected filename convention is `master_dark_MODE<readmode>_GAIN<gain>_OFFSET<offset>_EXPTIME<exptime>_TEMP<temp>.fit`.
+- Flats are matched from `FITS_PREVIEW_MASTER_FLAT_DIR` by `FILTER` using `master_flat_<FILTER>.fit` or `.fits`.
+- If no matching masters are found, the worker skips calibration and still asks Siril to generate a stretched JPEG from the raw light.
 
 ## API (same origin as the UI)
 
@@ -80,6 +105,11 @@ Optional environment variables (commented out in the example) override values fr
 - `DLI_HOST`, `DLI_USER`, `DLI_OUTLETS`, `DLI_LABELS`
 - `CAPTURE_DIR`
 - `INDI_DRIVERS`
+- `FITS_PREVIEW_ENABLED`
+- `FITS_PREVIEW_CAPTURE_DIR`
+- `FITS_PREVIEW_MASTER_DARK_DIR`
+- `FITS_PREVIEW_MASTER_FLAT_DIR`
+- `FITS_PREVIEW_CACHE_DIR`
 
 If the bind address only appears once a VPN is up, add an ordering dependency on the relevant unit, for example:
 
