@@ -1,4 +1,3 @@
-import glob
 import os
 import signal
 import time
@@ -46,7 +45,9 @@ class SessionOrchestrator:
                guide_wd: GuideWatchdog, roof_wd: RoofWatchdog,
                safety_wd: SafetyWatchdog, alert_bus: AlertBus,
                logger: StructuredLogger, capture_dir: str,
-               cooler_temp: float = -10.0, min_altitude: float = 0.0):
+               cooler_temp: float = -10.0, min_altitude: float = 0.0,
+               progress_store=None, project_plan=None, session_target_map=None,
+               max_capture_failures: int = 3):
     self.plan = plan
     self.mount_mgr = mount_mgr
     self.capture_mgr = capture_mgr
@@ -61,11 +62,21 @@ class SessionOrchestrator:
     self.capture_dir = capture_dir
     self.cooler_temp = cooler_temp
     self.min_altitude = min_altitude
+    self.progress_store = progress_store
+    self.project_plan = project_plan
+    self.session_target_map = session_target_map or {}
+    self.max_capture_failures = max_capture_failures
     self.state = SessionState.STARTUP
     self._terminate = False
     self.session_id = time.strftime("%Y%m%d_%H%M%S")
     self.focus_position = None
     self.focus_fwhm = None
+    self.current_target = None
+    self.current_filter = None
+    self.current_frame = None
+    self.current_exposure_total = None
+    self.current_exposure_start = None
+    self.next_action = "startup"
     self._current_ra = None
     self._current_dec = None
     self._dark_start = None
@@ -138,7 +149,8 @@ class SessionOrchestrator:
       print_and_log(f"Scheduled: {target_name} (RA={ra:.4f} Dec={dec:.4f})")
 
       self._run_single_session(session, idx, ra, dec)
-      self._completed.add(idx)
+      if self._session_complete(session, idx):
+        self._completed.add(idx)
       self._active_session_idx = None
 
   def _run_sequential(self):
@@ -158,11 +170,14 @@ class SessionOrchestrator:
       self._current_ra, self._current_dec = ra, dec
       self._active_session_idx = idx
       self._run_single_session(session, idx, ra, dec)
-      self._completed.add(idx)
+      if self._session_complete(session, idx):
+        self._completed.add(idx)
       self._active_session_idx = None
 
   def _run_single_session(self, session, idx, ra, dec):
     target_name = session.target or session.wcs
+    target_identity = self._target_identity(session, idx)
+    self.current_target = target_identity
     print_and_log(f"Target: {target_name} -> RA={ra:.4f} Dec={dec:.4f}")
 
     self._set_state(SessionState.SLEWING)
@@ -180,6 +195,7 @@ class SessionOrchestrator:
     frame_count = 0
     last_filter = first_filter
     filter_frame_counts = {}
+    consecutive_capture_failures = 0
 
     for filter_name, exposure, gain, offset, mode in session.sequence_steps():
       if self._terminate:
@@ -215,14 +231,31 @@ class SessionOrchestrator:
 
       self._set_state(SessionState.CAPTURING)
       filter_frame_counts[filter_name] = filter_frame_counts.get(filter_name, 0) + 1
-      filename = self._get_image_filename()
+      filename = self._get_image_filename(target_identity, filter_name)
       headers = self._build_fits_headers(session, filter_name,
                                          filter_frame_counts[filter_name])
+      self.current_filter = filter_name
+      self.current_frame = headers['SEQIDX']
+      self.current_exposure_total = exposure
+      self.current_exposure_start = time.time()
       print_and_log(f"Capturing {headers['SEQIDX']} exp={exposure}s -> "
                     f"{os.path.basename(filename)}")
-      self.capture_mgr.capture(filename, filter_name, exposure, gain,
-                               offset, mode, headers)
-      frame_count += 1
+      ok = self.capture_mgr.capture(filename, filter_name, exposure, gain,
+                                    offset, mode, headers)
+      self.current_exposure_start = None
+      if ok:
+        consecutive_capture_failures = 0
+        frame_count += 1
+      else:
+        consecutive_capture_failures += 1
+        print_and_log(f"Capture failed ({consecutive_capture_failures}/"
+                      f"{self.max_capture_failures})")
+        if consecutive_capture_failures >= self.max_capture_failures:
+          self.alert_bus.raise_alert(Alert(
+            level=AlertLevel.CRITICAL, source="capture",
+            code="CAPTURE_FAILURE_LIMIT",
+            message=f"{consecutive_capture_failures} consecutive captures failed"))
+          break
 
       min_alt = session.min_altitude or self.min_altitude
       if min_alt > 0:
@@ -233,6 +266,10 @@ class SessionOrchestrator:
           break
 
     self.guide_cmd.stop_guiding()
+    self.current_filter = None
+    self.current_frame = None
+    self.current_exposure_total = None
+    self.current_exposure_start = None
 
   def _handle_alerts(self) -> bool:
     alerts = self.alert_bus.get_pending()
@@ -262,6 +299,9 @@ class SessionOrchestrator:
           print_and_log("PHD2 disconnected, attempting reconnect...")
           time.sleep(5)
           self.guide_cmd.start_guiding()
+        elif alert.code in ("DISK_SPACE_CRITICAL", "CAPTURE_FAILURE_LIMIT"):
+          print_and_log(f"CRITICAL: {alert.code} - {alert.message}")
+          return False
         else:
           print_and_log(f"CRITICAL: {alert.code} - {alert.message}")
 
@@ -270,18 +310,16 @@ class SessionOrchestrator:
                         code=alert.code, message=alert.message)
     return True
 
-  def _get_image_filename(self) -> str:
-    existing = glob.glob(os.path.join(self.capture_dir, 'capture-*.fits'))
-    if not existing:
-      return os.path.join(self.capture_dir, 'capture-00001.fits')
-    nums = []
-    for f in existing:
-      try:
-        nums.append(int(os.path.basename(f).split('-')[1].split('.')[0]))
-      except (ValueError, IndexError):
-        continue
-    idx = max(nums) + 1 if nums else 1
-    return os.path.join(self.capture_dir, f'capture-{idx:05d}.fits')
+  def _get_image_filename(self, target_identity: str = None,
+                          filter_name: str = None) -> str:
+    if self.progress_store is not None and target_identity and filter_name:
+      return self.progress_store.next_filename(target_identity, filter_name)
+    os.makedirs(self.capture_dir, exist_ok=True)
+    for idx in range(1, 100000):
+      filename = os.path.join(self.capture_dir, f'capture-{idx:05d}.fits')
+      if not os.path.exists(filename):
+        return filename
+    raise ValueError('Too many images in the capture directory')
 
   def _build_fits_headers(self, session, filter_name, frame_idx) -> dict:
     guide = self.guide_wd.status
@@ -299,8 +337,26 @@ class SessionOrchestrator:
       'PIERSIDE': mount['pier_side'],
     }
 
+  def _target_identity(self, session, idx):
+    return self.session_target_map.get(idx) or session.target or session.wcs or "unknown"
+
+  def _session_complete(self, session, idx) -> bool:
+    if self.progress_store is None or self.project_plan is None:
+      return True
+    identity = self._target_identity(session, idx)
+    for target in self.project_plan.targets:
+      if target.identity != identity:
+        continue
+      return all(
+        self.progress_store.accepted_count(identity, filter_name, spec.exposure)
+        >= spec.target_frames
+        for filter_name, spec in target.filters.items()
+      )
+    return True
+
   def _set_state(self, state: SessionState):
     self.state = state
+    self.next_action = state.value
     self.logger.log("orchestrator", "state_change", state=state.value)
 
   def _shutdown(self):

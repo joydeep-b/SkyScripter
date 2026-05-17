@@ -63,7 +63,8 @@ tests/
   (pytest: core algorithms only — see AGENTS.md)
   test_sequence.py     Sequence DSL unit tests
   test_scheduler.py    NightScheduler unit tests
-  test_indi_service.py INDI getprop parsing / device resolution helpers
+  test_project.py      Project progress accounting unit tests
+  test_discord_roof_watchdog.py Discord roof parsing unit tests
 
 test_hardware.py       Daytime hardware connectivity checklist
 test_on_sky.py         Interactive on-sky subsystem tests
@@ -197,7 +198,44 @@ python test_on_sky.py --target Vega
 Tests plate-solve alignment, autofocus, guided capture, dithering, guide
 star loss recovery, and meridian flip handling.
 
-### 6. Run a full session
+### 6. Create a multi-night project
+
+The production sequencer works from a project JSON that records desired totals.
+Progress is inferred directly from FITS files already present in the capture
+tree, using the naming scheme
+`{capture_dir}/{project_name}/{filter}/{project_name}-{filter}-00001.fits`.
+Project and filter names are sanitized before being used as directory or file
+names.
+
+Create a starter project:
+
+```bash
+python run_sequencer.py init-project --target M31 --filters L,R,G,B \
+    --exposure 300 --frames 20 --output m31_project.json
+```
+
+Validate and preview it:
+
+```bash
+python run_sequencer.py validate-plan m31_project.json
+python run_sequencer.py show-plan m31_project.json --config sky_scripter.json
+python run_sequencer.py preflight m31_project.json --config sky_scripter.json
+```
+
+Run one generated night/session cycle:
+
+```bash
+python run_sequencer.py run m31_project.json --config sky_scripter.json \
+    --preflight --once
+```
+
+For unattended use, omit `--once`. The runner regenerates a plan from remaining
+work after each cycle and keeps the web monitor available unless `--no-monitor`
+is supplied. By default roof state comes from Discord messages using
+`.discord_token` and `.discord_channel_id`; use `--roof-source file` to use the
+legacy status-file watchdog.
+
+### 7. Run a full session from Python
 
 ```python
 # run_tonight.py

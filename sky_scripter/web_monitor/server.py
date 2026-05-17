@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import threading
+import time
 from dataclasses import asdict
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, HTTPServer
@@ -140,18 +141,62 @@ class MonitorServer:
                 "active_index": orch._active_session_idx,
                 "completed": list(orch._completed),
             }
+        mount_status = {}
+        try:
+            mount_status = orch.mount_mgr.get_status()
+            if "time_to_flip_seconds" in mount_status:
+                mount_status["time_to_flip"] = mount_status["time_to_flip_seconds"]
+        except Exception as exc:
+            mount_status = {"error": repr(exc)}
+        guide_status = dict(self.guide_wd.status)
+        guide_status["status"] = "GUIDING" if guide_status.get("is_guiding") else "IDLE"
+        guide_status["snr"] = guide_status.get("star_snr")
+        roof_status = dict(self.roof_wd.status)
+        if "state" not in roof_status:
+            if roof_status.get("roof_is_open") is True:
+                roof_status["state"] = "OPEN"
+            elif roof_status.get("roof_is_open") is False:
+                roof_status["state"] = "CLOSED"
+            else:
+                roof_status["state"] = "UNKNOWN"
+        if "last_check" not in roof_status:
+            roof_status["last_check"] = roof_status.get("last_check_time")
+        safety_status = dict(self.safety_wd.status)
+        safety_status["status"] = "OK"
+        progress = None
+        if getattr(orch, "project_plan", None) is not None and \
+                getattr(orch, "progress_store", None) is not None:
+            progress = {
+                "targets": orch.project_plan.progress_summary(orch.progress_store),
+                "recent_frames": orch.progress_store.recent_frames(10),
+            }
+        exposure_elapsed = None
+        if orch.current_exposure_start is not None:
+            exposure_elapsed = max(0.0, time.time() - orch.current_exposure_start)
         return {
             "type": "status",
             "main": {
                 "state": orch.state.value,
                 "session_id": orch.session_id,
+                "target": orch.current_target,
+                "filter": orch.current_filter,
+                "frame": orch.current_frame,
+                "exposure_elapsed": exposure_elapsed,
+                "exposure_total": orch.current_exposure_total,
                 "focus_position": orch.focus_position,
                 "focus_fwhm": orch.focus_fwhm,
+                "next_action": orch.next_action,
             },
-            "guide": self.guide_wd.status,
-            "roof": self.roof_wd.status,
-            "safety": self.safety_wd.status,
+            "mount": mount_status,
+            "focus": {
+                "position": orch.focus_position,
+                "fwhm": orch.focus_fwhm,
+            },
+            "guide": guide_status,
+            "roof": roof_status,
+            "safety": safety_status,
             "schedule": schedule_data,
+            "progress": progress,
             "recent_logs": self.struct_logger.get_recent(20),
             "recent_alerts": serialized_alerts,
         }

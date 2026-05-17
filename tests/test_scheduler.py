@@ -77,6 +77,30 @@ def test_pick_next_returns_none_when_all_completed():
     assert idx == -1
 
 
+def test_pick_next_skips_zero_remaining_work():
+    plan = _make_plan()
+    scheduler = _make_scheduler(plan)
+    scheduler.precompute()
+    with patch.object(scheduler, 'is_eligible_now', return_value=True):
+        with patch.object(scheduler, '_find_end_time',
+                          return_value=Time('2026-04-20 08:00:00')):
+            session, idx = scheduler.pick_next(set(), remaining_work={0: 0, 1: 2})
+            assert idx == 1
+
+
+def test_pick_next_uses_priority_when_windows_match():
+    plan = _make_plan()
+    plan.sessions[0].project_priority = 1
+    plan.sessions[1].project_priority = 5
+    scheduler = _make_scheduler(plan)
+    scheduler.precompute()
+    with patch.object(scheduler, 'is_eligible_now', return_value=True):
+        with patch.object(scheduler, '_find_end_time',
+                          return_value=Time('2026-04-20 08:00:00')):
+            session, idx = scheduler.pick_next(set(), remaining_work={0: 5, 1: 5})
+            assert idx == 1
+
+
 def test_pick_next_returns_none_when_none_eligible():
     plan = _make_plan()
     scheduler = _make_scheduler(plan)
@@ -104,3 +128,33 @@ def test_timeline_has_correct_targets():
     assert len(targets_seen) > 0
     for t in targets_seen:
         assert t in ('High', 'Low')
+
+
+def test_moon_constraints_single_altitude():
+    session = ImagingSession("M31", L=(300, 1), max_moon_altitude=0)
+
+    assert NightScheduler._moon_constraints_ok(session, moon_altitude=-5,
+                                               moon_phase=90)
+    assert not NightScheduler._moon_constraints_ok(session, moon_altitude=10,
+                                                   moon_phase=0)
+
+
+def test_moon_constraints_single_phase():
+    session = ImagingSession("M31", L=(300, 1), max_moon_phase=25)
+
+    assert NightScheduler._moon_constraints_ok(session, moon_altitude=80,
+                                               moon_phase=10)
+    assert not NightScheduler._moon_constraints_ok(session, moon_altitude=-10,
+                                                   moon_phase=80)
+
+
+def test_moon_constraints_altitude_or_phase_when_both_specified():
+    session = ImagingSession("M31", L=(300, 1), max_moon_altitude=0,
+                             max_moon_phase=25)
+
+    assert NightScheduler._moon_constraints_ok(session, moon_altitude=-5,
+                                               moon_phase=90)
+    assert NightScheduler._moon_constraints_ok(session, moon_altitude=60,
+                                               moon_phase=10)
+    assert not NightScheduler._moon_constraints_ok(session, moon_altitude=60,
+                                                   moon_phase=90)

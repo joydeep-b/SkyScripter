@@ -14,6 +14,10 @@ class CoolerManager:
   def start_cooling(self, target_temp: float, timeout: float = 300,
                     tolerance: float = 1.0) -> bool:
     self.target_temp = target_temp
+    if getattr(self.camera, "simulate", False):
+      self.logger.log("cooler", "cooler_simulated", target_temp=target_temp)
+      print_and_log(f"Simulating cooler at {target_temp}°C")
+      return True
     self.camera.set_temperature(target_temp)
     self.logger.log("cooler", "cooler_start", target_temp=target_temp)
     print_and_log(f"Cooling to {target_temp}°C (timeout {timeout}s)")
@@ -36,6 +40,11 @@ class CoolerManager:
     return False
 
   def warm_up(self, rate: float = 2.0, interval: float = 30):
+    if getattr(self.camera, "simulate", False):
+      self.logger.log("cooler", "warmup_simulated")
+      print_and_log("Simulating cooler warm-up")
+      self.target_temp = None
+      return
     current_temp = self.camera.get_temperature()
     final_temp = 5.0
     self.logger.log("cooler", "warmup_start", start_temp=current_temp, final_temp=final_temp)

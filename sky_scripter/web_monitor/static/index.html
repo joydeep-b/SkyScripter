@@ -95,6 +95,7 @@ button.abort:hover { background: #ff8888; }
     <div class="status-row"><div id="roof-dot" class="dot dot-gray"></div></div>
     <div id="roof-state" class="big-text">UNKNOWN</div>
     <div class="row"><span class="label">Last check</span><span id="roof-time" class="value">—</span></div>
+    <div class="alerts" id="roof-message"></div>
     <div class="alerts" id="roof-alerts"></div>
   </div>
   <!-- Safety Watchdog -->
@@ -105,6 +106,11 @@ button.abort:hover { background: #ff8888; }
     <div class="row"><span class="label">Sensor Temp</span><span id="safety-temp" class="value">—</span></div>
     <div class="row"><span class="label">Cooler Power</span><span id="safety-cooler" class="value">—</span></div>
     <div class="alerts" id="safety-alerts"></div>
+  </div>
+  <!-- Project Progress -->
+  <div class="tile tile-sm">
+    <h2>Project Progress</h2>
+    <div id="project-progress" class="alerts">—</div>
   </div>
 </div>
 <div id="log-panel">
@@ -232,6 +238,7 @@ function updateStatus(msg) {
   setDot('roof-dot', stateColor(r.state));
   $('roof-state').textContent = r.state || 'UNKNOWN';
   $('roof-time').textContent = r.last_check || '—';
+  $('roof-message').textContent = r.message || r.note || '';
 
   // Safety watchdog
   const s = d.safety || {};
@@ -239,6 +246,22 @@ function updateStatus(msg) {
   $('safety-disk').textContent = s.disk_free_gb != null ? fmt(s.disk_free_gb, 1) + ' GB' : '—';
   $('safety-temp').textContent = s.sensor_temp != null ? fmt(s.sensor_temp, 1) + '°C' : '—';
   $('safety-cooler').textContent = s.cooler_power != null ? fmt(s.cooler_power, 0) + '%' : '—';
+
+  const progress = d.progress || {};
+  const box = $('project-progress');
+  box.innerHTML = '';
+  (progress.targets || []).forEach(t => {
+    const head = document.createElement('div');
+    head.textContent = (t.complete ? '✓ ' : '') + t.target;
+    box.appendChild(head);
+    (t.filters || []).forEach(f => {
+      const row = document.createElement('div');
+      row.textContent = '  ' + f.filter + ': ' + f.accepted + '/' + f.target_frames
+        + ' (' + f.remaining + ' left)';
+      box.appendChild(row);
+    });
+  });
+  if (!box.children.length) box.textContent = '—';
 }
 
 function drawRmsChart() {
