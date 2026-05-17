@@ -96,13 +96,23 @@ Then edit `sky_scripter.json`:
     "focuser": "ZWO EAF"
   },
   "cooler": {
-    "target_temp": -10.0
+    "setpoints": [-10.0, 0.0],
+    "ambient_source": "focuser",
+    "capabilities": {
+      "max_delta_below_ambient": 35.0
+    }
   }
 }
 ```
 
 Only override what differs from the defaults. Unspecified keys keep their
 built-in values (see the full `sky_scripter.json` for all available settings).
+
+At session start the sequencer reads ambient temperature from the focuser
+(`FOCUS_TEMPERATURE`), filters `setpoints` by `capabilities`, and picks the
+coldest feasible value. If ambient cannot be read, it uses the warmest
+`setpoints` entry and logs a warning. If no candidate is feasible, the session
+aborts before cooling.
 
 ### 2. Run hardware tests (daytime)
 
@@ -357,7 +367,7 @@ values that differ from the defaults.
 | `phd2` | `host`, `port` |
 | `capture` | `gain`, `offset`, `mode`, `capture_dir` |
 | `focus` | `step`, `num_steps`, `interval_minutes`, `temp_threshold` |
-| `cooler` | `target_temp`, `warmup_rate` |
+| `cooler` | `setpoints`, `ambient_source`, `capabilities` (all °C) |
 | `guiding` | `rms_threshold`, `drift_timeout`, `dither_pixels` |
 | `safety` | `disk_warning_gb`, `disk_critical_gb`, `min_altitude` |
 | `roof` | `status_file`, `poll_interval` |

@@ -15,6 +15,7 @@ from sky_scripter.alert_bus import AlertBus
 from sky_scripter.capture_manager import CaptureManager
 from sky_scripter.config import Config
 from sky_scripter.cooler_manager import CoolerManager
+from sky_scripter.cooler_setpoint import resolve_cooler_setpoint
 from sky_scripter.discord_roof_watchdog import DiscordRoofWatchdog, read_discord_creds
 from sky_scripter.focus_manager import FocusManager
 from sky_scripter.guide_watchdog import GuideCommander, GuideWatchdog
@@ -193,6 +194,11 @@ def run_once(args, cfg, project, store) -> int:
     min_position=cfg.get("focus", "min_position"),
     max_position=cfg.get("focus", "max_position"))
   cooler_mgr = CoolerManager(camera, logger)
+  try:
+    cooler_temp = resolve_cooler_setpoint(cfg, focuser, logger)
+  except ValueError as exc:
+    print_and_log(f"ERROR: {exc}")
+    return 1
 
   phd2_host = cfg.get("phd2", "host", default="localhost")
   phd2_port = cfg.get("phd2", "port", default=4400)
@@ -206,12 +212,12 @@ def run_once(args, cfg, project, store) -> int:
     alert_bus, logger, capture_dir, camera=camera,
     disk_warning_gb=cfg.get("safety", "disk_warning_gb", default=20.0),
     disk_critical_gb=cfg.get("safety", "disk_critical_gb", default=5.0),
-    cooler_target_temp=cfg.get("cooler", "target_temp", default=-10.0))
+    cooler_target_temp=cooler_temp)
 
   orchestrator = SessionOrchestrator(
     plan, mount_mgr, cap_mgr, focus_mgr, cooler_mgr, guide_cmd, guide_wd,
     roof_wd, safety_wd, alert_bus, logger, capture_dir,
-    cooler_temp=cfg.get("cooler", "target_temp", default=-10.0),
+    cooler_temp=cooler_temp,
     min_altitude=cfg.get("safety", "min_altitude", default=0),
     progress_store=store,
     project_plan=project,

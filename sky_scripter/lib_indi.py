@@ -89,6 +89,9 @@ class IndiFocuser(IndiClient):
     self.set_focus(focus_value + steps)
     logging.info(f'New focus value: {focus_value + steps}')
 
+  def get_ambient_temperature(self) -> float:
+    return float(self.read("FOCUS_TEMPERATURE.TEMPERATURE"))
+
 class IndiCamera(IndiClient):
   def __init__(self, device, simulate = False):
     super().__init__(device, simulate)

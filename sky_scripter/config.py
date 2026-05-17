@@ -39,9 +39,14 @@ DEFAULTS = {
     "calibration_path": "focus_calibration.json",
   },
   "cooler": {
-    "target_temp": -10.0,
-    "warmup_rate": 2.0,
-    "warmup_interval": 30,
+    "setpoints": [-10.0, 0.0],
+    "ambient_source": "focuser",
+    "capabilities": {
+      "min_setpoint": -30.0,
+      "max_setpoint": 30.0,
+      "max_delta_below_ambient": 35.0,
+      "min_delta_below_ambient": 0.0,
+    },
   },
   "guiding": {
     "rms_threshold": 2.0,
