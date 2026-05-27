@@ -3,7 +3,7 @@
 ********************************************************************
 PixInsight XML Process Serialization Module - XPSM 1.0
 ********************************************************************
-Generated on 2026-03-03T20:14:26.762Z
+Generated on 2026-03-08T16:37:27.528Z
 PixInsight Core 1.9.3 (x64)
 Copyright (c) 2003-2025 Pleiades Astrophoto
 ********************************************************************
@@ -48,7 +48,7 @@ Copyright (c) 2003-2025 Pleiades Astrophoto
       <parameter id="noGUIMessages" value="false"/>
    </instance>
    <instance class="StarXTerminator" version="256" id="StarX_instance">
-      <time start="2026-01-11T03:12:31.211Z" span="12.780632"/>
+      <time start="2026-03-08T00:07:31.865Z" span="11.5985"/>
       <parameter id="ai_file">StarXTerminator.lite.nonoise.11.mlpackage</parameter>
       <parameter id="stars" value="false"/>
       <parameter id="unscreen" value="false"/>
@@ -396,7 +396,7 @@ Copyright (c) 2003-2025 Pleiades Astrophoto
       <parameter id="invert" value="false"/>
    </instance>
    <instance class="BlurXTerminator" version="256" id="BlurX_instance">
-      <time start="2026-01-11T03:12:09.857Z" span="12.413464"/>
+      <time start="2026-03-08T14:03:48.502Z" span="40.126586"/>
       <parameter id="ai_file">BlurXTerminator.4.mlpackage</parameter>
       <parameter id="correct_only" value="false"/>
       <parameter id="correct_first" value="false"/>
@@ -1619,30 +1619,1819 @@ k2=0.8</parameter>
       <parameter id="backgroundROIWidth" value="0"/>
       <parameter id="backgroundROIHeight" value="0"/>
    </instance>
+   <instance class="DynamicBackgroundExtraction" version="256" id="DBE_instance">
+      <table id="data" rows="73">
+         <tr>
+            <td id="x" value="0.00299450"/>
+            <td id="y" value="0.00451495"/>
+            <td id="z0" value="0.01392356"/>
+            <td id="w0" value="0.942"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.00299450"/>
+            <td id="y" value="0.16961562"/>
+            <td id="z0" value="0.01401666"/>
+            <td id="w0" value="0.941"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.00299450"/>
+            <td id="y" value="0.33483832"/>
+            <td id="z0" value="0.01390437"/>
+            <td id="w0" value="0.945"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.00299450"/>
+            <td id="y" value="0.49993899"/>
+            <td id="z0" value="0.01391726"/>
+            <td id="w0" value="0.943"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.00299450"/>
+            <td id="y" value="0.66503966"/>
+            <td id="z0" value="0.01387937"/>
+            <td id="w0" value="0.937"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.00299450"/>
+            <td id="y" value="0.83026236"/>
+            <td id="z0" value="0.01380095"/>
+            <td id="w0" value="0.929"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.00299450"/>
+            <td id="y" value="0.99536303"/>
+            <td id="z0" value="0.01374938"/>
+            <td id="w0" value="0.913"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.10237941"/>
+            <td id="y" value="0.00451495"/>
+            <td id="z0" value="0.01396492"/>
+            <td id="w0" value="0.966"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.10237941"/>
+            <td id="y" value="0.16961562"/>
+            <td id="z0" value="0.01396854"/>
+            <td id="w0" value="0.977"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.10237941"/>
+            <td id="y" value="0.33483832"/>
+            <td id="z0" value="0.01400322"/>
+            <td id="w0" value="0.974"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.10237941"/>
+            <td id="y" value="0.49993899"/>
+            <td id="z0" value="0.01401376"/>
+            <td id="w0" value="0.968"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.10237941"/>
+            <td id="y" value="0.66503966"/>
+            <td id="z0" value="0.01390306"/>
+            <td id="w0" value="0.970"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.10237941"/>
+            <td id="y" value="0.83026236"/>
+            <td id="z0" value="0.01391888"/>
+            <td id="w0" value="0.963"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.10237941"/>
+            <td id="y" value="0.99536303"/>
+            <td id="z0" value="0.01390775"/>
+            <td id="w0" value="0.938"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.20176433"/>
+            <td id="y" value="0.00451495"/>
+            <td id="z0" value="0.01394968"/>
+            <td id="w0" value="0.972"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.20176433"/>
+            <td id="y" value="0.49993899"/>
+            <td id="z0" value="0.01399854"/>
+            <td id="w0" value="0.974"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.20176433"/>
+            <td id="y" value="0.66503966"/>
+            <td id="z0" value="0.01397770"/>
+            <td id="w0" value="0.970"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.20176433"/>
+            <td id="y" value="0.83026236"/>
+            <td id="z0" value="0.01392137"/>
+            <td id="w0" value="0.972"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.20176433"/>
+            <td id="y" value="0.99536303"/>
+            <td id="z0" value="0.01382411"/>
+            <td id="w0" value="0.952"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.30114924"/>
+            <td id="y" value="0.00451495"/>
+            <td id="z0" value="0.01396734"/>
+            <td id="w0" value="0.981"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.30114924"/>
+            <td id="y" value="0.16961562"/>
+            <td id="z0" value="0.01397425"/>
+            <td id="w0" value="0.987"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.30114924"/>
+            <td id="y" value="0.33483832"/>
+            <td id="z0" value="0.01397651"/>
+            <td id="w0" value="0.987"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.30114924"/>
+            <td id="y" value="0.49993899"/>
+            <td id="z0" value="0.01394351"/>
+            <td id="w0" value="0.985"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.30114924"/>
+            <td id="y" value="0.66503966"/>
+            <td id="z0" value="0.01395785"/>
+            <td id="w0" value="0.979"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.30114924"/>
+            <td id="y" value="0.83026236"/>
+            <td id="z0" value="0.01392551"/>
+            <td id="w0" value="0.979"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.30114924"/>
+            <td id="y" value="0.99536303"/>
+            <td id="z0" value="0.01390845"/>
+            <td id="w0" value="0.974"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.40053415"/>
+            <td id="y" value="0.00451495"/>
+            <td id="z0" value="0.01396797"/>
+            <td id="w0" value="0.985"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.40053415"/>
+            <td id="y" value="0.16961562"/>
+            <td id="z0" value="0.01401077"/>
+            <td id="w0" value="0.982"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.40053415"/>
+            <td id="y" value="0.33483832"/>
+            <td id="z0" value="0.01403936"/>
+            <td id="w0" value="0.976"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.40053415"/>
+            <td id="y" value="0.49993899"/>
+            <td id="z0" value="0.01398036"/>
+            <td id="w0" value="0.984"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.40053415"/>
+            <td id="y" value="0.66503966"/>
+            <td id="z0" value="0.01399083"/>
+            <td id="w0" value="0.982"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.40053415"/>
+            <td id="y" value="0.83026236"/>
+            <td id="z0" value="0.01398877"/>
+            <td id="w0" value="0.984"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.40053415"/>
+            <td id="y" value="0.99536303"/>
+            <td id="z0" value="0.01396799"/>
+            <td id="w0" value="0.975"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.50000000"/>
+            <td id="y" value="0.00451495"/>
+            <td id="z0" value="0.01396860"/>
+            <td id="w0" value="0.985"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.50000000"/>
+            <td id="y" value="0.16961562"/>
+            <td id="z0" value="0.01398983"/>
+            <td id="w0" value="0.984"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.50000000"/>
+            <td id="y" value="0.33483832"/>
+            <td id="z0" value="0.01398181"/>
+            <td id="w0" value="0.986"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.50000000"/>
+            <td id="y" value="0.66503966"/>
+            <td id="z0" value="0.01397707"/>
+            <td id="w0" value="0.988"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.50000000"/>
+            <td id="y" value="0.83026236"/>
+            <td id="z0" value="0.01396237"/>
+            <td id="w0" value="0.984"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.50000000"/>
+            <td id="y" value="0.99536303"/>
+            <td id="z0" value="0.01391735"/>
+            <td id="w0" value="0.981"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.59938491"/>
+            <td id="y" value="0.00451495"/>
+            <td id="z0" value="0.01397120"/>
+            <td id="w0" value="0.985"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.59938491"/>
+            <td id="y" value="0.16961562"/>
+            <td id="z0" value="0.01397926"/>
+            <td id="w0" value="0.987"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.59938491"/>
+            <td id="y" value="0.33483832"/>
+            <td id="z0" value="0.01396922"/>
+            <td id="w0" value="0.988"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.59938491"/>
+            <td id="y" value="0.49993899"/>
+            <td id="z0" value="0.01400429"/>
+            <td id="w0" value="0.983"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.59938491"/>
+            <td id="y" value="0.66503966"/>
+            <td id="z0" value="0.01400321"/>
+            <td id="w0" value="0.986"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.59938491"/>
+            <td id="y" value="0.83026236"/>
+            <td id="z0" value="0.01398817"/>
+            <td id="w0" value="0.985"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.59938491"/>
+            <td id="y" value="0.99536303"/>
+            <td id="z0" value="0.01395426"/>
+            <td id="w0" value="0.983"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.69876983"/>
+            <td id="y" value="0.00451495"/>
+            <td id="z0" value="0.01397403"/>
+            <td id="w0" value="0.984"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.69876983"/>
+            <td id="y" value="0.16961562"/>
+            <td id="z0" value="0.01397577"/>
+            <td id="w0" value="0.986"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.69876983"/>
+            <td id="y" value="0.33483832"/>
+            <td id="z0" value="0.01403062"/>
+            <td id="w0" value="0.978"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.69876983"/>
+            <td id="y" value="0.49993899"/>
+            <td id="z0" value="0.01397492"/>
+            <td id="w0" value="0.987"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.69876983"/>
+            <td id="y" value="0.66503966"/>
+            <td id="z0" value="0.01402386"/>
+            <td id="w0" value="0.979"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.69876983"/>
+            <td id="y" value="0.83026236"/>
+            <td id="z0" value="0.01402130"/>
+            <td id="w0" value="0.984"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.69876983"/>
+            <td id="y" value="0.99536303"/>
+            <td id="z0" value="0.01411981"/>
+            <td id="w0" value="0.961"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.79815474"/>
+            <td id="y" value="0.00451495"/>
+            <td id="z0" value="0.01398991"/>
+            <td id="w0" value="0.972"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.79815474"/>
+            <td id="y" value="0.16961562"/>
+            <td id="z0" value="0.01398594"/>
+            <td id="w0" value="0.980"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.79815474"/>
+            <td id="y" value="0.33483832"/>
+            <td id="z0" value="0.01400278"/>
+            <td id="w0" value="0.976"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.79815474"/>
+            <td id="y" value="0.49993899"/>
+            <td id="z0" value="0.01398423"/>
+            <td id="w0" value="0.980"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.79815474"/>
+            <td id="y" value="0.66503966"/>
+            <td id="z0" value="0.01398919"/>
+            <td id="w0" value="0.981"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.79815474"/>
+            <td id="y" value="0.83026236"/>
+            <td id="z0" value="0.01407071"/>
+            <td id="w0" value="0.968"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.89753966"/>
+            <td id="y" value="0.00451495"/>
+            <td id="z0" value="0.01408043"/>
+            <td id="w0" value="0.957"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.89753966"/>
+            <td id="y" value="0.16961562"/>
+            <td id="z0" value="0.01398900"/>
+            <td id="w0" value="0.979"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.89753966"/>
+            <td id="y" value="0.33483832"/>
+            <td id="z0" value="0.01403889"/>
+            <td id="w0" value="0.970"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.89753966"/>
+            <td id="y" value="0.49993899"/>
+            <td id="z0" value="0.01398302"/>
+            <td id="w0" value="0.978"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.89753966"/>
+            <td id="y" value="0.66503966"/>
+            <td id="z0" value="0.01395984"/>
+            <td id="w0" value="0.980"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.89753966"/>
+            <td id="y" value="0.83026236"/>
+            <td id="z0" value="0.01406687"/>
+            <td id="w0" value="0.964"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.89753966"/>
+            <td id="y" value="0.99536303"/>
+            <td id="z0" value="0.01398984"/>
+            <td id="w0" value="0.950"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.99692457"/>
+            <td id="y" value="0.00451495"/>
+            <td id="z0" value="0.01394444"/>
+            <td id="w0" value="0.972"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.99692457"/>
+            <td id="y" value="0.16961562"/>
+            <td id="z0" value="0.01398091"/>
+            <td id="w0" value="0.972"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.99692457"/>
+            <td id="y" value="0.33483832"/>
+            <td id="z0" value="0.01403435"/>
+            <td id="w0" value="0.969"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.99692457"/>
+            <td id="y" value="0.49993899"/>
+            <td id="z0" value="0.01398020"/>
+            <td id="w0" value="0.970"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.99692457"/>
+            <td id="y" value="0.66503966"/>
+            <td id="z0" value="0.01395721"/>
+            <td id="w0" value="0.974"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.99692457"/>
+            <td id="y" value="0.83026236"/>
+            <td id="z0" value="0.01392497"/>
+            <td id="w0" value="0.969"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="0.99692457"/>
+            <td id="y" value="0.99536303"/>
+            <td id="z0" value="0.01388563"/>
+            <td id="w0" value="0.935"/>
+            <td id="z1" value="0.00000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.00000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+      </table>
+      <parameter id="numberOfChannels" value="1"/>
+      <parameter id="derivativeOrder" value="2"/>
+      <parameter id="smoothing" value="0.250"/>
+      <parameter id="ignoreWeights" value="false"/>
+      <parameter id="modelId"></parameter>
+      <parameter id="modelWidth" value="0"/>
+      <parameter id="modelHeight" value="0"/>
+      <parameter id="downsample" value="2"/>
+      <parameter id="modelSampleFormat" value="f32"/>
+      <parameter id="targetCorrection" value="Subtract"/>
+      <parameter id="normalize" value="false"/>
+      <parameter id="discardModel" value="false"/>
+      <parameter id="replaceTarget" value="false"/>
+      <parameter id="correctedImageId"></parameter>
+      <parameter id="correctedImageSampleFormat" value="SameAsTarget"/>
+      <table id="samples" rows="73">
+         <tr>
+            <td id="x" value="37"/>
+            <td id="y" value="37"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.013924"/>
+            <td id="w0" value="0.942"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="37"/>
+            <td id="y" value="1390"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.014017"/>
+            <td id="w0" value="0.941"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="37"/>
+            <td id="y" value="2744"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.013904"/>
+            <td id="w0" value="0.945"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="37"/>
+            <td id="y" value="4097"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.013917"/>
+            <td id="w0" value="0.943"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="37"/>
+            <td id="y" value="5450"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.013879"/>
+            <td id="w0" value="0.937"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="37"/>
+            <td id="y" value="6804"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.013801"/>
+            <td id="w0" value="0.929"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="37"/>
+            <td id="y" value="8157"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.013749"/>
+            <td id="w0" value="0.913"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="1265"/>
+            <td id="y" value="37"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.013965"/>
+            <td id="w0" value="0.966"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="1265"/>
+            <td id="y" value="1390"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.013969"/>
+            <td id="w0" value="0.977"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="1265"/>
+            <td id="y" value="2744"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.014003"/>
+            <td id="w0" value="0.974"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="1265"/>
+            <td id="y" value="4097"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.014014"/>
+            <td id="w0" value="0.968"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="1265"/>
+            <td id="y" value="5450"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.013903"/>
+            <td id="w0" value="0.970"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="1265"/>
+            <td id="y" value="6804"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.013919"/>
+            <td id="w0" value="0.963"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="1265"/>
+            <td id="y" value="8157"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.013908"/>
+            <td id="w0" value="0.938"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="2493"/>
+            <td id="y" value="37"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.013950"/>
+            <td id="w0" value="0.972"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="2493"/>
+            <td id="y" value="4097"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.013999"/>
+            <td id="w0" value="0.974"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="2493"/>
+            <td id="y" value="5450"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.013978"/>
+            <td id="w0" value="0.970"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="2493"/>
+            <td id="y" value="6804"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.013921"/>
+            <td id="w0" value="0.972"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="2493"/>
+            <td id="y" value="8157"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.013824"/>
+            <td id="w0" value="0.952"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="3721"/>
+            <td id="y" value="37"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.013967"/>
+            <td id="w0" value="0.981"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="3721"/>
+            <td id="y" value="1390"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.013974"/>
+            <td id="w0" value="0.987"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="3721"/>
+            <td id="y" value="2744"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.013977"/>
+            <td id="w0" value="0.987"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="3721"/>
+            <td id="y" value="4097"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.013944"/>
+            <td id="w0" value="0.985"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="3721"/>
+            <td id="y" value="5450"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.013958"/>
+            <td id="w0" value="0.979"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="3721"/>
+            <td id="y" value="6804"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.013926"/>
+            <td id="w0" value="0.979"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="3721"/>
+            <td id="y" value="8157"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.013908"/>
+            <td id="w0" value="0.974"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="4949"/>
+            <td id="y" value="37"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.013968"/>
+            <td id="w0" value="0.985"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="4949"/>
+            <td id="y" value="1390"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.014011"/>
+            <td id="w0" value="0.982"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="4949"/>
+            <td id="y" value="2744"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.014039"/>
+            <td id="w0" value="0.976"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="4949"/>
+            <td id="y" value="4097"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.013980"/>
+            <td id="w0" value="0.984"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="4949"/>
+            <td id="y" value="5450"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.013991"/>
+            <td id="w0" value="0.982"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="4949"/>
+            <td id="y" value="6804"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.013989"/>
+            <td id="w0" value="0.984"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="4949"/>
+            <td id="y" value="8157"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.013968"/>
+            <td id="w0" value="0.975"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="6178"/>
+            <td id="y" value="37"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.013969"/>
+            <td id="w0" value="0.985"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="6178"/>
+            <td id="y" value="1390"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.013990"/>
+            <td id="w0" value="0.984"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="6178"/>
+            <td id="y" value="2744"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.013982"/>
+            <td id="w0" value="0.986"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="6178"/>
+            <td id="y" value="5450"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.013977"/>
+            <td id="w0" value="0.988"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="6178"/>
+            <td id="y" value="6804"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.013962"/>
+            <td id="w0" value="0.984"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="6178"/>
+            <td id="y" value="8157"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.013917"/>
+            <td id="w0" value="0.981"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="7406"/>
+            <td id="y" value="37"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.013971"/>
+            <td id="w0" value="0.985"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="7406"/>
+            <td id="y" value="1390"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.013979"/>
+            <td id="w0" value="0.987"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="7406"/>
+            <td id="y" value="2744"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.013969"/>
+            <td id="w0" value="0.988"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="7406"/>
+            <td id="y" value="4097"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.014004"/>
+            <td id="w0" value="0.983"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="7406"/>
+            <td id="y" value="5450"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.014003"/>
+            <td id="w0" value="0.986"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="7406"/>
+            <td id="y" value="6804"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.013988"/>
+            <td id="w0" value="0.985"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="7406"/>
+            <td id="y" value="8157"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.013954"/>
+            <td id="w0" value="0.983"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="8634"/>
+            <td id="y" value="37"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.013974"/>
+            <td id="w0" value="0.984"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="8634"/>
+            <td id="y" value="1390"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.013976"/>
+            <td id="w0" value="0.986"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="8634"/>
+            <td id="y" value="2744"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.014031"/>
+            <td id="w0" value="0.978"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="8634"/>
+            <td id="y" value="4097"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.013975"/>
+            <td id="w0" value="0.987"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="8634"/>
+            <td id="y" value="5450"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.014024"/>
+            <td id="w0" value="0.979"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="8634"/>
+            <td id="y" value="6804"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.014021"/>
+            <td id="w0" value="0.984"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="8634"/>
+            <td id="y" value="8157"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.014120"/>
+            <td id="w0" value="0.961"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="9862"/>
+            <td id="y" value="37"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.013990"/>
+            <td id="w0" value="0.972"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="9862"/>
+            <td id="y" value="1390"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.013986"/>
+            <td id="w0" value="0.980"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="9862"/>
+            <td id="y" value="2744"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.014003"/>
+            <td id="w0" value="0.976"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="9862"/>
+            <td id="y" value="4097"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.013984"/>
+            <td id="w0" value="0.980"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="9862"/>
+            <td id="y" value="5450"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.013989"/>
+            <td id="w0" value="0.981"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="9862"/>
+            <td id="y" value="6804"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.014071"/>
+            <td id="w0" value="0.968"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="11090"/>
+            <td id="y" value="37"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.014080"/>
+            <td id="w0" value="0.957"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="11090"/>
+            <td id="y" value="1390"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.013989"/>
+            <td id="w0" value="0.979"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="11090"/>
+            <td id="y" value="2744"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.014039"/>
+            <td id="w0" value="0.970"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="11090"/>
+            <td id="y" value="4097"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.013983"/>
+            <td id="w0" value="0.978"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="11090"/>
+            <td id="y" value="5450"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.013960"/>
+            <td id="w0" value="0.980"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="11090"/>
+            <td id="y" value="6804"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.014067"/>
+            <td id="w0" value="0.964"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="11090"/>
+            <td id="y" value="8157"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.013990"/>
+            <td id="w0" value="0.950"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="12318"/>
+            <td id="y" value="37"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.013944"/>
+            <td id="w0" value="0.972"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="12318"/>
+            <td id="y" value="1390"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.013981"/>
+            <td id="w0" value="0.972"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="12318"/>
+            <td id="y" value="2744"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.014034"/>
+            <td id="w0" value="0.969"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="12318"/>
+            <td id="y" value="4097"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.013980"/>
+            <td id="w0" value="0.970"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="12318"/>
+            <td id="y" value="5450"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.013957"/>
+            <td id="w0" value="0.974"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="12318"/>
+            <td id="y" value="6804"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.013925"/>
+            <td id="w0" value="0.969"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+         <tr>
+            <td id="x" value="12318"/>
+            <td id="y" value="8157"/>
+            <td id="radius" value="37"/>
+            <td id="symmetries" value="0"/>
+            <td id="axialCount" value="6"/>
+            <td id="isFixed" value="0"/>
+            <td id="z0" value="0.013886"/>
+            <td id="w0" value="0.935"/>
+            <td id="z1" value="0.000000"/>
+            <td id="w1" value="0.000"/>
+            <td id="z2" value="0.000000"/>
+            <td id="w2" value="0.000"/>
+         </tr>
+      </table>
+      <parameter id="imageWidth" value="12356"/>
+      <parameter id="imageHeight" value="8195"/>
+      <parameter id="symmetryCenterX" value="0.500000"/>
+      <parameter id="symmetryCenterY" value="0.500000"/>
+      <parameter id="tolerance" value="10.000"/>
+      <parameter id="shadowsRelaxation" value="3.000"/>
+      <parameter id="minSampleFraction" value="0.050"/>
+      <parameter id="defaultSampleRadius" value="37"/>
+      <parameter id="samplesPerRow" value="10"/>
+      <parameter id="minWeight" value="0.750"/>
+      <parameter id="sampleColor" value="4292927712"/>
+      <parameter id="selectedSampleColor" value="4278255360"/>
+      <parameter id="selectedSampleFillColor" value="0"/>
+      <parameter id="badSampleColor" value="4294901760"/>
+      <parameter id="badSampleFillColor" value="2164195328"/>
+      <parameter id="axisColor" value="4292927712"/>
+   </instance>
    <icon id="STF" instance="STF_instance" xpos="1528" ypos="8" workspace="Workspace01"/>
    <icon id="VerticalMirror" instance="VerticalMirror_instance" xpos="1528" ypos="40" workspace="Workspace01"/>
-   <icon id="StarX" instance="StarX_instance" xpos="1528" ypos="264" workspace="Workspace01"/>
-   <icon id="NoiseX" instance="NoiseX_instance" xpos="1528" ypos="296" workspace="Workspace01"/>
-   <icon id="GHS" instance="GHS_instance" xpos="1528" ypos="360" workspace="Workspace01"/>
-   <icon id="SPCC" instance="SPCC_instance" xpos="1528" ypos="200" workspace="Workspace01"/>
+   <icon id="StarX" instance="StarX_instance" xpos="1528" ypos="336" workspace="Workspace01"/>
+   <icon id="NoiseX" instance="NoiseX_instance" xpos="1528" ypos="368" workspace="Workspace01"/>
+   <icon id="GHS" instance="GHS_instance" xpos="1528" ypos="432" workspace="Workspace01"/>
+   <icon id="SPCC" instance="SPCC_instance" xpos="1528" ypos="272" workspace="Workspace01"/>
    <icon id="StarRecombine" instance="StarRecombine_instance" xpos="1568" ypos="72" workspace="Workspace03"/>
-   <icon id="Hist" instance="Hist_instance" xpos="1528" ypos="392" workspace="Workspace01"/>
-   <icon id="DynamicCrop" instance="DynamicCrop_instance" xpos="1528" ypos="456" workspace="Workspace01"/>
-   <icon id="Rescale" instance="Rescale_instance" xpos="1528" ypos="488" workspace="Workspace01"/>
-   <icon id="Curves" instance="Curves_instance" xpos="1528" ypos="520" workspace="Workspace01"/>
-   <icon id="Saturation" instance="Saturation_instance" xpos="1528" ypos="552" workspace="Workspace01"/>
-   <icon id="RangeSelection" instance="RangeSelection_instance" xpos="1528" ypos="584" workspace="Workspace01"/>
-   <icon id="BlurX" instance="BlurX_instance" xpos="1528" ypos="232" workspace="Workspace01"/>
-   <icon id="PixelMath" instance="PixelMath_instance" xpos="1528" ypos="616" workspace="Workspace01"/>
-   <icon id="ColorCalibration" instance="ColorCalibration_instance" xpos="1528" ypos="680" workspace="Workspace01"/>
-   <icon id="ChannelCombination" instance="ChannelCombination_instance" xpos="1528" ypos="712" workspace="Workspace01"/>
-   <icon id="BkgNeutralization" instance="BkgNeutralization_instance" xpos="1528" ypos="168" workspace="Workspace01"/>
-   <icon id="LinearFit" instance="LinearFit_instance" xpos="1528" ypos="776" workspace="Workspace01"/>
-   <icon id="LRGBCombination" instance="LRGBCombination_instance" xpos="1528" ypos="744" workspace="Workspace01"/>
-   <icon id="HaMinusR" instance="HaMinusR_instance" xpos="1528" ypos="840" workspace="Workspace01"/>
+   <icon id="Hist" instance="Hist_instance" xpos="1528" ypos="464" workspace="Workspace01"/>
+   <icon id="DynamicCrop" instance="DynamicCrop_instance" xpos="1528" ypos="528" workspace="Workspace01"/>
+   <icon id="Rescale" instance="Rescale_instance" xpos="1528" ypos="560" workspace="Workspace01"/>
+   <icon id="Curves" instance="Curves_instance" xpos="1528" ypos="592" workspace="Workspace01"/>
+   <icon id="Saturation" instance="Saturation_instance" xpos="1528" ypos="624" workspace="Workspace01"/>
+   <icon id="RangeSelection" instance="RangeSelection_instance" xpos="1528" ypos="656" workspace="Workspace01"/>
+   <icon id="BlurX" instance="BlurX_instance" xpos="1528" ypos="304" workspace="Workspace01"/>
+   <icon id="PixelMath" instance="PixelMath_instance" xpos="1528" ypos="688" workspace="Workspace01"/>
+   <icon id="ColorCalibration" instance="ColorCalibration_instance" xpos="1528" ypos="752" workspace="Workspace01"/>
+   <icon id="ChannelCombination" instance="ChannelCombination_instance" xpos="1528" ypos="784" workspace="Workspace01"/>
+   <icon id="BkgNeutralization" instance="BkgNeutralization_instance" xpos="1528" ypos="240" workspace="Workspace01"/>
+   <icon id="LinearFit" instance="LinearFit_instance" xpos="1528" ypos="848" workspace="Workspace01"/>
+   <icon id="LRGBCombination" instance="LRGBCombination_instance" xpos="1528" ypos="816" workspace="Workspace01"/>
+   <icon id="HaMinusR" instance="HaMinusR_instance" xpos="1528" ypos="912" workspace="Workspace01"/>
    <icon id="SPFC" instance="SPFC_instance" xpos="1528" ypos="104" workspace="Workspace01"/>
    <icon id="MSGC" instance="MSGC_instance" xpos="1528" ypos="136" workspace="Workspace01"/>
-   <icon id="RGBPlusHa" instance="RGBPlusHa_instance" xpos="1528" ypos="872" workspace="Workspace01"/>
+   <icon id="RGBPlusHa" instance="RGBPlusHa_instance" xpos="1528" ypos="944" workspace="Workspace01"/>
    <icon id="HSS" instance="HSS_instance" xpos="1552" ypos="8" workspace="Workspace02"/>
    <icon id="STF1" instance="STF1_instance" xpos="1552" ypos="40" workspace="Workspace02"/>
    <icon id="DBE1" instance="DBE1_instance" xpos="1552" ypos="104" workspace="Workspace02"/>
@@ -1667,10 +3456,11 @@ k2=0.8</parameter>
    <icon id="Process53" instance="Process53_instance" xpos="1568" ypos="328" workspace="Workspace03"/>
    <icon id="Process54" instance="Process54_instance" xpos="1568" ypos="360" workspace="Workspace03"/>
    <icon id="BlurXCorrectOnly" instance="BlurXCorrectOnly_instance" xpos="1528" ypos="72" workspace="Workspace01"/>
-   <icon id="arcsinh" instance="arcsinh_instance" xpos="1528" ypos="648" workspace="Workspace01"/>
-   <icon id="BlurX_StarX" instance="BlurX_StarX_instance" xpos="1528" ypos="328" workspace="Workspace01"/>
+   <icon id="arcsinh" instance="arcsinh_instance" xpos="1528" ypos="720" workspace="Workspace01"/>
+   <icon id="BlurX_StarX" instance="BlurX_StarX_instance" xpos="1528" ypos="400" workspace="Workspace01"/>
    <icon id="ColorSaturation" instance="ColorSaturation_instance" xpos="1552" ypos="408" workspace="Workspace02"/>
    <icon id="Process541" instance="Process541_instance" xpos="1568" ypos="448" workspace="Workspace02"/>
-   <icon id="Process531" instance="Process531_instance" xpos="1528" ypos="808" workspace="Workspace01"/>
-   <icon id="MAS" instance="MAS_instance" xpos="1528" ypos="424" workspace="Workspace01"/>
+   <icon id="Process531" instance="Process531_instance" xpos="1528" ypos="880" workspace="Workspace01"/>
+   <icon id="MAS" instance="MAS_instance" xpos="1528" ypos="496" workspace="Workspace01"/>
+   <icon id="DBE" instance="DBE_instance" xpos="1528" ypos="176" workspace="Workspace01"/>
 </xpsm>
