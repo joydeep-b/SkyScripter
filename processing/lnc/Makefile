@@ -15,6 +15,7 @@ else
 endif
 
 TARGETS := local_normalize local_normalize_trimmed_median local_normalize_v2 local_normalize_unregistered
+LNC_UNREGISTERED_SRCS := local_normalize_unregistered.c lnc_common.c lnc_fits.c lnc_transform.c lnc_grid.c lnc_fit.c lnc_unregistered_core.c
 
 .PHONY: all clean
 
@@ -29,8 +30,8 @@ local_normalize_trimmed_median: local_normalize_trimmed_median.c local_normalize
 local_normalize_v2: local_normalize_v2.c
 	$(CC) $(CFLAGS) $(OMP_CFLAGS) $(CFITSIO_CFLAGS) -o $@ $< $(CFITSIO_LIBS) $(OMP_LIBS) -lm
 
-local_normalize_unregistered: local_normalize_unregistered.c
-	$(CC) $(CFLAGS) $(OMP_CFLAGS) $(CFITSIO_CFLAGS) -o $@ $< $(CFITSIO_LIBS) $(OMP_LIBS) -lm
+local_normalize_unregistered: $(LNC_UNREGISTERED_SRCS) lnc_common.h lnc_fits.h lnc_transform.h lnc_grid.h lnc_fit.h lnc_unregistered_core.h
+	$(CC) $(CFLAGS) $(OMP_CFLAGS) $(CFITSIO_CFLAGS) -o $@ $(LNC_UNREGISTERED_SRCS) $(CFITSIO_LIBS) $(OMP_LIBS) -lm
 
 clean:
 	rm -f $(TARGETS)
