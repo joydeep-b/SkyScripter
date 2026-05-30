@@ -1,0 +1,15 @@
+---
+description: FITS FP32 output encoding requirements
+globs: "**/*.{py,c}"
+alwaysApply: false
+---
+
+# FITS FP32 Output
+
+All user-facing FP32 FITS outputs must be saved with finite image values clipped or normalized into `[0, 1]`.
+
+- Do not leave raw ADU values, offsets, background maps, or scale factors in FP32 FITS files that a user will open in Siril or PixInsight.
+- If a diagnostic map is unitless or signed (for example a scale or offset map), encode it for display into `[0, 1]` using its finite min/max and store the original finite min/max in FITS header metadata.
+- Remove FITS scaling cards such as `BZERO` and `BSCALE` when writing normalized FP32 outputs.
+- Add or preserve metadata that makes the normalization explicit, such as `LNCNORM`, `LNCVSCL`, `LNCVMIN`, and `LNCVMAX`.
+- Tests that add FITS outputs must assert FP32 output ranges are within `[0, 1]`.
