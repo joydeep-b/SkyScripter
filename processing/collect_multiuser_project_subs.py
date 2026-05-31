@@ -26,6 +26,7 @@ FILTER_ALIAS_MAP = {
     "HALPHA": "H",
     "H-ALPHA": "H",
     "HYDROGENALPHA": "H",
+    "Ha5": "H",
     
     "O": "O",
     "OIII": "O",
@@ -1306,20 +1307,20 @@ def main():
     print("-" * len(contrib_header))
     print(" ".join(total_cells))
 
-    print(f"{'duration_warnings':<22}{warning_count}")
-    print(f"{'missing_filter_warnings':<22}{missing_filter_count}")
-    print(f"{'filename_lookup_used':<22}{filename_lookup_used_count}")
-    print(f"{'folder_marker_used':<22}{folder_marker_used_count}")
-    print(f"{'folder_prompt_used':<22}{folder_prompt_used_count}")
-    print(f"{'header_read_errors':<22}{error_count}")
-    print(f"{'xisf_converted':<22}{converted_xisf_count}")
-    print(f"{'xisf_conversion_cached':<22}{cached_xisf_count}")
-    print(f"{'xisf_conversion_errors':<22}{conversion_error_count}")
+    print(f"{'duration_warnings':<26}{warning_count}")
+    print(f"{'missing_filter_warnings':<26}{missing_filter_count}")
+    print(f"{'filename_lookup_used':<26}{filename_lookup_used_count}")
+    print(f"{'folder_marker_used':<26}{folder_marker_used_count}")
+    print(f"{'folder_prompt_used':<26}{folder_prompt_used_count}")
+    print(f"{'header_read_errors':<26}{error_count}")
+    print(f"{'xisf_converted':<26}{converted_xisf_count}")
+    print(f"{'xisf_conversion_cached':<26}{cached_xisf_count}")
+    print(f"{'xisf_conversion_errors':<26}{conversion_error_count}")
     if moon_filter_enabled:
-        print(f"{'moon_filtered_out':<22}{moon_filtered_out}")
-        print(f"{'moon_metric_errors':<22}{moon_metric_errors}")
-        print(f"{'moon_filter_passed':<22}{moon_filter_passed}")
-        print(f"{'moon_unique_keys':<22}{len(unique_keys)}")
+        print(f"{'moon_filtered_out':<26}{moon_filtered_out}")
+        print(f"{'moon_metric_errors':<26}{moon_metric_errors}")
+        print(f"{'moon_filter_passed':<26}{moon_filter_passed}")
+        print(f"{'moon_unique_keys':<26}{len(unique_keys)}")
     report_relpath = Path("filter_lookup_report.json")
     if not args.dry_run:
         write_filter_lookup_report(output_dir, input_dir, report_rows)

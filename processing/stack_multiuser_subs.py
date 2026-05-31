@@ -294,6 +294,30 @@ def find_stack_output(working_dir: Path) -> Path:
     )
 
 
+def cleanup_work_dir_after_success(
+    working_dir: Path,
+    log_path: Path,
+    context: str,
+) -> None:
+    try:
+        shutil.rmtree(working_dir)
+    except OSError as exc:
+        message = (
+            f"WARNING: could not delete successful work dir for {context} "
+            f"at {working_dir}: {exc}"
+        )
+        print(message, file=sys.stderr)
+        try:
+            with log_path.open("a", encoding="utf-8") as handle:
+                handle.write("-" * 80 + "\n")
+                handle.write(f"{message}\n")
+        except OSError as log_exc:
+            print(
+                f"WARNING: could not append cleanup warning to {log_path}: {log_exc}",
+                file=sys.stderr,
+            )
+
+
 def prepare_work_files(
     working_dir: Path,
     source_files: list[Path],
@@ -342,6 +366,7 @@ def stack_group(
     if destination.exists():
         destination.unlink()
     shutil.move(str(produced), str(destination))
+    cleanup_work_dir_after_success(work_dir, log_path, context)
     return destination
 
 
@@ -361,7 +386,7 @@ def destination_for_group(
     return output_root / "masters" / user_safe / equipment_safe / f"master_{filter_name}.fit"
 
 
-def failure_log_path(
+def stack_log_path(
     output_root: Path,
     user_name: str,
     equipment_name: str,
@@ -375,7 +400,7 @@ def failure_log_path(
         / "masters"
         / user_safe
         / equipment_safe
-        / f"stack_failure_{user_safe}_{equipment_safe}_{filter_name}_{timestamp}.log"
+        / f"stack_{user_safe}_{equipment_safe}_{filter_name}_{timestamp}.log"
     )
 
 
@@ -501,7 +526,7 @@ def main() -> None:
             f"Stacking {user_name:30s} / {equipment_name:30s} / {filter_name} "
             f"with {len(files):4d} frame(s)..."
         )
-        job_log_path = failure_log_path(
+        job_log_path = stack_log_path(
             output_root,
             user_name,
             equipment_name,
@@ -522,9 +547,7 @@ def main() -> None:
             )
             successful_stacks += 1
             if not args.dry_run:
-                if job_log_path.exists():
-                    job_log_path.unlink()
-                print(f"  -> wrote {destination}")
+                print(f"  -> wrote {destination} (log: {job_log_path})")
         except Exception as exc:
             if not args.dry_run:
                 write_failure_log(
