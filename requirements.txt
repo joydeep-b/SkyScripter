@@ -6,4 +6,5 @@ numpy
 opencv-python
 python-dateutil
 pytz
+reportlab
 scipy
