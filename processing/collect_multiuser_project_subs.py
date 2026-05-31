@@ -103,6 +103,7 @@ DATE_OBS_FORMATS = (
 )
 
 SUPPORTED_IMAGE_SUFFIXES = {".fit", ".fits", ".xisf"}
+DEFAULT_XISF_CONVERSION_BATCH_SIZE = 1000
 
 XISF_PROPERTY_ALIASES = {
     "FILTER": (
@@ -193,6 +194,15 @@ def parse_args():
         help="Optional explicit path to Siril executable for XISF-to-FITS conversion.",
     )
     parser.add_argument(
+        "--xisf-conversion-batch-size",
+        type=int,
+        default=DEFAULT_XISF_CONVERSION_BATCH_SIZE,
+        help=(
+            "Maximum number of XISF files to convert in one Siril invocation. "
+            f"Default: {DEFAULT_XISF_CONVERSION_BATCH_SIZE}"
+        ),
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Print planned cleanup/link actions without modifying files",
@@ -218,6 +228,9 @@ def parse_args():
 
     if args.min_sub_duration > args.max_sub_duration:
         parser.error("--min-sub-duration cannot be greater than --max-sub-duration.")
+
+    if args.xisf_conversion_batch_size <= 0:
+        parser.error("--xisf-conversion-batch-size must be > 0.")
 
     if (args.site_lat is None) ^ (args.site_lon is None):
         parser.error("--site-lat and --site-lon must be provided together.")
@@ -592,44 +605,60 @@ def convert_xisfs_to_fits(
     output_dir: Path,
     siril_path: str,
     log_path: Path,
+    batch_size: int,
 ) -> None:
     if not conversion_jobs:
         return
 
-    work_dir = conversion_work_dir(output_dir)
-    if work_dir.exists():
-        shutil.rmtree(work_dir)
-    work_dir.mkdir(parents=True, exist_ok=True)
+    work_root = conversion_work_dir(output_dir)
+    if work_root.exists():
+        shutil.rmtree(work_root)
+    work_root.mkdir(parents=True, exist_ok=True)
 
-    link_paths: list[Path] = []
-    for index, (source_file, _destination) in enumerate(conversion_jobs, start=1):
-        link_path = work_dir / f"pp_light_{index:05d}{source_file.suffix.lower()}"
-        link_path.symlink_to(source_file.resolve())
-        link_paths.append(link_path)
-
+    batch_count = (len(conversion_jobs) + batch_size - 1) // batch_size
     script_text = "requires 1.3.5\nconvert pp_light -out=.process\n"
-    context = f"convert {len(conversion_jobs)} XISF file(s)"
-    run_siril_script(siril_path, work_dir, script_text, log_path, context)
 
-    report_path = work_dir / ".process" / "pp_light_conversion.txt"
-    converted_outputs = parse_siril_conversion_report(report_path)
-    for link_path, (_source_file, destination) in zip(link_paths, conversion_jobs, strict=True):
-        produced = converted_outputs.get(str(link_path)) or converted_outputs.get(link_path.name)
-        if produced is None:
-            raise FileNotFoundError(
-                f"Siril conversion report has no output entry for {link_path}"
-            )
-        if not produced.is_absolute():
-            produced = work_dir / produced
-        if not produced.exists():
-            raise FileNotFoundError(f"Siril reported converted output does not exist: {produced}")
+    for batch_index, start_index in enumerate(range(0, len(conversion_jobs), batch_size), start=1):
+        batch_jobs = conversion_jobs[start_index : start_index + batch_size]
+        work_dir = work_root / f"batch_{batch_index:04d}"
+        if work_dir.exists():
+            shutil.rmtree(work_dir)
+        work_dir.mkdir(parents=True, exist_ok=True)
 
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        if destination.exists():
-            destination.unlink()
-        shutil.move(str(produced), str(destination))
+        link_paths: list[Path] = []
+        for index, (source_file, _destination) in enumerate(batch_jobs, start=1):
+            link_path = work_dir / f"pp_light_{index:05d}{source_file.suffix.lower()}"
+            link_path.symlink_to(source_file.resolve())
+            link_paths.append(link_path)
 
-    shutil.rmtree(work_dir)
+        context = (
+            f"convert XISF batch {batch_index}/{batch_count} "
+            f"({len(batch_jobs)} file(s))"
+        )
+        print(f"  {context}...")
+        run_siril_script(siril_path, work_dir, script_text, log_path, context)
+
+        report_path = work_dir / ".process" / "pp_light_conversion.txt"
+        converted_outputs = parse_siril_conversion_report(report_path)
+        for link_path, (_source_file, destination) in zip(link_paths, batch_jobs, strict=True):
+            produced = converted_outputs.get(str(link_path)) or converted_outputs.get(link_path.name)
+            if produced is None:
+                raise FileNotFoundError(
+                    f"Siril conversion report has no output entry for {link_path}"
+                )
+            if not produced.is_absolute():
+                produced = work_dir / produced
+            if not produced.exists():
+                raise FileNotFoundError(f"Siril reported converted output does not exist: {produced}")
+
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            if destination.exists():
+                destination.unlink()
+            shutil.move(str(produced), str(destination))
+
+        shutil.rmtree(work_dir)
+
+    shutil.rmtree(work_root)
 
 
 def link_name_for_collection_target(input_dir: Path, source_file: Path, target_file: Path) -> str:
@@ -1147,10 +1176,14 @@ def main():
         conversion_jobs.append((source_file, converted_file))
 
     if conversion_jobs:
+        conversion_batch_count = (
+            len(conversion_jobs) + args.xisf_conversion_batch_size - 1
+        ) // args.xisf_conversion_batch_size
         if args.dry_run:
             print(
-                f"[DRY-RUN] batch convert {len(conversion_jobs)} XISF file(s) "
-                f"under {output_dir / '.converted_xisf'}"
+                f"[DRY-RUN] convert {len(conversion_jobs)} XISF file(s) to FITS "
+                f"in {conversion_batch_count} Siril batch(es) of up to "
+                f"{args.xisf_conversion_batch_size} under {output_dir / '.converted_xisf'}"
             )
             for source_file, converted_file in conversion_jobs:
                 collection_targets[source_file] = (converted_file, "xisf_planned")
@@ -1158,12 +1191,17 @@ def main():
             try:
                 siril_path = find_siril_path(args.siril_path)
                 print(f"\nSiril: {siril_path}")
-                print(f"Converting {len(conversion_jobs)} XISF file(s) to FITS in one Siril batch...")
+                print(
+                    f"Converting {len(conversion_jobs)} XISF file(s) to FITS "
+                    f"in {conversion_batch_count} Siril batch(es) of up to "
+                    f"{args.xisf_conversion_batch_size}..."
+                )
                 convert_xisfs_to_fits(
                     conversion_jobs=conversion_jobs,
                     output_dir=output_dir,
                     siril_path=siril_path,
                     log_path=conversion_log_path,
+                    batch_size=args.xisf_conversion_batch_size,
                 )
                 for source_file, converted_file in conversion_jobs:
                     collection_targets[source_file] = (converted_file, "xisf_converted")

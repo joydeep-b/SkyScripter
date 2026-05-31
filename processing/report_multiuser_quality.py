@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+from concurrent.futures import ProcessPoolExecutor, as_completed
 import csv
 from datetime import datetime
 from html import escape
@@ -97,6 +98,15 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Ignore cached measurements and rescore all subs.",
     )
+    parser.add_argument(
+        "--cache-flush-interval",
+        type=int,
+        default=50,
+        help=(
+            "Write the measurement cache to disk every N newly scored subs so the "
+            "run can be stopped and resumed. Use 0 to only write once at the end."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -131,7 +141,11 @@ def write_measurement_cache(cache_path: Path, measurements: dict[Path, dict[str,
         for path, measurement in sorted(measurements.items())
         if path.exists()
     }
-    cache_path.write_text(json.dumps(cache, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    # Write atomically so an interruption mid-write cannot corrupt the cache and
+    # break resumability.
+    tmp_path = cache_path.with_name(cache_path.name + ".tmp")
+    tmp_path.write_text(json.dumps(cache, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    os.replace(tmp_path, cache_path)
 
 
 def measure_all_paths(
@@ -143,6 +157,7 @@ def measure_all_paths(
     workers: int,
     cache_path: Path,
     force: bool,
+    flush_interval: int = 50,
 ) -> dict[Path, dict[str, float | int]]:
     cache = load_measurement_cache(cache_path)
     measurements: dict[Path, dict[str, float | int]] = {}
@@ -155,11 +170,42 @@ def measure_all_paths(
         else:
             missing_paths.append(path)
 
-    if missing_paths:
-        new_measurements = measure_paths(missing_paths, metric_name, siril_path, timeout, workers)
-        measurements.update(new_measurements)
+    if not missing_paths:
+        print(f"All {len(measurements)} measurement(s) loaded from cache: {cache_path}", file=sys.stderr)
+        return measurements
 
-    write_measurement_cache(cache_path, measurements)
+    if measurements:
+        print(
+            f"Resuming: {len(measurements)} cached, {len(missing_paths)} to score "
+            f"(cache: {cache_path}).",
+            file=sys.stderr,
+        )
+
+    completed_since_flush = 0
+
+    def on_result(path: Path, measurement: dict[str, float | int]) -> None:
+        nonlocal completed_since_flush
+        measurements[path] = measurement
+        completed_since_flush += 1
+        if flush_interval > 0 and completed_since_flush >= flush_interval:
+            write_measurement_cache(cache_path, measurements)
+            completed_since_flush = 0
+
+    # The finally block guarantees that whatever completed (even on
+    # KeyboardInterrupt or a fatal scoring error) is persisted, so the next run
+    # resumes from where this one stopped.
+    try:
+        measure_paths(
+            missing_paths,
+            metric_name,
+            siril_path,
+            timeout,
+            workers,
+            on_result=on_result,
+        )
+    finally:
+        write_measurement_cache(cache_path, measurements)
+
     return measurements
 
 
@@ -377,6 +423,58 @@ def add_summary_page(
     story.append(PageBreak())
 
 
+def render_preview_for_path(
+    args: tuple[Path, Path, str, float],
+) -> tuple[Path, Path]:
+    best_path, previews_dir, siril_path, siril_timeout = args
+    return best_path, previews.render_preview(best_path, previews_dir, siril_path, siril_timeout)
+
+
+def render_group_previews(
+    best_paths: list[Path],
+    *,
+    previews_dir: Path,
+    siril_path: str,
+    siril_timeout: float,
+    workers: int,
+) -> dict[Path, Path]:
+    preview_map: dict[Path, Path] = {}
+    total = len(best_paths)
+    if total == 0:
+        return preview_map
+
+    print(f"Rendering {total} group preview(s) with {workers} worker(s)...", file=sys.stderr)
+
+    if workers == 1 or total == 1:
+        for index, best_path in enumerate(best_paths, start=1):
+            print(f"Rendering preview {index:3d}/{total:3d}: {best_path.name}", file=sys.stderr)
+            try:
+                preview_map[best_path] = previews.render_preview(
+                    best_path, previews_dir, siril_path, siril_timeout
+                )
+            except Exception as exc:
+                print(f"Warning: failed to render preview for {best_path}: {exc}", file=sys.stderr)
+        return preview_map
+
+    max_workers = min(workers, total)
+    with ProcessPoolExecutor(max_workers=max_workers) as executor:
+        future_to_path = {
+            executor.submit(
+                render_preview_for_path, (best_path, previews_dir, siril_path, siril_timeout)
+            ): best_path
+            for best_path in best_paths
+        }
+        for index, future in enumerate(as_completed(future_to_path), start=1):
+            best_path = future_to_path[future]
+            print(f"Rendered preview {index:3d}/{total:3d}: {best_path.name}", file=sys.stderr)
+            try:
+                _path, preview_png = future.result()
+                preview_map[best_path] = preview_png
+            except Exception as exc:
+                print(f"Warning: failed to render preview for {best_path}: {exc}", file=sys.stderr)
+    return preview_map
+
+
 def add_user_sections(
     story: list,
     *,
@@ -388,33 +486,36 @@ def add_user_sections(
     siril_path: str,
     siril_timeout: float,
     min_frames: int,
+    workers: int,
 ) -> None:
     users = sorted({key[0] for key in groups}, key=str.lower)
-    for user_index, user_name in enumerate(users):
-        if user_index > 0:
-            story.append(PageBreak())
-        story.append(Paragraph(escape(user_name), styles["Heading1"]))
 
+    # First pass: compute per-group stats and CDF plots, and collect the unique
+    # best-frame paths whose previews need rendering. This keeps the slow Siril
+    # preview rendering out of the (single-threaded) story-assembly loop.
+    user_blocks: dict[str, list[dict[str, object]]] = {}
+    best_paths_to_render: list[Path] = []
+    seen_best_paths: set[Path] = set()
+
+    for user_name in users:
         user_group_keys = [
             key
             for key in sorted(groups.keys(), key=sort_group_key)
             if key[0] == user_name and len(groups[key]) >= min_frames
         ]
-        if not user_group_keys:
-            story.append(Paragraph("No groups meet the minimum frame count for detail pages.", styles["Normal"]))
-            continue
-
-        for user_name, equipment_name, filter_name in user_group_keys:
+        blocks: list[dict[str, object]] = []
+        for _user, equipment_name, filter_name in user_group_keys:
             paths = groups[(user_name, equipment_name, filter_name)]
             finite_score_rows = group_score_rows(paths, measurements)
             if not finite_score_rows:
-                story.append(
-                    Paragraph(
-                        f"{escape(equipment_name)} / {escape(filter_name)} - n={len(paths)}: no valid scores",
-                        styles["Heading2"],
-                    )
+                blocks.append(
+                    {
+                        "kind": "no_scores",
+                        "equipment": equipment_name,
+                        "filter": filter_name,
+                        "n": len(paths),
+                    }
                 )
-                story.append(Spacer(1, 0.2 * inch))
                 continue
 
             best_path, best_score = max(finite_score_rows, key=lambda item: item[1])
@@ -434,25 +535,74 @@ def add_user_sections(
                 cdf_dir=cdf_dir,
             )
 
-            preview_cell: Paragraph | Image
-            try:
-                preview_png = previews.render_preview(best_path, previews_dir, siril_path, siril_timeout)
-                preview_cell = sized_image(preview_png, 3 * inch)
-            except Exception as exc:
-                print(
-                    f"Warning: failed to render preview for {best_path}: {exc}",
-                    file=sys.stderr,
+            blocks.append(
+                {
+                    "kind": "detail",
+                    "equipment": equipment_name,
+                    "filter": filter_name,
+                    "n": len(paths),
+                    "best_path": best_path,
+                    "best_score": best_score,
+                    "median_score": median_score,
+                    "p10": p10,
+                    "n_below_p10": n_below_p10,
+                    "cdf_path": cdf_path,
+                }
+            )
+            if best_path not in seen_best_paths:
+                seen_best_paths.add(best_path)
+                best_paths_to_render.append(best_path)
+
+        user_blocks[user_name] = blocks
+
+    preview_map = render_group_previews(
+        best_paths_to_render,
+        previews_dir=previews_dir,
+        siril_path=siril_path,
+        siril_timeout=siril_timeout,
+        workers=workers,
+    )
+
+    # Second pass: assemble the story using the precomputed stats and previews.
+    for user_index, user_name in enumerate(users):
+        if user_index > 0:
+            story.append(PageBreak())
+        story.append(Paragraph(escape(user_name), styles["Heading1"]))
+
+        blocks = user_blocks[user_name]
+        if not blocks:
+            story.append(Paragraph("No groups meet the minimum frame count for detail pages.", styles["Normal"]))
+            continue
+
+        for block in blocks:
+            equipment_name = block["equipment"]
+            filter_name = block["filter"]
+            if block["kind"] == "no_scores":
+                story.append(
+                    Paragraph(
+                        f"{escape(equipment_name)} / {escape(filter_name)} - n={block['n']}: no valid scores",
+                        styles["Heading2"],
+                    )
                 )
+                story.append(Spacer(1, 0.2 * inch))
+                continue
+
+            best_path = block["best_path"]
+            preview_cell: Paragraph | Image
+            preview_png = preview_map.get(best_path)
+            if preview_png is not None:
+                preview_cell = sized_image(preview_png, 3 * inch)
+            else:
                 preview_cell = Paragraph("preview unavailable", styles["Normal"])
 
             caption = (
-                f"{escape(equipment_name)} / {escape(filter_name)} - n={len(paths)}, "
-                f"best score={best_score:.4g}, median={median_score:.4g}, "
-                f"p10={p10:.4g}, below-p10={n_below_p10}; best: {escape(best_path.name)}"
+                f"{escape(equipment_name)} / {escape(filter_name)} - n={block['n']}, "
+                f"best score={block['best_score']:.4g}, median={block['median_score']:.4g}, "
+                f"p10={block['p10']:.4g}, below-p10={block['n_below_p10']}; best: {escape(best_path.name)}"
             )
             story.append(Paragraph(caption, styles["Heading2"]))
             image_table = Table(
-                [[preview_cell, sized_image(cdf_path, 4 * inch)]],
+                [[preview_cell, sized_image(block["cdf_path"], 4 * inch)]],
                 colWidths=[3.2 * inch, 4.2 * inch],
             )
             image_table.setStyle(image_table_style())
@@ -473,6 +623,7 @@ def build_pdf(
     siril_path: str,
     siril_timeout: float,
     min_frames: int,
+    workers: int,
 ) -> None:
     styles = getSampleStyleSheet()
     doc = SimpleDocTemplate(
@@ -502,6 +653,7 @@ def build_pdf(
         siril_path=siril_path,
         siril_timeout=siril_timeout,
         min_frames=min_frames,
+        workers=workers,
     )
     doc.build(story)
 
@@ -546,6 +698,7 @@ def main() -> None:
         workers=args.workers,
         cache_path=out_dir / "measurements_cache.json",
         force=args.force,
+        flush_interval=args.cache_flush_interval,
     )
     write_measurements_csv(out_dir / "measurements.csv", groups, measurements)
 
@@ -562,6 +715,7 @@ def main() -> None:
         siril_path=siril_path,
         siril_timeout=args.siril_timeout,
         min_frames=args.min_frames,
+        workers=args.workers,
     )
     print(f"Wrote {pdf_path}")
 

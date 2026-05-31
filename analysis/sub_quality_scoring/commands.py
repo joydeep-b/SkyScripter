@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from concurrent.futures import ProcessPoolExecutor, as_completed
 import csv
 import json
@@ -55,6 +56,7 @@ def measure_paths(
     siril_path: str,
     timeout: float,
     workers: int,
+    on_result: Callable[[Path, MetricMeasurement], None] | None = None,
 ) -> dict[Path, MetricMeasurement]:
     if workers < 1:
         raise ValueError("--workers must be at least 1.")
@@ -62,7 +64,10 @@ def measure_paths(
     if workers == 1 or len(sub_paths) <= 1:
         for index, sub_path in enumerate(sub_paths, start=1):
             print(f"Scoring {index:3d}/{len(sub_paths):3d} with {metric_name}: {sub_path.name}", file=sys.stderr)
-            measurements[sub_path] = metrics.measure_metric(metric_name, sub_path, siril_path, timeout)
+            measurement = metrics.measure_metric(metric_name, sub_path, siril_path, timeout)
+            measurements[sub_path] = measurement
+            if on_result is not None:
+                on_result(sub_path, measurement)
         return measurements
 
     max_workers = min(workers, len(sub_paths))
@@ -79,6 +84,8 @@ def measure_paths(
             except Exception as exc:
                 raise RuntimeError(f"Failed to compute {metric_name} for {sub_path}") from exc
             measurements[sub_path] = measurement
+            if on_result is not None:
+                on_result(sub_path, measurement)
     return measurements
 
 

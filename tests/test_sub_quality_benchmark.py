@@ -151,6 +151,119 @@ def test_extract_star_background_features_returns_siril_scale_values(monkeypatch
     }
 
 
+def test_run_star_background_stats_treats_missing_star_list_as_zero_stars(monkeypatch, tmp_path):
+    sub_path = tmp_path / "saturated.fit"
+    sub_path.write_bytes(b"fit")
+    siril_output = "B&W layer: Mean: 63814.4, Median: 64377.9, Sigma: 1811.4, bgnoise: 230.4"
+
+    def fake_run_siril_script(_script, _working_dir, _siril_path, _timeout, *, failure_context):
+        # Emulate Siril finding no stars: the script succeeds but no .lst is written.
+        return siril_output
+
+    monkeypatch.setattr(features.siril, "run_siril_script", fake_run_siril_script)
+
+    stars, background, bgnoise = features.run_star_background_stats(sub_path, "siril", 1.0)
+
+    assert stars == []
+    assert background == 64377.9
+    assert bgnoise == 230.4
+
+
+def test_extract_star_background_features_with_no_stars_yields_nan_score(monkeypatch, tmp_path):
+    image = np.full((5, 5), 64377.0, dtype=np.float32)
+    sub_path = tmp_path / "saturated.fit"
+    fits.writeto(sub_path, image)
+
+    def fake_run_star_background_stats(_sub_path, _siril_path, _timeout):
+        return [], 64377.9, 230.4
+
+    monkeypatch.setattr(features, "run_star_background_stats", fake_run_star_background_stats)
+
+    feature_values = features.extract_star_background_features(sub_path, "siril", 1.0)
+
+    assert feature_values["star_count"] == 0
+    assert np.isnan(feature_values["median_mean_star_flux"])
+    assert np.isnan(stellar_quality.score_from_features(feature_values))
+
+
+def test_read_measurement_image_data_converts_xisf_with_siril(monkeypatch, tmp_path):
+    sub_path = tmp_path / "sub.xisf"
+    sub_path.write_bytes(b"xisf")
+    converted_image = np.full((3, 3), 7.0, dtype=np.float32)
+    scripts = []
+
+    def fake_run_siril_script(script, working_dir, _siril_path, _timeout, *, failure_context):
+        scripts.append((script, working_dir, failure_context))
+        fits.writeto(working_dir / "measurement_input.fit", converted_image)
+        return "converted"
+
+    monkeypatch.setattr(features.siril, "run_siril_script", fake_run_siril_script)
+
+    image = features.read_measurement_image_data(sub_path, "siril", 1.0)
+
+    assert np.allclose(image, converted_image)
+    assert len(scripts) == 1
+    assert "setcpu 1" in scripts[0][0]
+    assert f"load {features.siril.quote(str(sub_path))}" in scripts[0][0]
+    assert "Siril XISF-to-FITS conversion" in scripts[0][2]
+
+
+def test_measure_paths_invokes_on_result_for_each_completed(monkeypatch, tmp_path):
+    sub_paths = []
+    for index in range(3):
+        sub_path = tmp_path / f"sub_{index}.fit"
+        sub_path.write_bytes(b"fit")
+        sub_paths.append(sub_path)
+
+    monkeypatch.setattr(
+        commands.metrics,
+        "measure_metric",
+        lambda _metric, path, _siril, _timeout: {"score": float(path.stem.split("_")[1])},
+    )
+
+    seen: list = []
+    result = commands.measure_paths(
+        sub_paths,
+        "stellar_quality",
+        "siril",
+        1.0,
+        1,
+        on_result=lambda path, measurement: seen.append((path, measurement["score"])),
+    )
+
+    assert [path for path, _ in seen] == sub_paths
+    assert [score for _, score in seen] == [0.0, 1.0, 2.0]
+    assert set(result) == set(sub_paths)
+
+
+def test_read_fits_image_data_flips_top_down_to_siril_orientation(tmp_path):
+    image = np.full((6, 4), 100.0, dtype=np.float32)
+    image[0, :] = 5000.0  # first stored row == top of a TOP-DOWN file
+    sub_path = tmp_path / "td.fit"
+    hdu = fits.PrimaryHDU(image)
+    hdu.header["ROWORDER"] = "TOP-DOWN"
+    hdu.writeto(sub_path)
+
+    oriented = features.read_fits_image_data(sub_path)
+
+    # Siril reports star Y from the bottom, so the bright top row must end up at
+    # the bottom (last numpy row) after orienting.
+    assert oriented[-1, 0] == 5000.0
+    assert oriented[0, 0] == 100.0
+
+
+def test_read_fits_image_data_keeps_bottom_up_orientation(tmp_path):
+    image = np.arange(24, dtype=np.float32).reshape(6, 4)
+    sub_path = tmp_path / "bu.fit"
+    hdu = fits.PrimaryHDU(image)
+    hdu.header["ROWORDER"] = "BOTTOM-UP"
+    hdu.writeto(sub_path)
+
+    oriented = features.read_fits_image_data(sub_path)
+
+    assert np.array_equal(oriented, image)
+
+
 def test_sky_weighted_contrast_scores_feature_dictionary():
     feature_values = {
         "star_count": 99,

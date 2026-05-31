@@ -14,6 +14,7 @@ DEFAULT_STAR_APERTURE_RADIUS_SCALE = 1.5
 SIRIL_FLOAT_STAT_SCALE = 65535.0
 STAR_BACKGROUND_FEATURE_KEYS = ("star_count", "median_mean_star_flux", "background", "bgnoise")
 FeatureMeasurement = dict[str, float | int]
+FITS_SUFFIXES = {".fit", ".fits", ".fts"}
 
 
 @dataclass(frozen=True)
@@ -58,6 +59,7 @@ def run_star_background_stats(
         tmpdir = Path(tmpdirname)
         star_list_path = tmpdir / "stars.lst"
         script = f"""requires 1.2.0
+setcpu 1
 load {siril.quote(str(sub_path))}
 findstar -out={star_list_path.name}
 stat
@@ -70,9 +72,14 @@ close
             timeout,
             failure_context=f"Siril star/background measurement for {sub_path}",
         )
-        if not star_list_path.exists():
-            raise RuntimeError(f"Siril did not create expected star list: {star_list_path}\n{output}")
-        stars = parse_star_list_text(star_list_path.read_text(encoding="utf-8"))
+        # Siril's findstar does not write the star list file when it detects no
+        # stars (e.g. saturated or empty frames). The script itself still exits
+        # successfully (run_siril_script raises on non-zero exit codes), so a
+        # missing file here means zero stars, not a failure.
+        if star_list_path.exists():
+            stars = parse_star_list_text(star_list_path.read_text(encoding="utf-8"))
+        else:
+            stars = []
         return stars, siril.parse_background(output), siril.parse_bgnoise(output)
 
 
@@ -140,10 +147,64 @@ def image_data_to_siril_stat_scale(image: np.ndarray) -> np.ndarray:
     return image
 
 
+def orient_to_siril_star_coordinates(image: np.ndarray, row_order: object) -> np.ndarray:
+    # Siril's findstar reports star Y measured from the bottom of the image, but
+    # astropy reads FITS rows in stored order. For a TOP-DOWN file row 0 is the
+    # top, so it must be flipped vertically to align the pixel array with Siril's
+    # bottom-up star coordinates. Without this, every star aperture is mirrored
+    # onto background, yielding near-zero (often negative) median star flux.
+    if isinstance(row_order, str) and row_order.strip().upper() == "TOP-DOWN":
+        return np.flipud(image)
+    return image
+
+
+def read_fits_image_data(image_path: Path) -> np.ndarray:
+    with fits.open(image_path, memmap=False) as hdul:
+        row_order = hdul[0].header.get("ROWORDER")
+        image = image_data_to_siril_stat_scale(psq.normalize_image_data(hdul[0].data))
+    return orient_to_siril_star_coordinates(image, row_order)
+
+
+def convert_xisf_to_temporary_fits(sub_path: Path, tmpdir: Path, siril_path: str, timeout: float) -> Path:
+    output_stem = tmpdir / "measurement_input"
+    script = f"""requires 1.2.0
+setcpu 1
+load {siril.quote(str(sub_path))}
+save {siril.quote(str(output_stem))}
+close
+"""
+    output = siril.run_siril_script(
+        script,
+        tmpdir,
+        siril_path,
+        timeout,
+        failure_context=f"Siril XISF-to-FITS conversion for {sub_path}",
+    )
+    for suffix in (".fit", ".fits", ".fts"):
+        output_path = output_stem.with_suffix(suffix)
+        if output_path.exists():
+            return output_path
+    raise RuntimeError(f"Siril did not create expected FITS conversion for {sub_path}\n{output}")
+
+
+def read_measurement_image_data(sub_path: Path, siril_path: str, timeout: float) -> np.ndarray:
+    if sub_path.suffix.lower() in FITS_SUFFIXES:
+        return read_fits_image_data(sub_path)
+    if sub_path.suffix.lower() == ".xisf":
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            converted_path = convert_xisf_to_temporary_fits(
+                sub_path,
+                Path(tmpdirname),
+                siril_path,
+                timeout,
+            )
+            return read_fits_image_data(converted_path)
+    raise ValueError(f"Unsupported image format for measurement: {sub_path}")
+
+
 def extract_star_background_features(sub_path: Path, siril_path: str, timeout: float) -> FeatureMeasurement:
     stars, background, bgnoise = run_star_background_stats(sub_path, siril_path, timeout)
-    with fits.open(sub_path, memmap=False) as hdul:
-        image = image_data_to_siril_stat_scale(psq.normalize_image_data(hdul[0].data))
+    image = read_measurement_image_data(sub_path, siril_path, timeout)
     return {
         "star_count": len(stars),
         "median_mean_star_flux": median_star_mean_flux(image, stars, background),
