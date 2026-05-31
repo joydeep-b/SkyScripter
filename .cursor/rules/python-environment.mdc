@@ -1,0 +1,17 @@
+---
+description: Python interpreter / environment to use for this repo
+alwaysApply: true
+---
+
+# Python Environment
+
+Run all Python in this repo using the **base Micromamba environment**, or the
+**base Conda environment** if that is what is present on the local computer.
+
+- Invoke scripts, tests, and tooling with the base environment's interpreter
+  (e.g. `micromamba run -n base python ...`, or activate `base` first).
+- Do not use the system Python (`/usr/bin/python`, `/usr/bin/python3`) or create
+  ad-hoc virtualenvs; the project's dependencies (astropy, numpy, reportlab,
+  matplotlib, astroquery, pytest, etc.) live in the base environment.
+- Run the test suite from the repo root with the base environment, e.g.
+  `python -m pytest tests/`.
