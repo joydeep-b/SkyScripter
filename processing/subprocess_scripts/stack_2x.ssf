@@ -1,0 +1,11 @@
+requires 1.3.5
+setcpu 140
+setmem 0.7
+
+convert pp_light -out=.process
+cd .process
+
+register pp_light -2pass
+seqapplyreg pp_light -drizzle -scale=2.0 -pixfrac=0.45 -framing=cog
+
+stack r_pp_light rej 3 3  -norm=addscale -output_norm -weight=wfwhm -out=stack
