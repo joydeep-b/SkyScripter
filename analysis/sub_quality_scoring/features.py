@@ -147,22 +147,32 @@ def image_data_to_siril_stat_scale(image: np.ndarray) -> np.ndarray:
     return image
 
 
-def orient_to_siril_star_coordinates(image: np.ndarray, row_order: object) -> np.ndarray:
-    # Siril's findstar reports star Y measured from the bottom of the image, but
-    # astropy reads FITS rows in stored order. For a TOP-DOWN file row 0 is the
-    # top, so it must be flipped vertically to align the pixel array with Siril's
-    # bottom-up star coordinates. Without this, every star aperture is mirrored
-    # onto background, yielding near-zero (often negative) median star flux.
-    if isinstance(row_order, str) and row_order.strip().upper() == "TOP-DOWN":
-        return np.flipud(image)
-    return image
+def median_star_mean_flux_auto_orient(
+    image: np.ndarray,
+    stars: list[SirilStar],
+    background: float,
+    *,
+    radius_scale: float = DEFAULT_STAR_APERTURE_RADIUS_SCALE,
+) -> float:
+    # Siril's findstar reports star Y from the bottom of the frame, while astropy
+    # reads FITS rows top-first. Whether a vertical flip is required depends on the
+    # file's ROWORDER keyword, which is frequently missing or inconsistent across
+    # the various capture/processing pipelines feeding this report. Rather than
+    # trust that keyword, detect the orientation empirically: the correct vertical
+    # orientation places the detected stars on real signal (large positive median
+    # flux), while the mirrored one samples background (~0, often slightly
+    # negative). Pick whichever yields the larger median star flux.
+    upright = median_star_mean_flux(image, stars, background, radius_scale=radius_scale)
+    flipped = median_star_mean_flux(np.flipud(image), stars, background, radius_scale=radius_scale)
+    candidates = [value for value in (upright, flipped) if math.isfinite(value)]
+    if not candidates:
+        return float("nan")
+    return max(candidates)
 
 
 def read_fits_image_data(image_path: Path) -> np.ndarray:
     with fits.open(image_path, memmap=False) as hdul:
-        row_order = hdul[0].header.get("ROWORDER")
-        image = image_data_to_siril_stat_scale(psq.normalize_image_data(hdul[0].data))
-    return orient_to_siril_star_coordinates(image, row_order)
+        return image_data_to_siril_stat_scale(psq.normalize_image_data(hdul[0].data))
 
 
 def convert_xisf_to_temporary_fits(sub_path: Path, tmpdir: Path, siril_path: str, timeout: float) -> Path:
@@ -207,7 +217,7 @@ def extract_star_background_features(sub_path: Path, siril_path: str, timeout: f
     image = read_measurement_image_data(sub_path, siril_path, timeout)
     return {
         "star_count": len(stars),
-        "median_mean_star_flux": median_star_mean_flux(image, stars, background),
+        "median_mean_star_flux": median_star_mean_flux_auto_orient(image, stars, background),
         "background": background,
         "bgnoise": bgnoise,
     }

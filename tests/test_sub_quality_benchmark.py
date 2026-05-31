@@ -236,32 +236,28 @@ def test_measure_paths_invokes_on_result_for_each_completed(monkeypatch, tmp_pat
     assert set(result) == set(sub_paths)
 
 
-def test_read_fits_image_data_flips_top_down_to_siril_orientation(tmp_path):
-    image = np.full((6, 4), 100.0, dtype=np.float32)
-    image[0, :] = 5000.0  # first stored row == top of a TOP-DOWN file
-    sub_path = tmp_path / "td.fit"
-    hdu = fits.PrimaryHDU(image)
-    hdu.header["ROWORDER"] = "TOP-DOWN"
-    hdu.writeto(sub_path)
+def test_median_star_mean_flux_auto_orient_flips_when_needed():
+    # Star signal only aligns after a vertical flip: bright pixel sits at the
+    # bottom stored row, while the Siril (bottom-origin) star Y points at row 0.
+    image = np.full((7, 7), 10.0, dtype=np.float32)
+    image[6, 3] = 100.0
+    stars = [features.SirilStar(x=3.0, y=0.0, fwhm=1.0)]
 
-    oriented = features.read_fits_image_data(sub_path)
+    upright = features.median_star_mean_flux(image, stars, 10.0, radius_scale=0.1)
+    auto = features.median_star_mean_flux_auto_orient(image, stars, 10.0, radius_scale=0.1)
 
-    # Siril reports star Y from the bottom, so the bright top row must end up at
-    # the bottom (last numpy row) after orienting.
-    assert oriented[-1, 0] == 5000.0
-    assert oriented[0, 0] == 100.0
+    assert upright == 0.0  # as-is samples background
+    assert auto == 90.0  # flipped orientation lands on the star
 
 
-def test_read_fits_image_data_keeps_bottom_up_orientation(tmp_path):
-    image = np.arange(24, dtype=np.float32).reshape(6, 4)
-    sub_path = tmp_path / "bu.fit"
-    hdu = fits.PrimaryHDU(image)
-    hdu.header["ROWORDER"] = "BOTTOM-UP"
-    hdu.writeto(sub_path)
+def test_median_star_mean_flux_auto_orient_keeps_upright_when_correct():
+    image = np.full((7, 7), 10.0, dtype=np.float32)
+    image[0, 3] = 100.0
+    stars = [features.SirilStar(x=3.0, y=0.0, fwhm=1.0)]
 
-    oriented = features.read_fits_image_data(sub_path)
+    auto = features.median_star_mean_flux_auto_orient(image, stars, 10.0, radius_scale=0.1)
 
-    assert np.array_equal(oriented, image)
+    assert auto == 90.0
 
 
 def test_sky_weighted_contrast_scores_feature_dictionary():
