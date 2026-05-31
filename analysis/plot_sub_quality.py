@@ -15,7 +15,7 @@ import warnings
 
 import matplotlib
 
-if "--show" not in sys.argv:
+if Path(sys.argv[0]).name == "plot_sub_quality.py" and "--show" not in sys.argv:
     matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt
@@ -379,6 +379,12 @@ def parse_siril_bgnoise(output: str) -> float:
     return float(matches[-1])
 
 
+def legacy_quality_score(star_count: int, bgnoise: float) -> float:
+    if star_count > 0 and np.isfinite(bgnoise) and bgnoise > 0.0:
+        return float(star_count / bgnoise)
+    return float("nan")
+
+
 def run_siril_quality_stats(record: FrameRecord, siril_path: str, timeout: float) -> tuple[int, float]:
     script = f"""requires 1.2.0
 load {siril_quote(record.path.name)}
@@ -452,10 +458,7 @@ def analyze_group(records: list[FrameRecord], args, siril_path: str) -> list[Qua
     quality_records: list[QualityRecord] = []
     raw_quality = []
     for sub_index, (record, feature) in enumerate(zip(records, features), start=1):
-        if feature.star_count > 0 and np.isfinite(feature.bgnoise) and feature.bgnoise > 0.0:
-            quality = float(feature.star_count / feature.bgnoise)
-        else:
-            quality = float("nan")
+        quality = legacy_quality_score(feature.star_count, feature.bgnoise)
 
         raw_quality.append(quality)
         quality_records.append(
