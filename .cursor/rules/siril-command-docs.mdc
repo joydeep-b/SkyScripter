@@ -1,0 +1,14 @@
+---
+description: Require current Siril command documentation for scripts and CLI use
+alwaysApply: true
+---
+
+# Siril Command Documentation
+
+When writing or modifying Siril scripts, shell wrappers, Python code that invokes Siril, or any other Siril command-line usage, consult the latest Siril documentation before choosing command syntax or arguments.
+
+- Use the current Siril documentation: https://siril.readthedocs.io/en/latest/
+- For command syntax and arguments, prefer the commands reference: https://siril.readthedocs.io/en/latest/Commands.html
+- Do not rely only on memory for Siril command names, flags, positional arguments, or script syntax.
+- Verify that generated `.ssf` scripts and CLI calls match the documented command forms.
+- If documentation and existing repository usage disagree, favor the latest documentation unless preserving known working behavior is explicitly required.
