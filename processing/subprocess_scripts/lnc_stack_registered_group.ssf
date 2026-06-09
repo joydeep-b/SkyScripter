@@ -1,0 +1,7 @@
+requires 1.3.5
+cd .process
+seqclean ${SEQUENCE_NAME} -reg
+setref ${SEQUENCE_NAME} ${REFERENCE_INDEX}
+getref ${SEQUENCE_NAME}
+register ${SEQUENCE_NAME} -drizzle -scale=1.0 -pixfrac=0.9
+stack r_${SEQUENCE_NAME} rej 3 3 -norm=addscale -output_norm -weight=wfwhm -out=stack

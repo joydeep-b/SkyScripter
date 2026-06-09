@@ -1,0 +1,7 @@
+requires 1.3.5
+convert ${SEQUENCE_NAME} -out=.process
+cd .process
+setref ${SEQUENCE_NAME} ${REFERENCE_INDEX}
+getref ${SEQUENCE_NAME}
+register ${SEQUENCE_NAME} -2pass
+getref ${SEQUENCE_NAME}
