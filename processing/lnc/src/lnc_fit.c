@@ -129,14 +129,18 @@ static bool fit_trimmed_affine(SamplePair *pairs, int n, const UnregisteredParam
     sum_tr += t * r;
   }
 
-  float background_r = median_float_copy(kept_refs, kept);
-  float background_t = median_float_copy(kept_targets, kept);
-  free(kept_refs);
-  free(kept_targets);
-
   long double denom = (long double)kept * sum_tt - sum_t * sum_t;
   long double mean_t = sum_t / (long double)kept;
   long double mean_r = sum_r / (long double)kept;
+  float background_r = (float)mean_r;
+  float background_t = (float)mean_t;
+  if (params->background_estimator != LNC_BACKGROUND_TRIMMED_MEAN) {
+    background_r = median_float_copy(kept_refs, kept);
+    background_t = median_float_copy(kept_targets, kept);
+  }
+  free(kept_refs);
+  free(kept_targets);
+
   long double scale = 1.0;
   long double offset = (long double)background_r - (long double)background_t;
 

@@ -6,10 +6,17 @@
 #include "lnc_fits.h"
 #include "lnc_grid.h"
 
+enum {
+  LNC_BACKGROUND_TRIMMED_MEAN = 0,
+  LNC_BACKGROUND_TRIMMED_MEDIAN = 1,
+  LNC_BACKGROUND_SAMPLE_MEDIAN = 2,
+};
+
 typedef struct {
   int grid_spacing;
   int window_size;
   int min_samples;
+  int background_estimator;
   double trim_fraction;
   double scale_min;
   double scale_max;

@@ -3,8 +3,10 @@
 This document describes the unregistered local normalization correction (LNC)
 implemented by:
 
-- `processing/local_normalize_unregistered.py`
-- `processing/lnc/local_normalize_unregistered.c`
+- `processing/lnc/scripts/lnc_unregistered_pair.py`
+- `processing/lnc/src/lnc_unregistered_pair_main.c`
+- `processing/lnc/scripts/lnc_group_sequence.py`
+- `processing/lnc/src/lnc_group_subs_main.c`
 
 The goal is to photometrically correct an unregistered target image while
 preserving the target image geometry.
@@ -15,7 +17,7 @@ Use the unregistered wrapper when the reference and target are not already
 geometrically registered:
 
 ```bash
-python processing/local_normalize_unregistered.py \
+python processing/lnc/scripts/lnc_unregistered_pair.py \
   "path/to/reference.fit" \
   "path/to/target_to_correct.fit" \
   "path/to/corrected_output.fit" \
@@ -27,7 +29,7 @@ python processing/local_normalize_unregistered.py \
 For the Markarians test pair:
 
 ```bash
-python processing/local_normalize_unregistered.py \
+python processing/lnc/scripts/lnc_unregistered_pair.py \
   "LNC_Test_Data/markarians/ref.fit" \
   "LNC_Test_Data/markarians/bad1.fit" \
   "LNC_Test_Data/markarians/bad1_lnc.fit" \
@@ -77,7 +79,7 @@ Use the original registered-image wrapper only when the reference and target are
 already registered and share the same geometry:
 
 ```bash
-python processing/local_normalize.py \
+python processing/lnc/scripts/lnc_registered_pair.py \
   "path/to/registered_reference.fit" \
   "path/to/registered_target.fit" \
   "path/to/corrected_output.fit" \
@@ -86,6 +88,57 @@ python processing/local_normalize.py \
   --background-estimator trimmed-median \
   --output-format float32
 ```
+
+Use the group wrapper when the inputs are already organized as a Siril sequence
+and every included frame should be normalized to one reference frame:
+
+```bash
+python processing/lnc/scripts/lnc_group_sequence.py \
+  "path/to/sequence_dir" \
+  "sequence_name" \
+  --output-dir "path/to/lnc_sequence_out" \
+  --diagnostics \
+  --background-estimator trimmed-median
+```
+
+The required positional arguments are:
+
+- `sequence_dir`: directory containing the Siril `.seq` file and FITS frames.
+- `sequence_name`: Siril sequence name, without the `.seq` suffix.
+
+Common group options:
+
+- `--output-dir DIR`: writes corrected sequence frames and group reports into
+  `DIR`. If omitted, outputs are written next to the input sequence.
+- `--diagnostics`: enables per-target diagnostic directories. Diagnostics are
+  disabled by default to avoid tripling the write I/O for large sequences.
+- `--lnc-threads N`: OpenMP threads used inside each target normalization.
+- `--lnc-workers N`: number of targets normalized concurrently.
+- `--background-estimator NAME`: uses `trimmed-mean`, `trimmed-median`, or
+  `sample-median` for local background estimation.
+- `--rebuild`: rebuilds the C group normalizer before running.
+
+The group output directory normally contains:
+
+- `lnc_<source_stem>.fits`: corrected FITS file for each included sequence
+  frame. Corrected targets preserve the target frame's science header and add
+  LNC provenance cards. The reference frame is copied with identical pixels and
+  original science metadata, then stamped with `LNCMODE=reference-passthrough`.
+- `lnc_group_manifest.json`: manifest consumed by the C group normalizer.
+- `lnc_group_summary.json`: per-target C-core status, valid-node counts, and
+  elapsed time.
+- `lnc_group_sequence_report.json`: wrapper-level sequence, reference,
+  skipped-frame, concurrency, and timing summary.
+- `lnc_<source_stem>_lnc_diag/`: optional per-target diagnostic directory
+  written when `--diagnostics` is set. It contains `scale_map.fits`,
+  `offset_map.fits`, and `lnc_report.json`.
+
+Group science outputs are written directly by the C core as 32-bit FITS images
+in each target's original geometry. The group wrapper does not expose the pair
+wrapper's `--output-format` conversion path. Before returning, the wrapper
+checks that every output still has exposure metadata (`LIVETIME`, `EXPTIME`, or
+`EXPOSURE`) and `LNCMODE`; this prevents header-stripped normalized subs from
+being cached or stacked.
 
 ## Symbols
 
@@ -182,6 +235,116 @@ score(M) = median_i d_i(M)
 ```
 
 The candidate matrix with the smaller `score(M)` is used.
+
+For group LNC, the Python wrapper operates on the existing Siril sequence
+instead of creating one two-image sequence per target. It parses:
+
+- the sequence metadata row, including `start_index`, fixed filename width, and
+  optional Siril reference index;
+- each image row's included/excluded flag;
+- each registration row's homography matrix.
+
+The group reference is chosen as:
+
+```text
+reference_index =
+  sequence reference index, if it exists and is included
+  otherwise the first included sequence index
+```
+
+The wrapper then registers the whole sequence once:
+
+```text
+setref <sequence_name> <reference_index>
+register <sequence_name> -2pass
+```
+
+After registration, it re-parses the `.seq` file and derives one
+target-to-reference homography for each included non-reference frame. If
+`H^s_i` is the Siril-space matrix stored for frame `i`, and `r` is the chosen
+reference frame, then:
+
+```text
+M^s_i = (H^s_r)^{-1} H^s_i
+M_i = F_{H_R} M^s_i F_{H_T}
+```
+
+where `M_i` maps target `i` array coordinates into reference array coordinates.
+This is the same target-to-reference convention used by the pair-wise C core.
+
+## Group Sequence LNC
+
+Group LNC is a batch wrapper around the same unregistered pair normalization
+model described below. It differs from pair-wise LNC in orchestration:
+
+1. Parse the Siril sequence and choose one included frame as the photometric and
+   geometric reference.
+2. Run sequence registration once with that reference.
+3. Build a JSON manifest containing the reference frame, every included
+   non-reference target, each target's output path, each target-to-reference
+   homography, and the LNC parameter block.
+4. Run `lnc_group_subs`, which loads the reference image once and normalizes all
+   targets listed in the manifest.
+5. Copy the reference frame unchanged to the output sequence and write a group
+   summary.
+
+For target `i`, the correction model is still:
+
+```text
+R(p_R) ~= S_i(p_R) * T_i(M_i^{-1} p_R) + O_i(p_R)
+C_i(p_T) = S_i(M_i p_T) * T_i(p_T) + O_i(M_i p_T)
+```
+
+Each target gets its own grid, scale field, offset field, validity checks,
+missing-node fill, and smoothing pass. The fields are not shared across targets;
+only the loaded reference image is shared.
+
+The current group wrapper does not generate the pair wrapper's per-frame
+star/saturation masks. For group runs, the C core receives empty native masks,
+so sample rejection comes from finite-value checks, overlap checks, and the
+trimmed local fit.
+
+## Group Manifest
+
+The group wrapper writes `lnc_group_manifest.json` for the C group normalizer.
+Its important fields are:
+
+```text
+sequence_name
+params
+reference.work_sequence_file
+reference.corrected_sequence_file
+reference.sequence_index
+targets[].work_sequence_file
+targets[].corrected_sequence_file
+targets[].sequence_index
+targets[].target_to_reference_homography
+output_summary
+```
+
+The reference entry always uses the identity homography in the manifest because
+it is not normalized against itself; it is copied to the output path. Each target
+entry supplies the target-to-reference homography used by the unregistered pair
+core.
+
+## Group Parallelism
+
+`lnc_group_subs` has two concurrency levels:
+
+```text
+lnc_workers = number of targets processed at the same time
+lnc_threads = OpenMP threads used inside each target's grid estimation/application
+```
+
+If `--lnc-workers` is not provided, the wrapper chooses:
+
+```text
+lnc_workers = max(1, detected_cpu_count / lnc_threads)
+```
+
+Each worker takes the next manifest target from a shared queue. A target failure
+is recorded in `lnc_group_summary.json`; the process exits non-zero if any
+target fails.
 
 ## Masks
 
@@ -561,6 +724,39 @@ LNCVRS  = '2-unregistered'
 LNCFMT  = output encoding
 LNCVSCL = detected input value scale
 ```
+
+Science outputs preserve the target FITS primary header wherever possible,
+including exposure, date, filter, instrument, and WCS cards. The C science
+writer copies the target header, updates only structural/scaling cards required
+by the corrected float image, and appends LNC provenance such as:
+
+```text
+LNCMODE = correction path, for example group-target or reference-passthrough
+LNCBKG  = background estimator
+LNCREF  = reference filename
+LNCTARG = target filename
+LNCGRID = grid spacing
+LNCWIN  = sampling window size
+LNCSAMP = minimum samples per grid node
+LNCTRIM = trim fraction
+LNCSMIN = minimum scale clamp
+LNCSMAX = maximum scale clamp
+LNCSMTH = smoothing passes
+LNCMINV = minimum valid grid fraction
+LNCRMSK = reference masked pixels, when available
+LNCTMSK = target masked pixels, when available
+LNCSEQ  = sequence index, for group outputs
+```
+
+Diagnostic FITS products (`scale_map.fits`, `offset_map.fits`, background maps,
+and patch-acceptance maps) are derived maps, not exposures. They may use compact
+diagnostic metadata and must not inherit science exposure/date cards.
+
+Existing `normalized_subs` caches created before this metadata contract may
+contain header-stripped FITS files. Batch stacking rejects such cached subs and
+recomputes LNC; if a cache is reused manually, rebuild or repair it by copying
+headers from the matching source sequence frames only after verifying geometry
+and sequence index.
 
 ## Assumptions
 

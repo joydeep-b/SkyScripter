@@ -11,9 +11,21 @@
 #include <stdlib.h>
 #include <string.h>
 
+static const char *background_estimator_name(int estimator) {
+  switch (estimator) {
+    case LNC_BACKGROUND_TRIMMED_MEAN:
+      return "trimmed-mean";
+    case LNC_BACKGROUND_SAMPLE_MEDIAN:
+      return "sample-median";
+    case LNC_BACKGROUND_TRIMMED_MEDIAN:
+    default:
+      return "trimmed-median";
+  }
+}
+
 int lnc_estimate_unregistered_grid(const ImagePair *images, const UnregisteredParams *params, Grid *grid) {
   int valid_count = 0;
-  #pragma omp parallel for reduction(+:valid_count) schedule(dynamic)
+  #pragma omp parallel for collapse(2) reduction(+:valid_count) schedule(dynamic)
   for (int gy = 0; gy < grid->ny; ++gy) {
     for (int gx = 0; gx < grid->nx; ++gx) {
       size_t gi = (size_t)gy * (size_t)grid->nx + (size_t)gx;
@@ -90,7 +102,7 @@ void lnc_write_unregistered_report(const char *path, const UnregisteredParams *p
   int total_nodes = grid->nx * grid->ny;
   fprintf(f,
           "{\n"
-          "  \"background_estimator\": \"transform-aware-trimmed-median\",\n"
+          "  \"background_estimator\": \"%s\",\n"
           "  \"reference_width\": %ld,\n"
           "  \"reference_height\": %ld,\n"
           "  \"target_width\": %ld,\n"
@@ -111,6 +123,7 @@ void lnc_write_unregistered_report(const char *path, const UnregisteredParams *p
           "  \"elapsed_seconds\": %.6f,\n"
           "  \"openmp_threads\": %d\n"
           "}\n",
+          background_estimator_name(params->background_estimator),
           ref->width, ref->height, target->width, target->height, params->grid_spacing,
           params->window_size, params->min_samples, grid->nx, grid->ny, initial_valid,
           total_nodes, (double)initial_valid / (double)total_nodes, ref_masked,

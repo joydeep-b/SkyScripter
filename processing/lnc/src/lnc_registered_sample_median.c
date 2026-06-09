@@ -1,8 +1,6 @@
-
 #include <ctype.h>
 #include <errno.h>
 #include <float.h>
-#include <limits.h>
 #include <math.h>
 #include <omp.h>
 #include <stdbool.h>
@@ -13,9 +11,7 @@
 
 #include <fitsio.h>
 
-#ifndef LNC_BACKGROUND_ESTIMATOR
-#define LNC_BACKGROUND_ESTIMATOR "trimmed-mean"
-#endif
+#include "lnc_fits.h"
 
 typedef struct {
   float t;
@@ -38,13 +34,12 @@ typedef struct {
   double scale_max;
   int smooth_passes;
   double min_valid_fraction;
+  int sample_patch_size;
+  int sample_stride;
+  int min_patches;
+  double sample_min_valid_fraction;
+  double sample_reject_k;
 } Options;
-
-typedef struct {
-  long width;
-  long height;
-  float *data;
-} Image;
 
 typedef struct {
   int nx;
@@ -53,6 +48,7 @@ typedef struct {
   float *offset;
   float *ref_bg;
   float *target_bg;
+  float *accept_fraction;
   unsigned char *valid;
 } Grid;
 
@@ -96,7 +92,6 @@ static int compare_pair_target(const void *a, const void *b) {
   return 0;
 }
 
-#ifdef LNC_USE_TRIMMED_MEDIAN
 static int compare_float(const void *a, const void *b) {
   float fa = *(const float *)a;
   float fb = *(const float *)b;
@@ -113,7 +108,6 @@ static float median_float_copy(const float *values, int n) {
   free(copy);
   return result;
 }
-#endif
 
 static Options default_options(void) {
   Options opt;
@@ -126,12 +120,17 @@ static Options default_options(void) {
   opt.scale_max = 2.0;
   opt.smooth_passes = 2;
   opt.min_valid_fraction = 0.30;
+  opt.sample_patch_size = 25;
+  opt.sample_stride = 32;
+  opt.min_patches = 8;
+  opt.sample_min_valid_fraction = 0.60;
+  opt.sample_reject_k = 2.5;
   return opt;
 }
 
 static void usage(FILE *stream) {
   fprintf(stream,
-          "Usage: local_normalize [options] ref.fit target.fit out.fit\n"
+          "Usage: lnc_registered_pair --background-estimator sample-median [options] ref.fit target.fit out.fit\n"
           "\n"
           "Options:\n"
           "  --mask PATH              uint8/FITS mask; nonzero pixels are excluded\n"
@@ -146,6 +145,11 @@ static void usage(FILE *stream) {
           "  --scale-max F            maximum local scale (default 2.0)\n"
           "  --smooth-passes N        3x3 grid smoothing passes (default 2)\n"
           "  --min-valid-fraction F   fail below this initial valid grid fraction (default 0.30)\n"
+          "  --sample-patch-size N    V2 median sample patch size, odd pixels (default 25)\n"
+          "  --sample-stride N        V2 sample patch stride in pixels (default 32)\n"
+          "  --min-patches N          minimum accepted V2 patches per grid node (default 8)\n"
+          "  --sample-min-valid F     minimum unmasked fraction per V2 patch (default 0.60)\n"
+          "  --sample-reject-k F      reject patches above median + k*MAD; negative disables (default 2.5)\n"
           "  -h, --help               show this help\n");
 }
 
@@ -205,6 +209,16 @@ static Options parse_options(int argc, char **argv) {
       opt.smooth_passes = parse_int_arg(argv[++i], "--smooth-passes");
     } else if (strcmp(arg, "--min-valid-fraction") == 0 && i + 1 < argc) {
       opt.min_valid_fraction = parse_double_arg(argv[++i], "--min-valid-fraction");
+    } else if (strcmp(arg, "--sample-patch-size") == 0 && i + 1 < argc) {
+      opt.sample_patch_size = parse_int_arg(argv[++i], "--sample-patch-size");
+    } else if (strcmp(arg, "--sample-stride") == 0 && i + 1 < argc) {
+      opt.sample_stride = parse_int_arg(argv[++i], "--sample-stride");
+    } else if (strcmp(arg, "--min-patches") == 0 && i + 1 < argc) {
+      opt.min_patches = parse_int_arg(argv[++i], "--min-patches");
+    } else if (strcmp(arg, "--sample-min-valid") == 0 && i + 1 < argc) {
+      opt.sample_min_valid_fraction = parse_double_arg(argv[++i], "--sample-min-valid");
+    } else if (strcmp(arg, "--sample-reject-k") == 0 && i + 1 < argc) {
+      opt.sample_reject_k = parse_double_arg(argv[++i], "--sample-reject-k");
     } else if (arg[0] == '-') {
       fprintf(stderr, "Unknown or incomplete option: %s\n", arg);
       usage(stderr);
@@ -233,6 +247,14 @@ static Options parse_options(int argc, char **argv) {
   }
   if (opt.min_valid_fraction <= 0.0 || opt.min_valid_fraction > 1.0) {
     fprintf(stderr, "--min-valid-fraction must be in (0, 1]\n");
+    exit(2);
+  }
+  if ((opt.sample_patch_size & 1) == 0) {
+    fprintf(stderr, "--sample-patch-size must be odd\n");
+    exit(2);
+  }
+  if (opt.sample_min_valid_fraction <= 0.0 || opt.sample_min_valid_fraction > 1.0) {
+    fprintf(stderr, "--sample-min-valid must be in (0, 1]\n");
     exit(2);
   }
 
@@ -321,6 +343,7 @@ static Grid create_grid(long width, long height, int spacing) {
   g.offset = (float *)checked_calloc(n, sizeof(float));
   g.ref_bg = (float *)checked_calloc(n, sizeof(float));
   g.target_bg = (float *)checked_calloc(n, sizeof(float));
+  g.accept_fraction = (float *)checked_calloc(n, sizeof(float));
   g.valid = (unsigned char *)checked_calloc(n, sizeof(unsigned char));
   return g;
 }
@@ -330,13 +353,64 @@ static void free_grid(Grid *g) {
   free(g->offset);
   free(g->ref_bg);
   free(g->target_bg);
+  free(g->accept_fraction);
   free(g->valid);
+}
+
+static bool patch_median_pair(const Image *ref, const Image *target, const unsigned char *mask,
+                              long cx, long cy, const Options *opt, Pair *pair_out) {
+  int radius = opt->sample_patch_size / 2;
+  long x0 = cx - radius;
+  long x1 = cx + radius;
+  long y0 = cy - radius;
+  long y1 = cy + radius;
+  if (x0 < 0 || y0 < 0 || x1 >= ref->width || y1 >= ref->height) return false;
+
+  int area = opt->sample_patch_size * opt->sample_patch_size;
+  int min_valid = (int)ceil((double)area * opt->sample_min_valid_fraction);
+  float *rvals = (float *)checked_malloc((size_t)area * sizeof(float));
+  float *tvals = (float *)checked_malloc((size_t)area * sizeof(float));
+  int n = 0;
+  for (long y = y0; y <= y1; ++y) {
+    long row = y * ref->width;
+    for (long x = x0; x <= x1; ++x) {
+      long idx = row + x;
+      if (mask && mask[idx]) continue;
+      float r = ref->data[idx];
+      float t = target->data[idx];
+      if (!isfinite(r) || !isfinite(t)) continue;
+      rvals[n] = r;
+      tvals[n] = t;
+      n++;
+    }
+  }
+
+  bool ok = n >= min_valid;
+  if (ok) {
+    pair_out->r = median_float_copy(rvals, n);
+    pair_out->t = median_float_copy(tvals, n);
+  }
+  free(rvals);
+  free(tvals);
+  return ok;
+}
+
+static float high_rejection_threshold(const float *values, int n, double k) {
+  if (k < 0.0) return INFINITY;
+  float median = median_float_copy(values, n);
+  float *deviations = (float *)checked_malloc((size_t)n * sizeof(float));
+  for (int i = 0; i < n; ++i) {
+    deviations[i] = fabsf(values[i] - median);
+  }
+  float mad = median_float_copy(deviations, n);
+  free(deviations);
+  return median + (float)(k * (double)mad);
 }
 
 static bool fit_node(const Image *ref, const Image *target, const unsigned char *mask,
                      long cx, long cy, const Options *opt, float *scale_out,
                      float *offset_out, float *ref_bg_out, float *target_bg_out,
-                     int *samples_out) {
+                     float *accept_fraction_out, int *samples_out) {
   int half = opt->window_size / 2;
   long x0 = cx - half;
   long x1 = cx + half;
@@ -347,35 +421,63 @@ static bool fit_node(const Image *ref, const Image *target, const unsigned char 
   if (x1 >= ref->width) x1 = ref->width - 1;
   if (y1 >= ref->height) y1 = ref->height - 1;
 
-  long capacity = (x1 - x0 + 1) * (y1 - y0 + 1);
+  int patch_radius = opt->sample_patch_size / 2;
+  long sx0 = x0 + patch_radius;
+  long sx1 = x1 - patch_radius;
+  long sy0 = y0 + patch_radius;
+  long sy1 = y1 - patch_radius;
+  if (sx0 > sx1 || sy0 > sy1) return false;
+
+  long nx = ((sx1 - sx0) / opt->sample_stride) + 1;
+  long ny = ((sy1 - sy0) / opt->sample_stride) + 1;
+  long capacity = nx * ny;
   Pair *pairs = (Pair *)checked_malloc((size_t)capacity * sizeof(Pair));
   int n = 0;
-  for (long y = y0; y <= y1; ++y) {
-    long row = y * ref->width;
-    for (long x = x0; x <= x1; ++x) {
-      long idx = row + x;
-      float r = ref->data[idx];
-      float t = target->data[idx];
-      if (mask && mask[idx]) continue;
-      if (!isfinite(r) || !isfinite(t)) continue;
-      pairs[n].r = r;
-      pairs[n].t = t;
-      n++;
+  for (long y = sy0; y <= sy1; y += opt->sample_stride) {
+    for (long x = sx0; x <= sx1; x += opt->sample_stride) {
+      Pair pair;
+      if (patch_median_pair(ref, target, mask, x, y, opt, &pair)) {
+        pairs[n++] = pair;
+      }
     }
   }
 
   *samples_out = n;
-  if (n < opt->min_samples) {
+  if (n < opt->min_patches) {
     free(pairs);
     return false;
   }
 
-  qsort(pairs, (size_t)n, sizeof(Pair), compare_pair_target);
-  int trim = (int)floor((double)n * opt->trim_fraction);
+  float *targets = (float *)checked_malloc((size_t)n * sizeof(float));
+  float *refs = (float *)checked_malloc((size_t)n * sizeof(float));
+  for (int i = 0; i < n; ++i) {
+    targets[i] = pairs[i].t;
+    refs[i] = pairs[i].r;
+  }
+  float target_threshold = high_rejection_threshold(targets, n, opt->sample_reject_k);
+  float ref_threshold = high_rejection_threshold(refs, n, opt->sample_reject_k);
+
+  int accepted = 0;
+  for (int i = 0; i < n; ++i) {
+    if (pairs[i].t <= target_threshold && pairs[i].r <= ref_threshold) {
+      pairs[accepted++] = pairs[i];
+    }
+  }
+  *accept_fraction_out = n > 0 ? (float)accepted / (float)n : 0.0f;
+  free(targets);
+  free(refs);
+
+  if (accepted < opt->min_patches) {
+    free(pairs);
+    return false;
+  }
+
+  qsort(pairs, (size_t)accepted, sizeof(Pair), compare_pair_target);
+  int trim = (int)floor((double)accepted * opt->trim_fraction);
   int begin = trim;
-  int end = n - trim;
+  int end = accepted - trim;
   int kept = end - begin;
-  if (kept < opt->min_samples / 2 || kept < 16) {
+  if (kept < opt->min_patches || kept < 3) {
     free(pairs);
     return false;
   }
@@ -396,27 +498,11 @@ static bool fit_node(const Image *ref, const Image *target, const unsigned char 
   long double denom = (long double)kept * sum_tt - sum_t * sum_t;
   long double mean_t = sum_t / (long double)kept;
   long double mean_r = sum_r / (long double)kept;
-#ifdef LNC_USE_TRIMMED_MEDIAN
-  float *kept_refs = (float *)checked_malloc((size_t)kept * sizeof(float));
-  float *kept_targets = (float *)checked_malloc((size_t)kept * sizeof(float));
-  for (int i = begin; i < end; ++i) {
-    int out_i = i - begin;
-    kept_refs[out_i] = pairs[i].r;
-    kept_targets[out_i] = pairs[i].t;
-  }
-  float background_r = median_float_copy(kept_refs, kept);
-  float background_t = median_float_copy(kept_targets, kept);
-  free(kept_refs);
-  free(kept_targets);
-#else
-  float background_r = (float)mean_r;
-  float background_t = (float)mean_t;
-#endif
   if (fabsl(denom) <= LDBL_EPSILON) {
     *scale_out = 1.0f;
-    *offset_out = background_r - background_t;
-    *ref_bg_out = background_r;
-    *target_bg_out = background_t;
+    *offset_out = (float)(mean_r - mean_t);
+    *ref_bg_out = (float)mean_r;
+    *target_bg_out = (float)mean_t;
     free(pairs);
     return true;
   }
@@ -429,13 +515,21 @@ static bool fit_node(const Image *ref, const Image *target, const unsigned char 
 
   if (scale < opt->scale_min || scale > opt->scale_max) {
     scale = 1.0;
-    offset = (long double)background_r - (long double)background_t;
+    offset = mean_r - mean_t;
   }
 
   *scale_out = (float)scale;
   *offset_out = (float)offset;
-  *ref_bg_out = background_r;
-  *target_bg_out = background_t;
+  float *accepted_refs = (float *)checked_malloc((size_t)accepted * sizeof(float));
+  float *accepted_targets = (float *)checked_malloc((size_t)accepted * sizeof(float));
+  for (int i = 0; i < accepted; ++i) {
+    accepted_refs[i] = pairs[i].r;
+    accepted_targets[i] = pairs[i].t;
+  }
+  *ref_bg_out = median_float_copy(accepted_refs, accepted);
+  *target_bg_out = median_float_copy(accepted_targets, accepted);
+  free(accepted_refs);
+  free(accepted_targets);
   free(pairs);
   return true;
 }
@@ -454,7 +548,7 @@ static int estimate_grid(const Image *ref, const Image *target, const unsigned c
       int samples = 0;
       if (fit_node(ref, target, mask, cx, cy, opt, &grid->scale[gi],
                    &grid->offset[gi], &grid->ref_bg[gi], &grid->target_bg[gi],
-                   &samples)) {
+                   &grid->accept_fraction[gi], &samples)) {
         grid->valid[gi] = 1;
         valid_count++;
       }
@@ -469,6 +563,7 @@ static void fill_missing_grid(Grid *grid) {
   float *new_offset = (float *)checked_calloc(n, sizeof(float));
   float *new_ref_bg = (float *)checked_calloc(n, sizeof(float));
   float *new_target_bg = (float *)checked_calloc(n, sizeof(float));
+  float *new_accept_fraction = (float *)checked_calloc(n, sizeof(float));
   unsigned char *new_valid = (unsigned char *)checked_calloc(n, sizeof(unsigned char));
 
   for (int iter = 0; iter < grid->nx + grid->ny; ++iter) {
@@ -477,13 +572,14 @@ static void fill_missing_grid(Grid *grid) {
     memcpy(new_offset, grid->offset, n * sizeof(float));
     memcpy(new_ref_bg, grid->ref_bg, n * sizeof(float));
     memcpy(new_target_bg, grid->target_bg, n * sizeof(float));
+    memcpy(new_accept_fraction, grid->accept_fraction, n * sizeof(float));
     memcpy(new_valid, grid->valid, n * sizeof(unsigned char));
 
     for (int gy = 0; gy < grid->ny; ++gy) {
       for (int gx = 0; gx < grid->nx; ++gx) {
         size_t gi = (size_t)gy * (size_t)grid->nx + (size_t)gx;
         if (grid->valid[gi]) continue;
-        double scale = 0.0, offset = 0.0, ref_bg = 0.0, target_bg = 0.0;
+        double scale = 0.0, offset = 0.0, ref_bg = 0.0, target_bg = 0.0, accept_fraction = 0.0;
         int count = 0;
         for (int dy = -1; dy <= 1; ++dy) {
           int yy = gy + dy;
@@ -497,6 +593,7 @@ static void fill_missing_grid(Grid *grid) {
             offset += grid->offset[ni];
             ref_bg += grid->ref_bg[ni];
             target_bg += grid->target_bg[ni];
+            accept_fraction += grid->accept_fraction[ni];
             count++;
           }
         }
@@ -505,6 +602,7 @@ static void fill_missing_grid(Grid *grid) {
           new_offset[gi] = (float)(offset / count);
           new_ref_bg[gi] = (float)(ref_bg / count);
           new_target_bg[gi] = (float)(target_bg / count);
+          new_accept_fraction[gi] = (float)(accept_fraction / count);
           new_valid[gi] = 1;
           filled++;
         }
@@ -515,6 +613,7 @@ static void fill_missing_grid(Grid *grid) {
     memcpy(grid->offset, new_offset, n * sizeof(float));
     memcpy(grid->ref_bg, new_ref_bg, n * sizeof(float));
     memcpy(grid->target_bg, new_target_bg, n * sizeof(float));
+    memcpy(grid->accept_fraction, new_accept_fraction, n * sizeof(float));
     memcpy(grid->valid, new_valid, n * sizeof(unsigned char));
     if (filled == 0) break;
   }
@@ -523,6 +622,7 @@ static void fill_missing_grid(Grid *grid) {
   free(new_offset);
   free(new_ref_bg);
   free(new_target_bg);
+  free(new_accept_fraction);
   free(new_valid);
 }
 
@@ -561,6 +661,7 @@ static void smooth_grid(Grid *grid, int passes) {
     smooth_one(grid->offset, grid->valid, grid->nx, grid->ny);
     smooth_one(grid->ref_bg, grid->valid, grid->nx, grid->ny);
     smooth_one(grid->target_bg, grid->valid, grid->nx, grid->ny);
+    smooth_one(grid->accept_fraction, grid->valid, grid->nx, grid->ny);
   }
 }
 
@@ -665,7 +766,12 @@ static void write_report(const char *path, const Options *opt, long width, long 
           "  \"grid_spacing\": %d,\n"
           "  \"window_size\": %d,\n"
           "  \"min_samples\": %d,\n"
-          "  \"background_estimator\": \"%s\",\n"
+          "  \"background_estimator\": \"sample_median_v2\",\n"
+          "  \"sample_patch_size\": %d,\n"
+          "  \"sample_stride\": %d,\n"
+          "  \"min_patches\": %d,\n"
+          "  \"sample_min_valid_fraction\": %.8f,\n"
+          "  \"sample_reject_k\": %.8f,\n"
           "  \"grid_nodes\": [%d, %d],\n"
           "  \"initial_valid_nodes\": %d,\n"
           "  \"total_nodes\": %d,\n"
@@ -680,14 +786,16 @@ static void write_report(const char *path, const Options *opt, long width, long 
           "  \"openmp_threads\": %d\n"
           "}\n",
           width, height, opt->grid_spacing, opt->window_size, opt->min_samples,
-          LNC_BACKGROUND_ESTIMATOR, grid_nx, grid_ny, initial_valid, total_nodes,
+          opt->sample_patch_size, opt->sample_stride, opt->min_patches,
+          opt->sample_min_valid_fraction, opt->sample_reject_k,
+          grid_nx, grid_ny, initial_valid, total_nodes,
           (double)initial_valid / (double)total_nodes, masked_pixels,
           (double)masked_pixels / (double)(width * height),
           scale_min, scale_max, offset_min, offset_max, elapsed, omp_get_max_threads());
   fclose(f);
 }
 
-int main(int argc, char **argv) {
+int lnc_registered_sample_median_main(int argc, char **argv) {
   double start = now_seconds();
   Options opt = parse_options(argc, argv);
 
@@ -722,15 +830,44 @@ int main(int argc, char **argv) {
   float *scale_map = (float *)checked_malloc((size_t)npixels * sizeof(float));
   float *offset_map = (float *)checked_malloc((size_t)npixels * sizeof(float));
   apply_correction(&target, &grid, &opt, corrected, scale_map, offset_map);
-  write_fits_float(opt.out_path, ref.width, ref.height, corrected);
+  LncFitsMetadata metadata = {
+      .version = "1",
+      .mode = "registered-pair",
+      .output_format = "float32-raw",
+      .value_scale = "adu",
+      .background_estimator = "sample-median",
+      .reference_path = opt.ref_path,
+      .target_path = opt.target_path,
+      .report_path = opt.report_path,
+      .sequence_index = -1,
+      .grid_spacing = opt.grid_spacing,
+      .window_size = opt.window_size,
+      .min_samples = opt.min_samples,
+      .smooth_passes = opt.smooth_passes,
+      .trim_fraction = opt.trim_fraction,
+      .scale_min = opt.scale_min,
+      .scale_max = opt.scale_max,
+      .min_valid_fraction = opt.min_valid_fraction,
+      .ref_masked_pixels = masked_pixels,
+      .target_masked_pixels = masked_pixels,
+  };
+  lnc_write_science_fits_float(opt.out_path, opt.target_path, ref.width, ref.height,
+                               corrected, &metadata);
 
   if (opt.diag_dir) {
+    float *accept_fraction_map = (float *)checked_malloc((size_t)npixels * sizeof(float));
+    render_map(grid.accept_fraction, &grid, &opt, ref.width, ref.height, accept_fraction_map);
+
     char *scale_path = join_path(opt.diag_dir, "scale_map.fits");
     char *offset_path = join_path(opt.diag_dir, "offset_map.fits");
+    char *accept_path = join_path(opt.diag_dir, "accepted_patch_fraction.fits");
     write_fits_float(scale_path, ref.width, ref.height, scale_map);
     write_fits_float(offset_path, ref.width, ref.height, offset_map);
+    write_fits_float(accept_path, ref.width, ref.height, accept_fraction_map);
     free(scale_path);
     free(offset_path);
+    free(accept_path);
+    free(accept_fraction_map);
 
     if (opt.save_backgrounds) {
       float *ref_bg_map = (float *)checked_malloc((size_t)npixels * sizeof(float));

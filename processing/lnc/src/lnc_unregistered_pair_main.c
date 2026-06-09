@@ -4,6 +4,7 @@
 #include "lnc_transform.h"
 #include "lnc_unregistered_core.h"
 
+#include <omp.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -18,6 +19,7 @@ typedef struct {
   char *diag_dir;
   char *report_path;
   int save_backgrounds;
+  int threads;
   UnregisteredParams params;
 } Options;
 
@@ -27,6 +29,7 @@ static UnregisteredParams default_params(void) {
   params.grid_spacing = 128;
   params.window_size = 256;
   params.min_samples = 2000;
+  params.background_estimator = LNC_BACKGROUND_TRIMMED_MEDIAN;
   params.trim_fraction = 0.10;
   params.scale_min = 0.5;
   params.scale_max = 2.0;
@@ -50,7 +53,7 @@ static Options default_options(void) {
 
 static void usage(FILE *stream) {
   fprintf(stream,
-          "Usage: local_normalize_unregistered [options] ref.fit target.fit out.fit\n"
+          "Usage: lnc_unregistered_pair [options] ref.fit target.fit out.fit\n"
           "\n"
           "Options:\n"
           "  --ref-mask PATH          uint8/FITS reference mask; nonzero pixels excluded\n"
@@ -59,6 +62,8 @@ static void usage(FILE *stream) {
           "  --diag-dir DIR           write scale/offset diagnostic FITS\n"
           "  --save-backgrounds       also write ref/target background FITS maps\n"
           "  --report PATH            write JSON report\n"
+          "  --threads N              OpenMP threads for one unregistered LNC pair\n"
+          "  --background-estimator NAME  trimmed-mean, trimmed-median, or sample-median\n"
           "  --grid-spacing N         grid spacing in reference pixels (default 128)\n"
           "  --window-size N          circular fit footprint diameter (default 256)\n"
           "  --min-samples N          minimum valid samples per grid node (default 2000)\n"
@@ -96,6 +101,20 @@ static Options parse_options(int argc, char **argv) {
       opt.save_backgrounds = 1;
     } else if (strcmp(arg, "--report") == 0 && i + 1 < argc) {
       opt.report_path = argv[++i];
+    } else if (strcmp(arg, "--threads") == 0 && i + 1 < argc) {
+      opt.threads = lnc_parse_int_arg(argv[++i], "--threads");
+    } else if (strcmp(arg, "--background-estimator") == 0 && i + 1 < argc) {
+      const char *value = argv[++i];
+      if (strcmp(value, "trimmed-mean") == 0) {
+        opt.params.background_estimator = LNC_BACKGROUND_TRIMMED_MEAN;
+      } else if (strcmp(value, "trimmed-median") == 0) {
+        opt.params.background_estimator = LNC_BACKGROUND_TRIMMED_MEDIAN;
+      } else if (strcmp(value, "sample-median") == 0) {
+        opt.params.background_estimator = LNC_BACKGROUND_SAMPLE_MEDIAN;
+      } else {
+        fprintf(stderr, "Unknown --background-estimator: %s\n", value);
+        exit(2);
+      }
     } else if (strcmp(arg, "--grid-spacing") == 0 && i + 1 < argc) {
       opt.params.grid_spacing = lnc_parse_int_arg(argv[++i], "--grid-spacing");
     } else if (strcmp(arg, "--window-size") == 0 && i + 1 < argc) {
@@ -185,9 +204,24 @@ static void free_outputs(float *corrected, CorrectionMaps maps) {
   free(maps.target_bg);
 }
 
+static const char *background_estimator_name(int estimator) {
+  switch (estimator) {
+    case LNC_BACKGROUND_TRIMMED_MEAN:
+      return "trimmed-mean";
+    case LNC_BACKGROUND_SAMPLE_MEDIAN:
+      return "sample-median";
+    case LNC_BACKGROUND_TRIMMED_MEDIAN:
+    default:
+      return "trimmed-median";
+  }
+}
+
 int main(int argc, char **argv) {
   double start = lnc_now_seconds();
   Options opt = parse_options(argc, argv);
+  if (opt.threads > 0) {
+    omp_set_num_threads(opt.threads);
+  }
 
   Image ref = lnc_read_fits_float(opt.ref_path);
   Image target = lnc_read_fits_float(opt.target_path);
@@ -218,7 +252,29 @@ int main(int argc, char **argv) {
       opt.save_backgrounds ? (float *)lnc_checked_malloc((size_t)target_npixels * sizeof(float)) : NULL,
   };
   lnc_apply_unregistered_correction(&target, &ref, &grid, &opt.params, corrected, maps);
-  lnc_write_fits_float(opt.out_path, target.width, target.height, corrected);
+  LncFitsMetadata metadata = {
+      .version = "2-unregistered",
+      .mode = "unregistered-pair",
+      .output_format = "float32-raw",
+      .value_scale = "adu",
+      .background_estimator = background_estimator_name(opt.params.background_estimator),
+      .reference_path = opt.ref_path,
+      .target_path = opt.target_path,
+      .report_path = opt.report_path,
+      .sequence_index = -1,
+      .grid_spacing = opt.params.grid_spacing,
+      .window_size = opt.params.window_size,
+      .min_samples = opt.params.min_samples,
+      .smooth_passes = opt.params.smooth_passes,
+      .trim_fraction = opt.params.trim_fraction,
+      .scale_min = opt.params.scale_min,
+      .scale_max = opt.params.scale_max,
+      .min_valid_fraction = opt.params.min_valid_fraction,
+      .ref_masked_pixels = ref_masked,
+      .target_masked_pixels = target_masked,
+  };
+  lnc_write_science_fits_float(opt.out_path, opt.target_path, target.width, target.height,
+                               corrected, &metadata);
   write_diagnostics(&opt, &target, maps);
 
   if (opt.report_path) {

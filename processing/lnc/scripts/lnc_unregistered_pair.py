@@ -15,7 +15,7 @@ from pathlib import Path
 import numpy as np
 from astropy.io import fits
 
-from local_normalize import (
+from lnc_registered_pair import (
     FITS_ADU_MAX,
     LNC_DIR,
     StepTimer,
@@ -42,9 +42,10 @@ from local_normalize import (
 )
 
 
-LNC_UNREGISTERED_BINARY = LNC_DIR / "local_normalize_unregistered"
+LNC_UNREGISTERED_BINARY = LNC_DIR / "bin" / "lnc_unregistered_pair"
 VALUE_SCALE_ADU = "adu"
 VALUE_SCALE_NORMALIZED = "normalized_float"
+REGISTRATION_TRANSFORMS = ("homography", "affine", "similarity", "shift")
 
 
 def matrix_to_list(matrix: np.ndarray) -> list[float]:
@@ -231,6 +232,8 @@ def run_two_pass_registration(
     timeout: float,
 ) -> tuple[dict, dict]:
     seq_dir = temp_dir / "registration"
+    if seq_dir.exists():
+        shutil.rmtree(seq_dir)
     seq_dir.mkdir(parents=True, exist_ok=True)
     ref_seq = seq_dir / "lnc_pair_00001.fit"
     target_seq = seq_dir / "lnc_pair_00002.fit"
@@ -275,6 +278,14 @@ def median_nearest_distance(transformed: np.ndarray, reference: np.ndarray) -> f
     return float(np.median(distances))
 
 
+def registration_transform_candidates(requested: str) -> tuple[str, ...]:
+    try:
+        start = REGISTRATION_TRANSFORMS.index(requested)
+    except ValueError:
+        start = 0
+    return REGISTRATION_TRANSFORMS[start:]
+
+
 def validate_target_to_reference_matrix(
     *,
     sequence: dict,
@@ -285,20 +296,32 @@ def validate_target_to_reference_matrix(
     matrices: list[np.ndarray] = sequence["matrices"]
     ref_matrix = matrices[0]
     target_matrix = matrices[1]
-    candidates = {
-        "image_to_internal_reference": np.linalg.inv(ref_matrix) @ target_matrix,
-        "internal_reference_to_image": ref_matrix @ np.linalg.inv(target_matrix),
-    }
+    candidates: dict[str, np.ndarray] = {}
+    for name, matrix in (
+        ("image_to_internal_reference", lambda: np.linalg.inv(ref_matrix) @ target_matrix),
+        ("internal_reference_to_image", lambda: ref_matrix @ np.linalg.inv(target_matrix)),
+    ):
+        try:
+            candidate = matrix()
+        except np.linalg.LinAlgError:
+            continue
+        if np.isfinite(candidate).all():
+            candidates[name] = candidate
+    if not candidates:
+        raise ValueError("Siril registration produced non-invertible transform matrices")
     ref_points = np.array([[star.x, star.y] for star in ref_stars], dtype=np.float64)
     target_points = np.array([[star.x, star.y] for star in target_stars[:max_stars]], dtype=np.float64)
     scores = {}
     for name, matrix in candidates.items():
         transformed = apply_homography(matrix, target_points)
         scores[name] = median_nearest_distance(transformed, ref_points)
-    convention = min(scores, key=scores.get)
+    finite_scores = {name: score for name, score in scores.items() if math.isfinite(score)}
+    if not finite_scores:
+        raise ValueError("Siril registration transform did not map target stars onto reference stars")
+    convention = min(finite_scores, key=finite_scores.get)
     return candidates[convention], {
         "convention": convention,
-        "median_nearest_star_distance_px": scores[convention],
+        "median_nearest_star_distance_px": finite_scores[convention],
         "candidate_scores_px": scores,
         "target_stars_used": min(max_stars, len(target_stars)),
         "reference_stars_used": len(ref_stars),
@@ -372,7 +395,7 @@ def write_scaled_masked_fits(source_path: Path, mask_path: Path, output_path: Pa
     header["LNCNORM"] = (True, "Image values normalized/clipped to [0, 1]")
     header["LNCVSCL"] = (value_scale, "Input value scale before display normalization")
     header["LNCSRC"] = (source_path.name[:68], "Source filename for masked FITS")
-    fits.writeto(output_path, data, header=header, overwrite=True)
+    fits.writeto(output_path, data, header=header, overwrite=True, output_verify="silentfix")
 
 
 def preserve_target_header_and_add_lnc_metadata(
@@ -402,10 +425,23 @@ def preserve_target_header_and_add_lnc_metadata(
         source_header["LNCTARG"] = (target_source.name[:68], "Target source filename")
         source_header["LNCRMSK"] = (int(ref_mask_stats["total_masked_pixels"]), "Reference masked pixels")
         source_header["LNCTMSK"] = (int(target_mask_stats["total_masked_pixels"]), "Target masked pixels")
-        if "LNCFMT" in corrected_header:
-            source_header["LNCFMT"] = corrected_header["LNCFMT"]
-        if "LNCVSCL" in corrected_header:
-            source_header["LNCVSCL"] = corrected_header["LNCVSCL"]
+        for key in (
+            "LNCMODE",
+            "LNCFMT",
+            "LNCVSCL",
+            "LNCBKG",
+            "LNCGRID",
+            "LNCWIN",
+            "LNCSAMP",
+            "LNCTRIM",
+            "LNCSMIN",
+            "LNCSMAX",
+            "LNCSMTH",
+            "LNCMINV",
+        ):
+            if key in corrected_header:
+                source_header[key] = corrected_header[key]
+        source_header.setdefault("LNCMODE", ("unregistered-pair", "Local normalization correction mode"))
         source_header.add_history("LNC2: corrected target preserves original target geometry")
         source_header.add_history("LNC2: correction fields are estimated in reference coordinates")
         append_history_chunks(source_header, "LNC2 ref", str(reference_source))
@@ -429,7 +465,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--binary", type=Path)
     parser.add_argument("--rebuild", action="store_true", help="Rebuild the C normalizer before running.")
     parser.add_argument("--diag-dir", type=Path, help="Diagnostic output directory.")
-    parser.add_argument("--registration-transform", default="homography", choices=("homography", "affine"))
+    parser.add_argument("--registration-transform", default="homography", choices=REGISTRATION_TRANSFORMS)
     parser.add_argument(
         "--save-intermediate-fits",
         action="store_true",
@@ -446,6 +482,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--grid-spacing", type=int, default=128)
     parser.add_argument("--window-size", type=int, default=256)
     parser.add_argument("--min-samples", type=int, default=2000)
+    parser.add_argument(
+        "--background-estimator",
+        choices=("trimmed-mean", "trimmed-median", "sample-median"),
+        default="trimmed-median",
+    )
     parser.add_argument("--trim-fraction", type=float, default=0.10)
     parser.add_argument("--scale-min", type=float, default=0.5)
     parser.add_argument("--scale-max", type=float, default=2.0)
@@ -563,27 +604,44 @@ def main() -> int:
         ref_stars = timer.run("Parse reference stars", lambda: parse_star_list(ref_star_list))
         target_stars = timer.run("Parse target stars", lambda: parse_star_list(target_star_list))
 
-        sequence, registration_report = timer.run(
-            "Run Siril two-pass registration",
-            lambda: run_two_pass_registration(
-                ref_fits=ref_fits,
-                target_fits=target_fits,
-                temp_dir=temp_dir,
-                siril_path=siril_path,
-                transform_type=args.registration_transform,
-                timeout=args.timeout,
-            ),
-        )
-        siril_reports["registration"] = registration_report
-        siril_h, transform_validation = timer.run(
-            "Validate transform direction",
-            lambda: validate_target_to_reference_matrix(
-                sequence=sequence,
-                ref_stars=ref_stars,
-                target_stars=target_stars,
-                max_stars=args.validation_stars,
-            ),
-        )
+        registration_errors: dict[str, str] = {}
+        sequence = None
+        registration_report = None
+        siril_h = None
+        transform_validation = None
+        for transform_type in registration_transform_candidates(args.registration_transform):
+            try:
+                sequence, registration_report = timer.run(
+                    f"Run Siril two-pass registration ({transform_type})",
+                    lambda transform_type=transform_type: run_two_pass_registration(
+                        ref_fits=ref_fits,
+                        target_fits=target_fits,
+                        temp_dir=temp_dir,
+                        siril_path=siril_path,
+                        transform_type=transform_type,
+                        timeout=args.timeout,
+                    ),
+                )
+                siril_reports[f"registration {transform_type}"] = registration_report
+                siril_h, transform_validation = timer.run(
+                    f"Validate transform direction ({transform_type})",
+                    lambda: validate_target_to_reference_matrix(
+                        sequence=sequence,
+                        ref_stars=ref_stars,
+                        target_stars=target_stars,
+                        max_stars=args.validation_stars,
+                    ),
+                )
+                transform_validation["registration_transform"] = transform_type
+                if transform_type != args.registration_transform:
+                    transform_validation["fallback_from"] = args.registration_transform
+                    transform_validation["fallback_errors"] = registration_errors
+                break
+            except (RuntimeError, ValueError, np.linalg.LinAlgError) as exc:
+                registration_errors[transform_type] = f"{type(exc).__name__}: {exc}"
+                log(f"[LNC2] Registration transform {transform_type} failed: {exc}")
+        if sequence is None or registration_report is None or siril_h is None or transform_validation is None:
+            raise RuntimeError(f"All registration transforms failed: {registration_errors}")
 
         ref_width, ref_height = read_shape(ref_fits)
         target_width, target_height = read_shape(target_fits)
@@ -666,6 +724,8 @@ def main() -> int:
             *(["--save-backgrounds"] if args.save_intermediate_fits else []),
             "--report",
             str(core_report),
+            "--background-estimator",
+            args.background_estimator,
             "--grid-spacing",
             str(args.grid_spacing),
             "--window-size",
@@ -702,6 +762,7 @@ def main() -> int:
 
         parameters = {
             "registration_transform": args.registration_transform,
+            "background_estimator": args.background_estimator,
             "grid_spacing": args.grid_spacing,
             "window_size": args.window_size,
             "min_samples": args.min_samples,

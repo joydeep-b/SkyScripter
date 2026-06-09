@@ -12,13 +12,13 @@ from astropy.io import fits
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-WRAPPER_PATH = REPO_ROOT / "processing" / "local_normalize_unregistered.py"
+WRAPPER_PATH = REPO_ROOT / "processing" / "lnc" / "scripts" / "lnc_unregistered_pair.py"
 LNC_DIR = REPO_ROOT / "processing" / "lnc"
-LNC_UNREGISTERED_BINARY = LNC_DIR / "local_normalize_unregistered"
+LNC_UNREGISTERED_BINARY = LNC_DIR / "bin" / "lnc_unregistered_pair"
 
 
 def load_wrapper_module():
-    sys.path.insert(0, str(REPO_ROOT / "processing"))
+    sys.path.insert(0, str(REPO_ROOT / "processing" / "lnc" / "scripts"))
     spec = importlib.util.spec_from_file_location("local_normalize_unregistered_wrapper", WRAPPER_PATH)
     assert spec is not None
     module = importlib.util.module_from_spec(spec)
@@ -132,7 +132,7 @@ def test_value_scale_detection_and_float32_output_normalize_adu_data(tmp_path: P
 
 
 def test_unregistered_c_core_corrects_translated_synthetic_image(tmp_path: Path):
-    subprocess.run(["make", "-C", str(LNC_DIR), "local_normalize_unregistered"], check=True)
+    subprocess.run(["make", "-C", str(LNC_DIR), "bin/lnc_unregistered_pair"], check=True)
 
     height = 256
     width = 256
@@ -162,6 +162,8 @@ def test_unregistered_c_core_corrects_translated_synthetic_image(tmp_path: Path)
     subprocess.run(
         [
             str(LNC_UNREGISTERED_BINARY),
+            "--threads",
+            "2",
             "--ref-mask",
             str(mask_path),
             "--target-mask",
@@ -205,7 +207,7 @@ def test_unregistered_c_core_corrects_translated_synthetic_image(tmp_path: Path)
 
 
 def test_unregistered_c_core_extrapolates_correction_outside_reference_frame(tmp_path: Path):
-    subprocess.run(["make", "-C", str(LNC_DIR), "local_normalize_unregistered"], check=True)
+    subprocess.run(["make", "-C", str(LNC_DIR), "bin/lnc_unregistered_pair"], check=True)
 
     height = 192
     width = 192

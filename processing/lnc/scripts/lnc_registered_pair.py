@@ -2,7 +2,7 @@
 """Local normalization correction wrapper.
 
 This script handles file-format conversion and star masking, then delegates the
-hot pixel math to processing/lnc/local_normalize.
+hot pixel math to processing/lnc/bin/lnc_registered_pair.
 """
 
 from __future__ import annotations
@@ -25,11 +25,9 @@ import numpy as np
 from astropy.io import fits
 
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
-LNC_DIR = Path(__file__).resolve().parent / "lnc"
-LNC_BINARY = LNC_DIR / "local_normalize"
-LNC_TRIMMED_MEDIAN_BINARY = LNC_DIR / "local_normalize_trimmed_median"
-LNC_V2_BINARY = LNC_DIR / "local_normalize_v2"
+REPO_ROOT = Path(__file__).resolve().parents[3]
+LNC_DIR = Path(__file__).resolve().parents[1]
+LNC_BINARY = LNC_DIR / "bin" / "lnc_registered_pair"
 FITS_SUFFIXES = {".fit", ".fits", ".fts"}
 XISF_SUFFIXES = {".xisf"}
 FITS_ADU_MAX = 65535.0
@@ -133,17 +131,13 @@ def ensure_binary(binary: Path, *, rebuild: bool) -> Path:
     if rebuild or not binary.exists():
         subprocess.run(["make", "-C", str(LNC_DIR)], check=True)
     if not binary.exists():
-        raise FileNotFoundError(f"local_normalize binary was not built: {binary}")
+        raise FileNotFoundError(f"LNC binary was not built: {binary}")
     return binary
 
 
 def select_lnc_binary(args: argparse.Namespace) -> Path:
     if args.binary is not None:
         return args.binary.expanduser().resolve()
-    if args.background_estimator == "trimmed-median":
-        return LNC_TRIMMED_MEDIAN_BINARY
-    if args.background_estimator == "sample-median":
-        return LNC_V2_BINARY
     return LNC_BINARY
 
 
@@ -714,10 +708,23 @@ def preserve_header_and_add_lnc_metadata(
         source_header["LNCTARG"] = (target_source.name[:68], "Target source filename")
         source_header["LNCMASK"] = (int(mask_stats["total_masked_pixels"]), "LNC masked pixels")
         source_header["LNCMFRAC"] = (float(mask_stats["masked_fraction"]), "LNC masked fraction")
-        if "LNCFMT" in corrected_header:
-            source_header["LNCFMT"] = corrected_header["LNCFMT"]
-        if "LNCVSCL" in corrected_header:
-            source_header["LNCVSCL"] = corrected_header["LNCVSCL"]
+        for key in (
+            "LNCMODE",
+            "LNCFMT",
+            "LNCVSCL",
+            "LNCBKG",
+            "LNCGRID",
+            "LNCWIN",
+            "LNCSAMP",
+            "LNCTRIM",
+            "LNCSMIN",
+            "LNCSMAX",
+            "LNCSMTH",
+            "LNCMINV",
+        ):
+            if key in corrected_header:
+                source_header[key] = corrected_header[key]
+        source_header.setdefault("LNCMODE", ("registered-pair", "Local normalization correction mode"))
         source_header.add_history("LNC: corrected = scale(x,y) * target + offset(x,y)")
         append_history_chunks(source_header, "LNC ref", str(reference_source))
         append_history_chunks(source_header, "LNC target", str(target_source))
@@ -950,6 +957,8 @@ def main() -> int:
         core_report = diag_dir / "local_normalize_report.json"
         command = [
             str(binary),
+            "--background-estimator",
+            args.background_estimator,
             "--mask",
             str(mask_path),
             "--diag-dir",

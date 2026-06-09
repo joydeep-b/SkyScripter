@@ -13,11 +13,9 @@ from astropy.io import fits
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-WRAPPER_PATH = REPO_ROOT / "processing" / "local_normalize.py"
+WRAPPER_PATH = REPO_ROOT / "processing" / "lnc" / "scripts" / "lnc_registered_pair.py"
 LNC_DIR = REPO_ROOT / "processing" / "lnc"
-LNC_BINARY = LNC_DIR / "local_normalize"
-LNC_TRIMMED_MEDIAN_BINARY = LNC_DIR / "local_normalize_trimmed_median"
-LNC_V2_BINARY = LNC_DIR / "local_normalize_v2"
+LNC_BINARY = LNC_DIR / "bin" / "lnc_registered_pair"
 
 
 def load_wrapper_module():
@@ -38,10 +36,10 @@ def test_select_lnc_binary_routes_background_estimators():
     ) == module.LNC_BINARY
     assert module.select_lnc_binary(
         argparse.Namespace(binary=None, background_estimator="trimmed-median")
-    ) == module.LNC_TRIMMED_MEDIAN_BINARY
+    ) == module.LNC_BINARY
     assert module.select_lnc_binary(
         argparse.Namespace(binary=None, background_estimator="sample-median")
-    ) == module.LNC_V2_BINARY
+    ) == module.LNC_BINARY
 
 
 def test_parse_star_list_with_header(tmp_path: Path):
@@ -147,6 +145,8 @@ def test_c_core_corrects_affine_synthetic_image(tmp_path: Path):
     subprocess.run(
         [
             str(LNC_BINARY),
+            "--threads",
+            "2",
             "--mask",
             str(mask_path),
             "--diag-dir",
@@ -231,7 +231,9 @@ def test_c_trimmed_median_core_uses_median_fallback(tmp_path: Path):
 
     subprocess.run(
         [
-            str(LNC_TRIMMED_MEDIAN_BINARY),
+            str(LNC_BINARY),
+            "--background-estimator",
+            "trimmed-median",
             "--mask",
             str(mask_path),
             "--diag-dir",
@@ -263,7 +265,7 @@ def test_c_trimmed_median_core_uses_median_fallback(tmp_path: Path):
     assert json.loads(report_path.read_text(encoding="utf-8"))["background_estimator"] == "trimmed-median"
 
 
-def test_c_v2_core_corrects_affine_with_sample_medians(tmp_path: Path):
+def test_c_sample_median_core_corrects_affine_with_sample_medians(tmp_path: Path):
     subprocess.run(["make", "-C", str(LNC_DIR)], check=True)
 
     height = 256
@@ -292,7 +294,9 @@ def test_c_v2_core_corrects_affine_with_sample_medians(tmp_path: Path):
 
     subprocess.run(
         [
-            str(LNC_V2_BINARY),
+            str(LNC_BINARY),
+            "--background-estimator",
+            "sample-median",
             "--mask",
             str(mask_path),
             "--diag-dir",
