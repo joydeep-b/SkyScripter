@@ -207,6 +207,31 @@ def sequence_file_path(prepared: PreparedGroup) -> Path:
     return preferred[0]
 
 
+def validate_registration_sequence(
+    prepared: PreparedGroup,
+    *,
+    expected_reference_index: int | None = None,
+    allow_internal_reference: bool = False,
+) -> dict[str, Any]:
+    seq_path = sequence_file_path(prepared)
+    if not seq_path.exists():
+        raise FileNotFoundError(f"Expected Siril registration sequence not found: {seq_path}")
+
+    seq_info = parse_sequence_file(seq_path)
+    actual_reference = int(seq_info["reference_image"])
+    if expected_reference_index is None:
+        expected_reference_index = int(prepared.reference_row.sequence_index or 1)
+
+    if actual_reference != expected_reference_index and not allow_internal_reference:
+        raise ValueError(
+            "Siril changed the registration reference "
+            f"from {expected_reference_index} to {actual_reference} in {seq_path}"
+        )
+
+    fill_missing_sequence_sizes(prepared, seq_info)
+    return seq_info
+
+
 def parse_stack_script_sequences(rendered_script: str) -> tuple[str | None, str | None]:
     """Extract the (registered, stacked) sequence base names from a stack script.
 
