@@ -63,10 +63,25 @@ ROLE_PRIORITY = {
 SMOKE_ROLE_PREFIXES = (
     "reference_rank_1",
     "reference_rank_2",
+    "reference_rank_3",
+    "score_p10",
+    "score_p25",
     "score_median",
+    "min_star_count",
     "max_bgnoise",
     "max_background",
 )
+SMOKE_REFERENCE_ROLES = ("reference_rank_1", "reference_rank_2")
+SMOKE_ARTIFACT_REFERENCE_ROLES = ("reference_rank_1", "reference_rank_2", "reference_rank_3")
+SMOKE_TARGET_ROLES = (
+    "score_p10",
+    "score_p25",
+    "score_median",
+    "min_star_count",
+    "max_bgnoise",
+    "max_background",
+)
+ARTIFACT_SENSITIVE_GROUPS = frozenset({"Max_Kuster__Redcat__L", "jdh_astro__default__L"})
 
 
 def parse_args() -> argparse.Namespace:
@@ -343,15 +358,31 @@ def smoke_records(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
         by_group.setdefault(str(record["group_dir"]), []).append(record)
 
     output: list[dict[str, Any]] = []
-    for group_records in by_group.values():
+    for group_dir, group_records in by_group.items():
         selected: list[dict[str, Any]] = []
-        for role in SMOKE_ROLE_PREFIXES:
+
+        reference_roles = (
+            SMOKE_ARTIFACT_REFERENCE_ROLES
+            if group_dir in ARTIFACT_SENSITIVE_GROUPS
+            else SMOKE_REFERENCE_ROLES
+        )
+        for role in reference_roles:
             for record in group_records:
                 if role in record["roles"] and record not in selected:
                     selected.append(record)
                     break
+
+        for role in SMOKE_TARGET_ROLES:
+            for record in group_records:
+                if role in record["roles"] and not any(
+                    ref_role.startswith("reference_rank_") for ref_role in record["roles"]
+                ):
+                    if record not in selected:
+                        selected.append(record)
+                    break
+
         for record in group_records:
-            if len(selected) >= 4:
+            if len(selected) >= 6:
                 break
             if record not in selected:
                 selected.append(record)
@@ -594,7 +625,7 @@ def write_readme(path: Path, records: list[dict[str, Any]], smoke: list[dict[str
                 "Single LNC smoke pair:",
                 "",
                 "```bash",
-                "python processing/local_normalize_unregistered.py \\",
+                "python processing/lnc/scripts/lnc_unregistered_pair.py \\",
                 f"  {json.dumps(pair['reference_file'])} \\",
                 f"  {json.dumps(pair['target_file'])} \\",
                 f"  {json.dumps(str(path.parent / 'lnc_smoke_output.fit'))} \\",
