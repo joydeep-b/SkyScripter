@@ -5,9 +5,14 @@
 
 import csv
 import os
+import re
 import sys
+import xml.etree.ElementTree as ET
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+
 from astropy.io import fits
-from datetime import datetime, timedelta
+from astropy.time import Time
 from tqdm import tqdm
 
 default_values = {
@@ -28,6 +33,197 @@ default_filter_lookup = {
 }
 # This global can be overridden at runtime via CLI flags.
 filter_lookup = default_filter_lookup.copy()
+
+DATE_OBS_FORMATS = (
+    "%Y-%m-%dT%H:%M:%S.%f",
+    "%Y-%m-%dT%H:%M:%S",
+    "%Y-%m-%d %H:%M:%S.%f",
+    "%Y-%m-%d %H:%M:%S",
+)
+
+SUPPORTED_IMAGE_SUFFIXES = {".fit", ".fits", ".xisf"}
+
+XISF_PROPERTY_ALIASES = {
+    "FILTER": (
+        "FILTER",
+        "INSTRUMENT:FILTER:NAME",
+        "OBSERVATION:FILTER",
+        "OBSERVATION:FILTER:NAME",
+    ),
+    "EXPTIME": (
+        "EXPTIME",
+        "EXPOSURE",
+        "EXPOSURETIME",
+        "OBSERVATION:EXPOSURETIME",
+    ),
+    "DATE-OBS": (
+        "DATE-OBS",
+        "DATEOBS",
+        "OBSERVATION:TIME:START",
+        "OBSERVATION:STARTTIME",
+    ),
+    "GAIN": ("GAIN", "CCD:GAIN"),
+    "CCD-TEMP": ("CCD-TEMP", "CCD:TEMPERATURE"),
+    "FOCUSTEM": ("FOCUSTEM", "FOCUS:TEMPERATURE", "TEMPERATURE:FOCUS"),
+}
+
+
+def is_hidden_path(path: Path) -> bool:
+    return any(part.startswith(".") for part in path.parts)
+
+
+def discover_image_files(input_dir: Path) -> list[Path]:
+    discovered = []
+    seen = set()
+    for file_path in input_dir.rglob("*"):
+        if not file_path.is_file():
+            continue
+        if file_path.suffix.lower() not in SUPPORTED_IMAGE_SUFFIXES:
+            continue
+        if is_hidden_path(file_path.relative_to(input_dir)):
+            continue
+        resolved = file_path.resolve()
+        if resolved in seen:
+            continue
+        seen.add(resolved)
+        discovered.append(file_path)
+    return sorted(discovered)
+
+
+def normalize_metadata_key(key: str) -> str:
+    return re.sub(r"[^A-Z0-9:]", "", str(key).strip().upper())
+
+
+def lookup_header_value(header, key: str):
+    if key in header:
+        return header[key]
+    upper_key = key.upper()
+    if upper_key in header:
+        return header[upper_key]
+    normalized_key = normalize_metadata_key(key)
+    for existing_key, value in header.items():
+        if normalize_metadata_key(existing_key) == normalized_key:
+            return value
+    return None
+
+
+def get_header_value(header, key: str):
+    value = lookup_header_value(header, key)
+    if value is not None:
+        return value
+
+    for alias in XISF_PROPERTY_ALIASES.get(key.upper(), ()):
+        value = lookup_header_value(header, alias)
+        if value is not None:
+            return value
+    return None
+
+
+def parse_date_obs(raw_date_obs: str | None) -> datetime | None:
+    if raw_date_obs is None:
+        return None
+
+    date_obs_text = str(raw_date_obs).strip()
+    if not date_obs_text:
+        return None
+
+    try:
+        return Time(date_obs_text, format="fits", scale="utc").to_datetime()
+    except (TypeError, ValueError):
+        pass
+
+    try:
+        parsed_dt = datetime.fromisoformat(date_obs_text.replace("Z", "+00:00"))
+        if parsed_dt.tzinfo is not None:
+            return parsed_dt.astimezone(timezone.utc).replace(tzinfo=None)
+        return parsed_dt
+    except ValueError:
+        pass
+
+    if date_obs_text.endswith("Z"):
+        date_obs_text = date_obs_text[:-1]
+
+    for fmt in DATE_OBS_FORMATS:
+        try:
+            return datetime.strptime(date_obs_text, fmt)
+        except ValueError:
+            continue
+
+    return None
+
+
+def clean_xisf_metadata_value(raw_value: str | None) -> str | None:
+    if raw_value is None:
+        return None
+    value = str(raw_value).strip()
+    if not value:
+        return None
+    if len(value) >= 2 and value[0] == "'" and value[-1] == "'":
+        value = value[1:-1].replace("''", "'").strip()
+    return value
+
+
+def xml_local_name(tag: str) -> str:
+    return tag.rsplit("}", 1)[-1]
+
+
+def read_xisf_header(xisf_file: Path) -> dict[str, str]:
+    with xisf_file.open("rb") as handle:
+        signature = handle.read(8)
+        if signature != b"XISF0100":
+            raise ValueError("not a supported XISF0100 file")
+        header_length_bytes = handle.read(4)
+        if len(header_length_bytes) != 4:
+            raise ValueError("truncated XISF header length")
+        header_length = int.from_bytes(header_length_bytes, byteorder="little", signed=False)
+        handle.read(4)  # reserved field
+        header_xml = handle.read(header_length)
+
+    root = ET.fromstring(header_xml.decode("utf-8"))
+    header: dict[str, str] = {}
+
+    for element in root.iter():
+        local_name = xml_local_name(element.tag)
+        if local_name == "FITSKeyword":
+            name = element.attrib.get("name")
+            value = clean_xisf_metadata_value(element.attrib.get("value"))
+            if name and value is not None:
+                header[name.strip().upper()] = value
+            continue
+
+        if local_name != "Property":
+            continue
+        property_id = element.attrib.get("id") or element.attrib.get("name")
+        value = (
+            element.attrib.get("value")
+            or element.attrib.get("Value")
+            or element.text
+        )
+        cleaned_value = clean_xisf_metadata_value(value)
+        if property_id and cleaned_value is not None:
+            header[property_id.strip().upper()] = cleaned_value
+
+    for canonical_key, aliases in XISF_PROPERTY_ALIASES.items():
+        if canonical_key in header:
+            continue
+        for alias in aliases:
+            value = get_header_value(header, alias)
+            if value is not None:
+                header[canonical_key] = value
+                break
+
+    return header
+
+
+def read_image_header(source_file: Path):
+    suffix = source_file.suffix.lower()
+    if suffix in {".fit", ".fits"}:
+        with fits.open(source_file) as hdul:
+            return dict(hdul[0].header)
+    if suffix == ".xisf":
+        return read_xisf_header(source_file)
+    raise ValueError(f"unsupported image suffix: {source_file.suffix}")
+
 
 class Session:
     def __init__(self, date, filter, duration, gain, sensorCooling, darks, flats, bias, bortle, temperature):
@@ -87,59 +283,67 @@ def get_session_data(directory):
     i = 0
     progress = ['|', '/', '-', '\\']
     
-    # Recursively search for FITS files in all subdirectories
-    print("Recursively searching for FITS files...")
-    all_files = list(directory.rglob('*.fits')) + list(directory.rglob('*.fit'))
-    print(f"Found {len(all_files)} FITS files")
+    # Recursively search for supported image files in all subdirectories.
+    print("Recursively searching for FITS and XISF files...")
+    all_files = discover_image_files(directory)
+    print(f"Found {len(all_files)} FITS/XISF files")
     
     # Use TQDM to show a progress bar.
     for file in all_files:
-        file_path = str(file)
-        if "/." in file_path:
-            # print(f"Skipping {file_path}")
-            continue
         print(f'\r{progress[i % 4]}', end='')
         i += 1
         # print(f'Processing {file}')
         try:
-            with fits.open(file) as hdul:
-                header = hdul[0].header
-                date_obs = header['DATE-OBS'][:19]
-                dt = datetime.strptime(date_obs, '%Y-%m-%dT%H:%M:%S')
+            header = read_image_header(file)
+            dt = parse_date_obs(get_header_value(header, "DATE-OBS"))
+            if dt is None:
+                raise ValueError("missing or unsupported DATE-OBS")
 
-                date = dt.date()
-                if 'FILTER' in header:
-                    filter = header['FILTER'].strip()
+            date = dt.date()
+            raw_filter = get_header_value(header, "FILTER")
+            if raw_filter is not None:
+                filter = str(raw_filter).strip()
+            else:
+                filter = 'Unknown'
+
+            raw_duration = get_header_value(header, "EXPTIME")
+            if raw_duration is None:
+                raise KeyError("EXPTIME")
+            duration = float(raw_duration)
+
+            gain = get_header_value(header, "GAIN")
+            if gain is None:
+                raise KeyError("GAIN")
+
+            raw_sensor_cooling = get_header_value(header, "CCD-TEMP")
+            if raw_sensor_cooling is not None:
+                sensorCooling = float(raw_sensor_cooling)
+            else:
+                sensorCooling = 0
+
+            raw_temperature = get_header_value(header, "FOCUSTEM")
+            if raw_temperature is not None:
+                temperature = float(raw_temperature)
+            else:
+                temperature = -1
+            
+            # Handle case where filter might not be in lookup
+            if filter not in filter_lookup:
+                # Try matching just the first letter
+                if filter and filter[0] in filter_lookup:
+                    filter = filter[0]
+                    # print(f"\nInfo: Using filter '{filter}' for {file}")
                 else:
-                    filter = 'Unknown'
-                duration = float(header['EXPTIME'])
-                gain = header['GAIN']
-                if 'CCD-TEMP' in header:
-                    sensorCooling = float(header['CCD-TEMP'])
-                else:
-                    sensorCooling = 0
-                if 'FOCUSTEM' in header:
-                    temperature = float(header['FOCUSTEM'])
-                else:
-                    temperature = -1
-                
-                # Handle case where filter might not be in lookup
-                if filter not in filter_lookup:
-                    # Try matching just the first letter
-                    if filter and filter[0] in filter_lookup:
-                        filter = filter[0]
-                        # print(f"\nInfo: Using filter '{filter}' for {file}")
-                    else:
-                        print(f"\nWarning: Unknown filter '{filter}' in {file}, using 'H' as default")
-                        filter = 'H'
-                session = Session(date, filter, duration, gain, sensorCooling,
-                                  default_values['darks'], default_values['flats'],
-                                  default_values['bias'], default_values['bortle'], temperature)
-                if session in sessions:
-                    index = sessions.index(session)
-                    sessions[index] += 1
-                else:
-                    sessions.append(session)
+                    print(f"\nWarning: Unknown filter '{filter}' in {file}, using 'H' as default")
+                    filter = 'H'
+            session = Session(date, filter, duration, gain, sensorCooling,
+                              default_values['darks'], default_values['flats'],
+                              default_values['bias'], default_values['bortle'], temperature)
+            if session in sessions:
+                index = sessions.index(session)
+                sessions[index] += 1
+            else:
+                sessions.append(session)
         except Exception as e:
             print(f"\nError processing {file}: {e}")
             # raise e
@@ -200,7 +404,6 @@ def main():
 
     print(f'Creating csv file with session data from {args.dir}.')
     # Get the session data.
-    from pathlib import Path
     directory = Path(args.dir)
     sessions = get_session_data(directory)
     save_session_csv(sessions, args.out)
