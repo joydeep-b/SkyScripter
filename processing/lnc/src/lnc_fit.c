@@ -144,6 +144,17 @@ static bool fit_trimmed_affine(SamplePair *pairs, int n, const UnregisteredParam
   long double scale = 1.0;
   long double offset = (long double)background_r - (long double)background_t;
 
+  if (params->photometric_model == LNC_PHOTOMETRIC_STAR_SCALE_ADDITIVE) {
+    scale = params->global_scale;
+    if (!isfinite((double)scale)) return false;
+    offset = (long double)background_r - scale * (long double)background_t;
+    fields->scale = (float)scale;
+    fields->offset = (float)offset;
+    fields->ref_bg = background_r;
+    fields->target_bg = background_t;
+    return true;
+  }
+
   if (fabsl(denom) > LDBL_EPSILON) {
     scale = ((long double)kept * sum_tr - sum_t * sum_r) / denom;
     offset = mean_r - scale * mean_t;

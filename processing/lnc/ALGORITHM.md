@@ -54,6 +54,13 @@ Common options:
 - `--output-format uint16`: writes final science output as unsigned 16-bit data.
 - `--registration-transform homography`: uses Siril two-pass homography
   registration metadata. This is the default.
+- `--photometric-model local-linear`: uses the current local scale plus local
+  offset model. This is the default.
+- `--photometric-model star-scale-additive`: uses StarScale Additive LNC
+  (SSA-LNC), with one matched-star global scale and a local additive offset
+  field.
+- `--findstar-mode auto`: uses legacy LNC-tuned star detection for
+  `local-linear` and Siril default star detection for SSA-LNC.
 - `--rebuild`: rebuilds the C normalizer before running.
 
 The diagnostic directory normally contains:
@@ -63,10 +70,14 @@ The diagnostic directory normally contains:
 - `reference_masked.fits` and `target_masked.fits`: optional masked image
   views, written when `--save-intermediate-fits` is set.
 - `scale_map.fits`: display-normalized target-geometry scale field.
+  In SSA-LNC this map is constant at the matched stellar target-to-reference
+  scale, aside from normal diagnostic FITS display metadata.
 - `offset_map.fits`: display-normalized target-geometry offset field.
 - `ref_background.fits` and `target_background.fits`: optional background
   diagnostics, written when `--save-intermediate-fits` is set.
 - `transform_report.json`: parsed homography and star-match validation.
+- `star_scale_report.json`: SSA-LNC matched-star photometry diagnostics,
+  written only when `--photometric-model star-scale-additive` is used.
 - `local_normalize_unregistered_report.json`: C-core summary.
 - `wrapper_report.json`: full wrapper command, parameters, timings, and
   diagnostics.
@@ -116,6 +127,12 @@ Common group options:
 - `--lnc-workers N`: number of targets normalized concurrently.
 - `--background-estimator NAME`: uses `trimmed-mean`, `trimmed-median`, or
   `sample-median` for local background estimation.
+- `--photometric-model local-linear`: uses local multiplicative scale plus local
+  additive offset for every target. This is the default.
+- `--photometric-model star-scale-additive`: estimates one matched-star
+  target-to-reference scale per target, then fits only local additive offsets.
+- `--findstar-mode auto`: uses Siril default star detection for group SSA-LNC
+  scale estimation.
 - `--rebuild`: rebuilds the C group normalizer before running.
 
 The group output directory normally contains:
@@ -126,9 +143,10 @@ The group output directory normally contains:
   original science metadata, then stamped with `LNCMODE=reference-passthrough`.
 - `lnc_group_manifest.json`: manifest consumed by the C group normalizer.
 - `lnc_group_summary.json`: per-target C-core status, valid-node counts, and
-  elapsed time.
+  elapsed time. In SSA-LNC mode it also reports each target's `global_scale`.
 - `lnc_group_sequence_report.json`: wrapper-level sequence, reference,
-  skipped-frame, concurrency, and timing summary.
+  skipped-frame, star-scale, concurrency, and timing summary.
+- `star_scale/`: Siril star lists used for group SSA-LNC scale estimation.
 - `lnc_<source_stem>_lnc_diag/`: optional per-target diagnostic directory
   written when `--diagnostics` is set. It contains `scale_map.fits`,
   `offset_map.fits`, and `lnc_report.json`.
@@ -280,12 +298,15 @@ model described below. It differs from pair-wise LNC in orchestration:
 1. Parse the Siril sequence and choose one included frame as the photometric and
    geometric reference.
 2. Run sequence registration once with that reference.
-3. Build a JSON manifest containing the reference frame, every included
-   non-reference target, each target's output path, each target-to-reference
-   homography, and the LNC parameter block.
-4. Run `lnc_group_subs`, which loads the reference image once and normalizes all
+3. If `--photometric-model star-scale-additive` is selected, estimate one
+   matched-star target-to-reference scale for each non-reference target.
+4. Build a JSON manifest containing the reference frame, every included
+   non-reference target that has the required model support, each target's
+   output path, each target-to-reference homography, per-target global scale
+   diagnostics when applicable, and the LNC parameter block.
+5. Run `lnc_group_subs`, which loads the reference image once and normalizes all
    targets listed in the manifest.
-5. Copy the reference frame unchanged to the output sequence and write a group
+6. Copy the reference frame unchanged to the output sequence and write a group
    summary.
 
 For target `i`, the correction model is still:
@@ -297,7 +318,9 @@ C_i(p_T) = S_i(M_i p_T) * T_i(p_T) + O_i(M_i p_T)
 
 Each target gets its own grid, scale field, offset field, validity checks,
 missing-node fill, and smoothing pass. The fields are not shared across targets;
-only the loaded reference image is shared.
+only the loaded reference image is shared. In group SSA-LNC, target `i` uses its
+own `g_i` from the manifest, so `S_i(p_R) = g_i` before missing-node fill and
+smoothing.
 
 The current group wrapper does not generate the pair wrapper's per-frame
 star/saturation masks. For group runs, the C core receives empty native masks,
@@ -312,6 +335,7 @@ Its important fields are:
 ```text
 sequence_name
 params
+params.photometric_model
 reference.work_sequence_file
 reference.corrected_sequence_file
 reference.sequence_index
@@ -319,13 +343,26 @@ targets[].work_sequence_file
 targets[].corrected_sequence_file
 targets[].sequence_index
 targets[].target_to_reference_homography
+targets[].global_scale
+targets[].global_scale_source
+targets[].star_scale_diagnostics
+star_scale_failures[]
 output_summary
 ```
 
 The reference entry always uses the identity homography in the manifest because
 it is not normalized against itself; it is copied to the output path. Each target
 entry supplies the target-to-reference homography used by the unregistered pair
-core.
+core. `targets[].global_scale` is required only when
+`params.photometric_model == "star-scale-additive"`; the C group runner copies
+that value into the per-target `UnregisteredParams` before invoking the shared
+unregistered core.
+
+Group SSA-LNC fails closed per target. If matched-star scale estimation fails or
+does not meet the configured support/R2 thresholds, the wrapper omits that target
+from the manifest, adds it to `skipped_sequence_indices`, and records the reason
+in both `star_scale_failures[]` and `lnc_group_sequence_report.json`. The first
+implementation does not silently fall back to `local-linear`.
 
 ## Group Parallelism
 
@@ -506,6 +543,94 @@ O_ij = o
 B^R_ij = B^R
 B^T_ij = B^T
 ```
+
+## StarScale Additive LNC
+
+StarScale Additive LNC, abbreviated SSA-LNC, is an opt-in pairwise
+unregistered model selected with:
+
+```bash
+--photometric-model star-scale-additive
+```
+
+The current `local-linear` model solves both `S_ij` and `O_ij` independently at
+each grid node:
+
+```text
+R ~= S(x,y) * T + O(x,y)
+```
+
+SSA-LNC fixes the multiplicative term to one global stellar scale and lets LNC
+solve only the local additive background offset:
+
+```text
+g = stellar_scale_target_to_reference
+R(p_R) ~= g * T(M^{-1} p_R) + O(p_R)
+```
+
+The global scale `g` is estimated before the C core runs:
+
+1. Detect reference and target stars using Siril default `findstar` parameters.
+2. Register the target star catalog into reference Siril coordinates using the
+   validated target-to-reference homography.
+3. Build one-to-one nearest-neighbor star matches within the configured match
+   radius.
+4. Measure aperture fluxes in each native FITS image with local annulus
+   background subtraction.
+5. Reject saturated, edge, low-SNR, low-flux, crowded, and non-finite
+   measurements.
+6. Fit the robust target/reference flux ratio using iterative MAD clipping in
+   log-ratio space.
+
+If the retained fluxes are `F^R_i` for the reference and `F^T_i` for the
+target, the fitted diagnostic ratio is:
+
+```text
+q = median_i(F^T_i / F^R_i)
+```
+
+The correction multiplier passed to the C core is:
+
+```text
+g = stellar_scale_target_to_reference = 1 / q
+```
+
+This convention matches the science correction:
+
+```text
+C(p_T) = g * T(p_T) + O(M p_T)
+```
+
+For each retained local grid node, SSA-LNC still uses the same paired sampling,
+masking, trimming, validity, filling, smoothing, and output geometry as the
+local-linear model. The only node-fit change is:
+
+```text
+S_ij = g
+O_ij = B^R_ij - g * B^T_ij
+```
+
+where `B^R_ij` and `B^T_ij` are the local background estimates from the retained
+paired samples. Missing-node fill and smoothing run unchanged; because every
+valid node starts with the same `S_ij = g`, the final `scale_map.fits` is
+constant in successful SSA-LNC runs.
+
+SSA-LNC fails closed before invoking the C core for a target if matched-star
+scale estimation does not meet support or quality thresholds. The pair wrapper
+writes `star_scale_report.json`; the group wrapper stores the same diagnostics
+per target in `lnc_group_manifest.json` and `lnc_group_sequence_report.json`.
+These reports include:
+
+- `matched_stars`, `candidate_stars`, and `used_stars`.
+- `scale_b_over_a`, the raw target/reference fitted star-flux ratio.
+- `target_to_reference_scale`, the multiplier `g` used by the C core.
+- `robust_fit.r_squared`.
+- `robust_fit.ratio_mad` and clipping diagnostics.
+- rejection counts by reason.
+
+In group mode, the reference star catalog is detected once and reused for every
+target. Each successful target contributes its own `global_scale` and
+`star_scale_diagnostics` entry to the group manifest.
 
 ## Filling Missing Grid Nodes
 
@@ -733,6 +858,7 @@ by the corrected float image, and appends LNC provenance such as:
 ```text
 LNCMODE = correction path, for example group-target or reference-passthrough
 LNCBKG  = background estimator
+LNCPHOT = photometric model, local-linear or star-scale-additive
 LNCREF  = reference filename
 LNCTARG = target filename
 LNCGRID = grid spacing
@@ -741,6 +867,7 @@ LNCSAMP = minimum samples per grid node
 LNCTRIM = trim fraction
 LNCSMIN = minimum scale clamp
 LNCSMAX = maximum scale clamp
+LNCGSCL = global stellar scale, for SSA-LNC
 LNCSMTH = smoothing passes
 LNCMINV = minimum valid grid fraction
 LNCRMSK = reference masked pixels, when available

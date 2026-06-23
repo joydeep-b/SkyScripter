@@ -137,6 +137,7 @@ static void stamp_lnc_metadata(fitsfile *fptr, const LncFitsMetadata *metadata, 
   write_limited_string_key(fptr, "LNCFMT", metadata->output_format, "LNC final science image encoding", status);
   write_limited_string_key(fptr, "LNCVSCL", metadata->value_scale, "LNC input value scale", status);
   write_limited_string_key(fptr, "LNCBKG", metadata->background_estimator, "LNC background estimator", status);
+  write_limited_string_key(fptr, "LNCPHOT", metadata->photometric_model, "LNC photometric model", status);
   write_limited_string_key(fptr, "LNCREF", basename_or_empty(metadata->reference_path), "LNC reference filename", status);
   write_limited_string_key(fptr, "LNCTARG", basename_or_empty(metadata->target_path), "LNC target filename", status);
   write_int_key_if_set(fptr, "LNCSEQ", metadata->sequence_index, "LNC sequence index", status);
@@ -146,6 +147,7 @@ static void stamp_lnc_metadata(fitsfile *fptr, const LncFitsMetadata *metadata, 
   write_double_key_if_set(fptr, "LNCTRIM", metadata->trim_fraction, "LNC trim fraction", status);
   write_double_key_if_set(fptr, "LNCSMIN", metadata->scale_min, "LNC minimum scale clamp", status);
   write_double_key_if_set(fptr, "LNCSMAX", metadata->scale_max, "LNC maximum scale clamp", status);
+  write_double_key_if_set(fptr, "LNCGSCL", metadata->global_scale, "LNC global stellar scale", status);
   write_int_key_if_set(fptr, "LNCSMTH", metadata->smooth_passes, "LNC smoothing passes", status);
   write_double_key_if_set(fptr, "LNCMINV", metadata->min_valid_fraction, "LNC minimum valid grid fraction", status);
   write_long_key_if_set(fptr, "LNCRMSK", metadata->ref_masked_pixels, "LNC reference masked pixels", status);
@@ -154,6 +156,8 @@ static void stamp_lnc_metadata(fitsfile *fptr, const LncFitsMetadata *metadata, 
   if (*status) return;
   if (metadata->mode && strcmp(metadata->mode, "reference-passthrough") == 0) {
     fits_write_history(fptr, "LNC: reference frame copied without photometric correction", status);
+  } else if (metadata->photometric_model && strcmp(metadata->photometric_model, "star-scale-additive") == 0) {
+    fits_write_history(fptr, "LNC: corrected = global_star_scale * target + offset(x,y)", status);
   } else {
     fits_write_history(fptr, "LNC: corrected = scale(x,y) * target + offset(x,y)", status);
   }

@@ -5,6 +5,7 @@
 #include "lnc_unregistered_core.h"
 
 #include <omp.h>
+#include <math.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -30,9 +31,11 @@ static UnregisteredParams default_params(void) {
   params.window_size = 256;
   params.min_samples = 2000;
   params.background_estimator = LNC_BACKGROUND_TRIMMED_MEDIAN;
+  params.photometric_model = LNC_PHOTOMETRIC_LOCAL_LINEAR;
   params.trim_fraction = 0.10;
   params.scale_min = 0.5;
   params.scale_max = 2.0;
+  params.global_scale = 1.0;
   params.smooth_passes = 2;
   params.min_valid_fraction = 0.30;
   params.H[0] = 1.0;
@@ -64,6 +67,8 @@ static void usage(FILE *stream) {
           "  --report PATH            write JSON report\n"
           "  --threads N              OpenMP threads for one unregistered LNC pair\n"
           "  --background-estimator NAME  trimmed-mean, trimmed-median, or sample-median\n"
+          "  --photometric-model NAME local-linear or star-scale-additive\n"
+          "  --global-scale F         fixed target-to-reference scale for star-scale-additive\n"
           "  --grid-spacing N         grid spacing in reference pixels (default 128)\n"
           "  --window-size N          circular fit footprint diameter (default 256)\n"
           "  --min-samples N          minimum valid samples per grid node (default 2000)\n"
@@ -115,6 +120,18 @@ static Options parse_options(int argc, char **argv) {
         fprintf(stderr, "Unknown --background-estimator: %s\n", value);
         exit(2);
       }
+    } else if (strcmp(arg, "--photometric-model") == 0 && i + 1 < argc) {
+      const char *value = argv[++i];
+      if (strcmp(value, "local-linear") == 0) {
+        opt.params.photometric_model = LNC_PHOTOMETRIC_LOCAL_LINEAR;
+      } else if (strcmp(value, "star-scale-additive") == 0) {
+        opt.params.photometric_model = LNC_PHOTOMETRIC_STAR_SCALE_ADDITIVE;
+      } else {
+        fprintf(stderr, "Unknown --photometric-model: %s\n", value);
+        exit(2);
+      }
+    } else if (strcmp(arg, "--global-scale") == 0 && i + 1 < argc) {
+      opt.params.global_scale = lnc_parse_double_arg(argv[++i], "--global-scale");
     } else if (strcmp(arg, "--grid-spacing") == 0 && i + 1 < argc) {
       opt.params.grid_spacing = lnc_parse_int_arg(argv[++i], "--grid-spacing");
     } else if (strcmp(arg, "--window-size") == 0 && i + 1 < argc) {
@@ -163,6 +180,10 @@ static Options parse_options(int argc, char **argv) {
   }
   if (opt.params.scale_min <= 0.0 || opt.params.scale_max <= opt.params.scale_min) {
     fprintf(stderr, "Invalid scale clamp range\n");
+    exit(2);
+  }
+  if (opt.params.global_scale <= 0.0 || !isfinite(opt.params.global_scale)) {
+    fprintf(stderr, "--global-scale must be positive and finite\n");
     exit(2);
   }
   if (opt.params.min_valid_fraction <= 0.0 || opt.params.min_valid_fraction > 1.0) {
@@ -258,6 +279,9 @@ int main(int argc, char **argv) {
       .output_format = "float32-raw",
       .value_scale = "adu",
       .background_estimator = background_estimator_name(opt.params.background_estimator),
+      .photometric_model = opt.params.photometric_model == LNC_PHOTOMETRIC_STAR_SCALE_ADDITIVE
+                               ? "star-scale-additive"
+                               : "local-linear",
       .reference_path = opt.ref_path,
       .target_path = opt.target_path,
       .report_path = opt.report_path,
@@ -269,6 +293,7 @@ int main(int argc, char **argv) {
       .trim_fraction = opt.params.trim_fraction,
       .scale_min = opt.params.scale_min,
       .scale_max = opt.params.scale_max,
+      .global_scale = opt.params.global_scale,
       .min_valid_fraction = opt.params.min_valid_fraction,
       .ref_masked_pixels = ref_masked,
       .target_masked_pixels = target_masked,

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import importlib.util
+import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -13,13 +15,38 @@ from astropy.io import fits
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 WRAPPER_PATH = REPO_ROOT / "processing" / "lnc" / "scripts" / "lnc_unregistered_pair.py"
+GROUP_WRAPPER_PATH = REPO_ROOT / "processing" / "lnc" / "scripts" / "lnc_group_sequence.py"
 LNC_DIR = REPO_ROOT / "processing" / "lnc"
 LNC_UNREGISTERED_BINARY = LNC_DIR / "bin" / "lnc_unregistered_pair"
+LNC_GROUP_BINARY = LNC_DIR / "bin" / "lnc_group_subs"
+STAR_SCALE_PATH = REPO_ROOT / "processing" / "lnc" / "scripts" / "lnc_star_scale.py"
 
 
 def load_wrapper_module():
     sys.path.insert(0, str(REPO_ROOT / "processing" / "lnc" / "scripts"))
     spec = importlib.util.spec_from_file_location("local_normalize_unregistered_wrapper", WRAPPER_PATH)
+    assert spec is not None
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def load_star_scale_module():
+    sys.path.insert(0, str(REPO_ROOT / "processing" / "lnc" / "scripts"))
+    spec = importlib.util.spec_from_file_location("lnc_star_scale_test", STAR_SCALE_PATH)
+    assert spec is not None
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def load_group_module():
+    sys.path.insert(0, str(REPO_ROOT / "processing" / "lnc" / "scripts"))
+    spec = importlib.util.spec_from_file_location("lnc_group_sequence_test", GROUP_WRAPPER_PATH)
     assert spec is not None
     module = importlib.util.module_from_spec(spec)
     assert spec.loader is not None
@@ -274,3 +301,274 @@ def test_unregistered_c_core_extrapolates_correction_outside_reference_frame(tmp
 
     assert before > 0.003
     assert after < before * 0.05
+
+
+def test_lnc_star_scale_findstar_defaults_to_siril_settings(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
+    module = load_star_scale_module()
+    captured: dict[str, str] = {}
+    star_list = tmp_path / "stars.lst"
+
+    def fake_run_siril(siril_path, work_dir, script, context, timeout):
+        captured["script"] = script
+        captured["context"] = context
+        star_list.write_text("# x y fwhm roundness\n10 20 3 0.9\n", encoding="utf-8")
+        return SimpleNamespace(stdout="", stderr="")
+
+    monkeypatch.setattr(module, "run_siril", fake_run_siril)
+
+    report = module.run_lnc_findstar(tmp_path / "image.fit", star_list, "siril-cli", 5.0, mode="siril-default")
+
+    assert "setfindstar" not in captured["script"]
+    assert "findstar -out=stars.lst" in captured["script"]
+    assert "siril-default" in captured["context"]
+    assert report["findstar_mode"] == "siril-default"
+    assert report["setfindstar_command"] is None
+
+
+def test_lnc_star_scale_robust_fit_uses_target_over_reference_convention():
+    module = load_star_scale_module()
+
+    fit = module.robust_ratio_fit(
+        [100.0, 200.0, 300.0, 400.0, 500.0, 600.0],
+        [120.0, 240.0, 360.0, 480.0, 5000.0, 720.0],
+        clip_sigma=2.0,
+        max_iterations=5,
+        min_points=4,
+    )
+
+    assert fit.ok
+    assert fit.n_used == 5
+    assert fit.scale_b_over_a == pytest.approx(1.2)
+    assert 5 not in [i + 1 for i, kept in enumerate(fit.kept_mask) if kept]
+
+
+def test_ssa_lnc_c_core_uses_constant_global_scale_and_local_offset_gradient(tmp_path: Path):
+    subprocess.run(["make", "-C", str(LNC_DIR), "bin/lnc_unregistered_pair"], check=True)
+
+    height = 192
+    width = 192
+    yy, xx = np.mgrid[0:height, 0:width].astype(np.float32)
+    ref = 1000.0 + 0.18 * xx + 0.07 * yy + 6.0 * np.sin(xx / 37.0)
+    global_scale = 1.25
+    injected_offset = 35.0 + 0.12 * xx - 0.09 * yy
+    target = ((ref - injected_offset) / global_scale).astype(np.float32)
+    mask = np.zeros((height, width), dtype=np.uint8)
+
+    ref_path = tmp_path / "ref.fit"
+    target_path = tmp_path / "target.fit"
+    mask_path = tmp_path / "mask.fit"
+    out_path = tmp_path / "corrected.fit"
+    diag_dir = tmp_path / "diag"
+    diag_dir.mkdir()
+    report_path = diag_dir / "report.json"
+    fits.writeto(ref_path, ref.astype(np.float32), overwrite=True)
+    fits.writeto(target_path, target, overwrite=True)
+    fits.writeto(mask_path, mask, overwrite=True)
+
+    subprocess.run(
+        [
+            str(LNC_UNREGISTERED_BINARY),
+            "--ref-mask",
+            str(mask_path),
+            "--target-mask",
+            str(mask_path),
+            "--homography",
+            "1",
+            "0",
+            "0",
+            "0",
+            "1",
+            "0",
+            "0",
+            "0",
+            "1",
+            "--diag-dir",
+            str(diag_dir),
+            "--report",
+            str(report_path),
+            "--background-estimator",
+            "trimmed-median",
+            "--photometric-model",
+            "star-scale-additive",
+            "--global-scale",
+            str(global_scale),
+            "--grid-spacing",
+            "48",
+            "--window-size",
+            "80",
+            "--min-samples",
+            "1000",
+            str(ref_path),
+            str(target_path),
+            str(out_path),
+        ],
+        check=True,
+    )
+
+    corrected = fits.getdata(out_path)
+    scale_map = fits.getdata(diag_dir / "scale_map.fits")
+    offset_map = fits.getdata(diag_dir / "offset_map.fits")
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    inner = (xx > 20) & (xx < width - 20) & (yy > 20) & (yy < height - 20)
+
+    before = np.median(np.abs(target[inner] - ref[inner]))
+    after = np.median(np.abs(corrected[inner] - ref[inner]))
+    offset_error = np.median(np.abs(offset_map[inner] - injected_offset[inner]))
+
+    assert after < before * 0.05
+    assert np.nanmax(scale_map) == pytest.approx(global_scale, abs=1e-6)
+    assert np.nanmin(scale_map) == pytest.approx(global_scale, abs=1e-6)
+    assert offset_error < 3.0
+    assert report["photometric_model"] == "star-scale-additive"
+    assert report["global_scale"] == pytest.approx(global_scale)
+
+
+def test_group_manifest_includes_per_target_star_scale_diagnostics(tmp_path: Path):
+    module = load_group_module()
+    sequence = module.SequenceInfo(
+        path=tmp_path / "pp_light_.seq",
+        name="pp_light_",
+        start_index=1,
+        fixed_len=5,
+        reference_index=1,
+        frames=[
+            module.SequenceFrame(1, True, tmp_path / "ref.fit", 64, 64, [1, 0, 0, 0, 1, 0, 0, 0, 1]),
+            module.SequenceFrame(2, True, tmp_path / "target.fit", 64, 64, [1, 0, 0, 0, 1, 0, 0, 0, 1]),
+        ],
+    )
+    params = {
+        "background_estimator": "trimmed-median",
+        "photometric_model": "star-scale-additive",
+        "scale_min": 0.5,
+        "scale_max": 2.0,
+        "grid_spacing": 32,
+        "window_size": 64,
+        "min_samples": 100,
+        "trim_fraction": 0.1,
+        "smooth_passes": 1,
+        "min_valid_fraction": 0.3,
+    }
+
+    manifest, skipped = module.build_manifest(
+        sequence,
+        reference_index=1,
+        reference_source="test",
+        output_dir=tmp_path,
+        params=params,
+        target_star_scales={
+            2: {
+                "ok": True,
+                "target_to_reference_scale": 1.234,
+                "matched_stars": 42,
+                "used_stars": 30,
+                "robust_fit": {"r_squared": 0.99, "ratio_mad": 0.02},
+            }
+        },
+    )
+
+    assert skipped == []
+    assert manifest["params"]["photometric_model"] == "star-scale-additive"
+    assert manifest["targets"][0]["global_scale"] == pytest.approx(1.234)
+    assert manifest["targets"][0]["global_scale_source"] == "matched-star-flux"
+    assert manifest["targets"][0]["star_scale_diagnostics"]["used_stars"] == 30
+
+
+def test_group_manifest_skips_failed_star_scale_targets(tmp_path: Path):
+    module = load_group_module()
+    sequence = module.SequenceInfo(
+        path=tmp_path / "pp_light_.seq",
+        name="pp_light_",
+        start_index=1,
+        fixed_len=5,
+        reference_index=1,
+        frames=[
+            module.SequenceFrame(1, True, tmp_path / "ref.fit", 64, 64, [1, 0, 0, 0, 1, 0, 0, 0, 1]),
+            module.SequenceFrame(2, True, tmp_path / "target.fit", 64, 64, [1, 0, 0, 0, 1, 0, 0, 0, 1]),
+        ],
+    )
+
+    manifest, skipped = module.build_manifest(
+        sequence,
+        reference_index=1,
+        reference_source="test",
+        output_dir=tmp_path,
+        params={"background_estimator": "trimmed-median", "photometric_model": "star-scale-additive"},
+        star_scale_failures={2: {"sequence_index": 2, "status": "star_scale_failed", "message": "too_few_points"}},
+    )
+
+    assert skipped == [2]
+    assert manifest["targets"] == []
+    assert manifest["star_scale_failures"][0]["message"] == "too_few_points"
+
+
+def test_group_c_core_uses_per_target_global_scales(tmp_path: Path):
+    subprocess.run(["make", "-C", str(LNC_DIR), "bin/lnc_group_subs"], check=True)
+
+    height = 128
+    width = 128
+    yy, xx = np.mgrid[0:height, 0:width].astype(np.float32)
+    ref = 1000.0 + 0.2 * xx + 0.08 * yy + 4.0 * np.sin(xx / 23.0)
+    scales = [1.18, 0.82]
+    offsets = [
+        28.0 + 0.05 * xx - 0.03 * yy,
+        -18.0 + 0.02 * xx + 0.04 * yy,
+    ]
+    targets = [((ref - offset) / scale).astype(np.float32) for scale, offset in zip(scales, offsets)]
+
+    ref_path = tmp_path / "ref.fit"
+    out_ref = tmp_path / "lnc_ref.fit"
+    fits.writeto(ref_path, ref.astype(np.float32), overwrite=True)
+    target_entries = []
+    for idx, (target, scale) in enumerate(zip(targets, scales), start=2):
+        target_path = tmp_path / f"target_{idx}.fit"
+        out_path = tmp_path / f"lnc_target_{idx}.fit"
+        fits.writeto(target_path, target, overwrite=True)
+        target_entries.append(
+            {
+                "sequence_index": idx,
+                "work_sequence_file": str(target_path),
+                "corrected_sequence_file": str(out_path),
+                "target_to_reference_homography": [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+                "global_scale": scale,
+            }
+        )
+    manifest = {
+        "sequence_name": "synthetic",
+        "params": {
+            "background_estimator": "trimmed-median",
+            "photometric_model": "star-scale-additive",
+            "grid_spacing": 32,
+            "window_size": 64,
+            "min_samples": 500,
+            "trim_fraction": 0.1,
+            "scale_min": 0.5,
+            "scale_max": 2.0,
+            "smooth_passes": 1,
+            "min_valid_fraction": 0.5,
+        },
+        "reference": {
+            "sequence_index": 1,
+            "work_sequence_file": str(ref_path),
+            "corrected_sequence_file": str(out_ref),
+        },
+        "targets": target_entries,
+        "output_summary": str(tmp_path / "group_summary.json"),
+    }
+    manifest_path = tmp_path / "manifest.json"
+    manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    env = {**dict(os.environ), "LNC_WRITE_DIAGNOSTICS": "1"}
+
+    subprocess.run([str(LNC_GROUP_BINARY), "--lnc-threads", "2", "--lnc-workers", "1", str(manifest_path)], check=True, env=env)
+
+    inner = (xx > 16) & (xx < width - 16) & (yy > 16) & (yy < height - 16)
+    summary = json.loads((tmp_path / "group_summary.json").read_text(encoding="utf-8"))
+    assert summary["photometric_model"] == "star-scale-additive"
+    for idx, scale in enumerate(scales, start=2):
+        out_path = tmp_path / f"lnc_target_{idx}.fit"
+        corrected = fits.getdata(out_path)
+        scale_map = fits.getdata(tmp_path / f"lnc_target_{idx}_lnc_diag" / "scale_map.fits")
+        before = np.median(np.abs(targets[idx - 2][inner] - ref[inner]))
+        after = np.median(np.abs(corrected[inner] - ref[inner]))
+        assert after < before * 0.05
+        assert np.nanmax(scale_map) == pytest.approx(scale, abs=1e-6)
+        assert np.nanmin(scale_map) == pytest.approx(scale, abs=1e-6)

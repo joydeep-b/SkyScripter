@@ -19,6 +19,7 @@ typedef struct {
   char *work_sequence_file;
   char *corrected_sequence_file;
   double homography[9];
+  double global_scale;
   int sequence_index;
 } TargetEntry;
 
@@ -116,9 +117,11 @@ static UnregisteredParams default_params(void) {
   params.window_size = 256;
   params.min_samples = 2000;
   params.background_estimator = LNC_BACKGROUND_TRIMMED_MEDIAN;
+  params.photometric_model = LNC_PHOTOMETRIC_LOCAL_LINEAR;
   params.trim_fraction = 0.10;
   params.scale_min = 0.5;
   params.scale_max = 2.0;
+  params.global_scale = 1.0;
   params.smooth_passes = 2;
   params.min_valid_fraction = 0.30;
   params.H[0] = 1.0;
@@ -170,12 +173,25 @@ static void parse_params_object(const char *text, GroupManifest *manifest) {
       manifest->params.background_estimator = LNC_BACKGROUND_SAMPLE_MEDIAN;
     }
   }
+  const char *model_key = find_key(params_block, "photometric_model");
+  if (model_key) {
+    char *model = json_strdup_string(strchr(model_key, ':'));
+    if (model) {
+      if (strcmp(model, "star-scale-additive") == 0) {
+        manifest->params.photometric_model = LNC_PHOTOMETRIC_STAR_SCALE_ADDITIVE;
+      } else if (strcmp(model, "local-linear") == 0) {
+        manifest->params.photometric_model = LNC_PHOTOMETRIC_LOCAL_LINEAR;
+      }
+      free(model);
+    }
+  }
   parse_json_int(params_block, "grid_spacing", &manifest->params.grid_spacing);
   parse_json_int(params_block, "window_size", &manifest->params.window_size);
   parse_json_int(params_block, "min_samples", &manifest->params.min_samples);
   parse_json_double(params_block, "trim_fraction", &manifest->params.trim_fraction);
   parse_json_double(params_block, "scale_min", &manifest->params.scale_min);
   parse_json_double(params_block, "scale_max", &manifest->params.scale_max);
+  parse_json_double(params_block, "global_scale", &manifest->params.global_scale);
   parse_json_int(params_block, "smooth_passes", &manifest->params.smooth_passes);
   parse_json_double(params_block, "min_valid_fraction", &manifest->params.min_valid_fraction);
 }
@@ -200,12 +216,14 @@ static int parse_target_object(const char *object, TargetEntry *entry) {
   const char *index_key = find_key(object, "sequence_index");
   const char *h_key = find_key(object, "target_to_reference_homography");
   if (!work_key || !out_key || !h_key) return 0;
+  entry->global_scale = 1.0;
   entry->work_sequence_file = json_strdup_string(strchr(work_key, ':'));
   entry->corrected_sequence_file = json_strdup_string(strchr(out_key, ':'));
   if (index_key) {
     const char *digits = strchr(index_key, ':');
     if (digits) entry->sequence_index = atoi(digits + 1);
   }
+  parse_json_double(object, "global_scale", &entry->global_scale);
   const char *array = strchr(h_key, '[');
   return parse_homography_array(array, entry->homography) && entry->work_sequence_file && entry->corrected_sequence_file;
 }
@@ -454,6 +472,7 @@ static int run_target(const GroupManifest *manifest, const LncLoadedReference *r
       .has_params = manifest->has_params,
       .params = manifest->params,
   };
+  request.params.global_scale = target->global_scale;
   memcpy(request.homography, target->homography, sizeof(request.homography));
 
   omp_set_num_threads(lnc_threads);
@@ -506,6 +525,9 @@ int main(int argc, char **argv) {
       .output_format = "reference-original",
       .value_scale = "unchanged",
       .background_estimator = manifest.background_estimator ? manifest.background_estimator : "trimmed-median",
+      .photometric_model = manifest.params.photometric_model == LNC_PHOTOMETRIC_STAR_SCALE_ADDITIVE
+                               ? "star-scale-additive"
+                               : "local-linear",
       .reference_path = manifest.reference.work_sequence_file,
       .target_path = manifest.reference.work_sequence_file,
       .report_path = manifest.output_summary,
@@ -517,6 +539,7 @@ int main(int argc, char **argv) {
       .trim_fraction = manifest.params.trim_fraction,
       .scale_min = manifest.params.scale_min,
       .scale_max = manifest.params.scale_max,
+      .global_scale = 1.0,
       .min_valid_fraction = manifest.params.min_valid_fraction,
       .ref_masked_pixels = 0,
       .target_masked_pixels = 0,
@@ -601,11 +624,16 @@ int main(int argc, char **argv) {
       fprintf(summary,
               "{\n"
               "  \"target_count\": %zu,\n"
+              "  \"photometric_model\": \"%s\",\n"
               "  \"reference_loaded_once\": true,\n"
               "  \"lnc_threads\": %d,\n"
               "  \"lnc_workers\": %d,\n"
               "  \"targets\": [\n",
-              manifest.target_count, options.lnc_threads, worker_count);
+              manifest.target_count,
+              manifest.params.photometric_model == LNC_PHOTOMETRIC_STAR_SCALE_ADDITIVE
+                  ? "star-scale-additive"
+                  : "local-linear",
+              options.lnc_threads, worker_count);
       for (size_t i = 0; i < manifest.target_count; ++i) {
         TargetEntry *target = &manifest.targets[i];
         LncPairResult result = results[i].result;
@@ -615,6 +643,7 @@ int main(int argc, char **argv) {
                 "\"work_sequence_file\": \"%s\", "
                 "\"corrected_sequence_file\": \"%s\", "
                 "\"status\": \"%s\", "
+                "\"global_scale\": %.17g, "
                 "\"initial_valid_nodes\": %d, "
                 "\"total_nodes\": %d, "
                 "\"valid_fraction\": %.9g, "
@@ -624,6 +653,7 @@ int main(int argc, char **argv) {
                 target->work_sequence_file ? target->work_sequence_file : "",
                 target->corrected_sequence_file ? target->corrected_sequence_file : "",
                 results[i].status == 0 ? "success" : "failed",
+                target->global_scale,
                 result.initial_valid_nodes,
                 result.total_nodes,
                 result.valid_fraction,

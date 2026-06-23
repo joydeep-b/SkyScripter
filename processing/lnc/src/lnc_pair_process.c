@@ -18,9 +18,11 @@ static UnregisteredParams default_params(void) {
   params.window_size = 256;
   params.min_samples = 2000;
   params.background_estimator = LNC_BACKGROUND_TRIMMED_MEDIAN;
+  params.photometric_model = LNC_PHOTOMETRIC_LOCAL_LINEAR;
   params.trim_fraction = 0.10;
   params.scale_min = 0.5;
   params.scale_max = 2.0;
+  params.global_scale = 1.0;
   params.smooth_passes = 2;
   params.min_valid_fraction = 0.30;
   params.H[0] = 1.0;
@@ -72,6 +74,9 @@ static LncFitsMetadata metadata_from_request(const LncPairRequest *request,
       .output_format = "float32-raw",
       .value_scale = "adu",
       .background_estimator = background_estimator_name(params->background_estimator),
+      .photometric_model = params->photometric_model == LNC_PHOTOMETRIC_STAR_SCALE_ADDITIVE
+                               ? "star-scale-additive"
+                               : "local-linear",
       .reference_path = request->ref_path,
       .target_path = request->target_path,
       .report_path = request->report_path,
@@ -83,6 +88,7 @@ static LncFitsMetadata metadata_from_request(const LncPairRequest *request,
       .trim_fraction = params->trim_fraction,
       .scale_min = params->scale_min,
       .scale_max = params->scale_max,
+      .global_scale = params->global_scale,
       .min_valid_fraction = params->min_valid_fraction,
       .ref_masked_pixels = ref_masked,
       .target_masked_pixels = target_masked,

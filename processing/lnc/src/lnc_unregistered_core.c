@@ -23,6 +23,16 @@ static const char *background_estimator_name(int estimator) {
   }
 }
 
+static const char *photometric_model_name(int model) {
+  switch (model) {
+    case LNC_PHOTOMETRIC_STAR_SCALE_ADDITIVE:
+      return "star-scale-additive";
+    case LNC_PHOTOMETRIC_LOCAL_LINEAR:
+    default:
+      return "local-linear";
+  }
+}
+
 int lnc_estimate_unregistered_grid(const ImagePair *images, const UnregisteredParams *params, Grid *grid) {
   int valid_count = 0;
   #pragma omp parallel for collapse(2) reduction(+:valid_count) schedule(dynamic)
@@ -103,6 +113,8 @@ void lnc_write_unregistered_report(const char *path, const UnregisteredParams *p
   fprintf(f,
           "{\n"
           "  \"background_estimator\": \"%s\",\n"
+          "  \"photometric_model\": \"%s\",\n"
+          "  \"global_scale\": %.17g,\n"
           "  \"reference_width\": %ld,\n"
           "  \"reference_height\": %ld,\n"
           "  \"target_width\": %ld,\n"
@@ -124,6 +136,8 @@ void lnc_write_unregistered_report(const char *path, const UnregisteredParams *p
           "  \"openmp_threads\": %d\n"
           "}\n",
           background_estimator_name(params->background_estimator),
+          photometric_model_name(params->photometric_model),
+          params->global_scale,
           ref->width, ref->height, target->width, target->height, params->grid_spacing,
           params->window_size, params->min_samples, grid->nx, grid->ny, initial_valid,
           total_nodes, (double)initial_valid / (double)total_nodes, ref_masked,

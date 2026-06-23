@@ -21,13 +21,15 @@ from astropy.io import fits
 if __package__ is None or __package__ == "":
     sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from lnc_registered_pair import find_siril_path, run_siril
+from lnc_registered_pair import find_siril_path, parse_star_list, run_siril
+from lnc_star_scale import FINDSTAR_MODES, StarScaleOptions, estimate_star_scale, run_lnc_findstar
 
 
 LNC_DIR = Path(__file__).resolve().parents[1]
 LNC_GROUP_BINARY = LNC_DIR / "bin" / "lnc_group_subs"
 FITS_SUFFIXES = (".fit", ".fits", ".fts")
 LOGGER = logging.getLogger(__name__)
+PHOTOMETRIC_MODELS = ("local-linear", "star-scale-additive")
 
 
 @dataclass
@@ -68,6 +70,18 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--diagnostics", action="store_true")
     parser.add_argument(
+        "--photometric-model",
+        choices=PHOTOMETRIC_MODELS,
+        default="local-linear",
+        help="Photometric correction model for group targets.",
+    )
+    parser.add_argument(
+        "--findstar-mode",
+        choices=FINDSTAR_MODES,
+        default="auto",
+        help="Star detection parameters; auto uses Siril defaults for SSA-LNC and legacy LNC tuning otherwise.",
+    )
+    parser.add_argument(
         "--background-estimator",
         choices=("trimmed-mean", "trimmed-median", "sample-median"),
         default="trimmed-median",
@@ -85,6 +99,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--min-patches", type=int, default=8)
     parser.add_argument("--sample-min-valid", type=float, default=0.60)
     parser.add_argument("--sample-reject-k", type=float, default=2.5)
+    parser.add_argument("--star-scale-match-radius", type=float, default=2.0)
+    parser.add_argument("--star-scale-min-stars", type=int, default=20)
+    parser.add_argument("--star-scale-min-r2", type=float, default=0.90)
+    parser.add_argument("--star-scale-clip-sigma", type=float, default=2.5)
+    parser.add_argument("--star-scale-saturation-threshold", type=float, default=65535.0)
     parser.add_argument("--timeout", type=float, default=600.0)
     return parser.parse_args()
 
@@ -283,9 +302,21 @@ def target_to_reference_homography(sequence: SequenceInfo, reference: SequenceFr
     return [float(value) for value in array_h.reshape(9)]
 
 
+def target_to_reference_siril_homography(reference: SequenceFrame, target: SequenceFrame) -> np.ndarray:
+    if reference.siril_homography is None or target.siril_homography is None:
+        raise ValueError(f"Missing registration matrix for sequence index {target.index}")
+    ref_matrix = np.array(reference.siril_homography, dtype=np.float64).reshape(3, 3)
+    target_matrix = np.array(target.siril_homography, dtype=np.float64).reshape(3, 3)
+    siril_h = np.linalg.inv(ref_matrix) @ target_matrix
+    if not np.isfinite(siril_h).all():
+        raise ValueError(f"Non-finite Siril homography for sequence index {target.index}")
+    return siril_h
+
+
 def lnc_params(args: argparse.Namespace) -> dict[str, Any]:
     params: dict[str, Any] = {
         "background_estimator": args.background_estimator,
+        "photometric_model": args.photometric_model,
         "scale_min": args.scale_min,
         "scale_max": args.scale_max,
         "grid_spacing": args.grid_spacing,
@@ -312,6 +343,77 @@ def output_path_for(output_dir: Path, source: Path) -> Path:
     return output_dir / f"lnc_{source.stem}.fits"
 
 
+def estimate_group_star_scales(
+    sequence: SequenceInfo,
+    *,
+    reference_index: int,
+    output_dir: Path,
+    siril_path: str,
+    timeout: float,
+    findstar_mode: str,
+    options: StarScaleOptions,
+) -> tuple[dict[int, dict[str, Any]], dict[int, dict[str, Any]], dict[str, Any]]:
+    included = [frame for frame in sequence.frames if frame.included and has_usable_homography(frame)]
+    reference = next(frame for frame in included if frame.index == reference_index)
+    targets = [frame for frame in included if frame.index != reference_index]
+    star_dir = output_dir / "star_scale"
+    star_dir.mkdir(parents=True, exist_ok=True)
+
+    if findstar_mode == "auto":
+        findstar_mode = "siril-default"
+
+    findstar_reports: dict[str, Any] = {"mode": findstar_mode, "frames": {}}
+    reference_list = star_dir / f"stars_{reference.index:05d}_reference.lst"
+    findstar_reports["frames"][str(reference.index)] = run_lnc_findstar(
+        reference.path,
+        reference_list,
+        siril_path,
+        timeout,
+        mode=findstar_mode,
+    )
+    reference_stars = parse_star_list(reference_list)
+
+    scale_reports: dict[int, dict[str, Any]] = {}
+    failures: dict[int, dict[str, Any]] = {}
+    for target in targets:
+        target_list = star_dir / f"stars_{target.index:05d}.lst"
+        try:
+            findstar_reports["frames"][str(target.index)] = run_lnc_findstar(
+                target.path,
+                target_list,
+                siril_path,
+                timeout,
+                mode=findstar_mode,
+            )
+            target_stars = parse_star_list(target_list)
+            report = estimate_star_scale(
+                reference_fits=reference.path,
+                target_fits=target.path,
+                reference_stars=reference_stars,
+                target_stars=target_stars,
+                target_to_reference_h=target_to_reference_siril_homography(reference, target),
+                options=options,
+            )
+            report["sequence_index"] = target.index
+            report["reference_sequence_index"] = reference.index
+            if report.get("ok"):
+                scale_reports[target.index] = report
+            else:
+                failures[target.index] = {
+                    "sequence_index": target.index,
+                    "status": "star_scale_failed",
+                    "message": report.get("message") or "star-scale estimation failed",
+                    "star_scale_report": report,
+                }
+        except Exception as exc:
+            failures[target.index] = {
+                "sequence_index": target.index,
+                "status": "star_scale_exception",
+                "message": f"{type(exc).__name__}: {exc}",
+            }
+    return scale_reports, failures, findstar_reports
+
+
 def build_manifest(
     sequence: SequenceInfo,
     *,
@@ -319,26 +421,47 @@ def build_manifest(
     reference_source: str,
     output_dir: Path,
     params: dict[str, Any],
+    target_star_scales: dict[int, dict[str, Any]] | None = None,
+    star_scale_failures: dict[int, dict[str, Any]] | None = None,
 ) -> tuple[dict[str, Any], list[int]]:
+    target_star_scales = target_star_scales or {}
+    star_scale_failures = star_scale_failures or {}
+    photometric_model = str(params.get("photometric_model") or "local-linear")
     included = [frame for frame in sequence.frames if frame.included and has_usable_homography(frame)]
     skipped = [
         frame.index
         for frame in sequence.frames
         if not frame.included or not has_usable_homography(frame)
     ]
+    skipped.extend(sorted(star_scale_failures))
     reference = next(frame for frame in included if frame.index == reference_index)
     targets = []
     for frame in included:
         if frame.index == reference_index:
             continue
+        if frame.index in star_scale_failures:
+            continue
+        target_entry = {
+            "sequence_index": frame.index,
+            "work_sequence_file": str(frame.path),
+            "corrected_sequence_file": str(output_path_for(output_dir, frame.path)),
+            "target_to_reference_homography": target_to_reference_homography(sequence, reference, frame),
+            "siril_homography": frame.siril_homography,
+        }
+        if photometric_model == "star-scale-additive":
+            scale_report = target_star_scales.get(frame.index)
+            if not scale_report or not scale_report.get("ok"):
+                skipped.append(frame.index)
+                continue
+            target_entry.update(
+                {
+                    "global_scale": scale_report["target_to_reference_scale"],
+                    "global_scale_source": "matched-star-flux",
+                    "star_scale_diagnostics": scale_report,
+                }
+            )
         targets.append(
-            {
-                "sequence_index": frame.index,
-                "work_sequence_file": str(frame.path),
-                "corrected_sequence_file": str(output_path_for(output_dir, frame.path)),
-                "target_to_reference_homography": target_to_reference_homography(sequence, reference, frame),
-                "siril_homography": frame.siril_homography,
-            }
+            target_entry
         )
 
     summary_path = output_dir / "lnc_group_summary.json"
@@ -354,9 +477,10 @@ def build_manifest(
             "reference_source": reference_source,
         },
         "targets": targets,
+        "star_scale_failures": [star_scale_failures[index] for index in sorted(star_scale_failures)],
         "output_summary": str(summary_path),
     }
-    return manifest, skipped
+    return manifest, sorted(set(skipped))
 
 
 def validate_lnc_science_headers(manifest: dict[str, Any]) -> dict[str, Any]:
@@ -407,6 +531,8 @@ def run_group_sequence_lnc(
     lnc_workers: int | None = None,
     reference_index: int | None = None,
     diagnostics: bool = False,
+    photometric_model: str = "local-linear",
+    findstar_mode: str = "auto",
     background_estimator: str = "trimmed-median",
     scale_min: float = 0.5,
     scale_max: float = 2.0,
@@ -421,11 +547,18 @@ def run_group_sequence_lnc(
     min_patches: int = 8,
     sample_min_valid: float = 0.60,
     sample_reject_k: float = 2.5,
+    star_scale_match_radius: float = 2.0,
+    star_scale_min_stars: int = 20,
+    star_scale_min_r2: float = 0.90,
+    star_scale_clip_sigma: float = 2.5,
+    star_scale_saturation_threshold: float | None = 65535.0,
     timeout: float = 600.0,
 ) -> dict[str, Any]:
     started = time.perf_counter()
     if background_estimator not in {"trimmed-mean", "trimmed-median", "sample-median"}:
         raise ValueError(f"Unsupported background estimator: {background_estimator}")
+    if photometric_model not in PHOTOMETRIC_MODELS:
+        raise ValueError(f"Unsupported photometric model: {photometric_model}")
     lnc_workers = lnc_workers or default_lnc_workers(lnc_threads)
     sequence_dir = sequence_dir.expanduser().resolve()
     output_dir = (output_dir or sequence_dir).expanduser().resolve()
@@ -442,6 +575,7 @@ def run_group_sequence_lnc(
     LOGGER.info("LNC threads: %s", lnc_threads)
     LOGGER.info("LNC workers: %s", lnc_workers)
     LOGGER.info("Background estimator: %s", background_estimator)
+    LOGGER.info("Photometric model: %s", photometric_model)
 
     LOGGER.info("Parsing sequence")
     initial_sequence = parse_sequence(sequence_dir, sequence_name)
@@ -473,13 +607,45 @@ def run_group_sequence_lnc(
         min_patches=min_patches,
         sample_min_valid=sample_min_valid,
         sample_reject_k=sample_reject_k,
+        photometric_model=photometric_model,
     )
+    star_scale_reports: dict[int, dict[str, Any]] = {}
+    star_scale_failures: dict[int, dict[str, Any]] = {}
+    findstar_reports: dict[str, Any] = {}
+    if photometric_model == "star-scale-additive":
+        threshold = star_scale_saturation_threshold
+        if threshold is not None and threshold < 0:
+            threshold = None
+        star_scale_options = StarScaleOptions(
+            match_radius=star_scale_match_radius,
+            saturation_threshold=threshold,
+            clip_sigma=star_scale_clip_sigma,
+            min_fit_stars=star_scale_min_stars,
+            min_r_squared=star_scale_min_r2,
+        )
+        LOGGER.info("Estimating matched-star scales for group targets")
+        star_scale_reports, star_scale_failures, findstar_reports = estimate_group_star_scales(
+            sequence,
+            reference_index=reference_index,
+            output_dir=output_dir,
+            siril_path=resolved_siril_path,
+            timeout=timeout,
+            findstar_mode=findstar_mode,
+            options=star_scale_options,
+        )
+        LOGGER.info(
+            "Star-scale target support: %s success, %s failed",
+            len(star_scale_reports),
+            len(star_scale_failures),
+        )
     manifest, skipped = build_manifest(
         sequence,
         reference_index=reference_index,
         reference_source=reference_source,
         output_dir=output_dir,
         params=lnc_params(params_args),
+        target_star_scales=star_scale_reports,
+        star_scale_failures=star_scale_failures,
     )
 
     manifest_path = output_dir / "lnc_group_manifest.json"
@@ -515,6 +681,10 @@ def run_group_sequence_lnc(
         "lnc_threads": lnc_threads,
         "lnc_workers": lnc_workers,
         "output_format": "float32-raw",
+        "photometric_model": photometric_model,
+        "star_scale_reports": star_scale_reports,
+        "star_scale_failures": star_scale_failures,
+        "findstar_reports": findstar_reports,
         "header_validation": header_validation,
         "elapsed_seconds": time.perf_counter() - started,
     }
@@ -545,6 +715,8 @@ def main() -> int:
         lnc_workers=args.lnc_workers,
         reference_index=args.reference_index,
         diagnostics=args.diagnostics,
+        photometric_model=args.photometric_model,
+        findstar_mode=args.findstar_mode,
         background_estimator=args.background_estimator,
         scale_min=args.scale_min,
         scale_max=args.scale_max,
@@ -559,6 +731,11 @@ def main() -> int:
         min_patches=args.min_patches,
         sample_min_valid=args.sample_min_valid,
         sample_reject_k=args.sample_reject_k,
+        star_scale_match_radius=args.star_scale_match_radius,
+        star_scale_min_stars=args.star_scale_min_stars,
+        star_scale_min_r2=args.star_scale_min_r2,
+        star_scale_clip_sigma=args.star_scale_clip_sigma,
+        star_scale_saturation_threshold=args.star_scale_saturation_threshold,
         timeout=args.timeout,
     )
     return 0

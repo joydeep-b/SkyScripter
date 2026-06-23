@@ -23,6 +23,7 @@ from html import escape
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 from astropy.io import fits
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -43,6 +44,7 @@ DEFAULT_FULL_MEASUREMENTS = Path(
 )
 LNC_WRAPPER = REPO_ROOT / "processing" / "lnc" / "scripts" / "lnc_unregistered_pair.py"
 SATELLITE_TRAIL_GROUPS = frozenset({"Max_Kuster__Redcat__L", "jdh_astro__default__L"})
+PHOTOMETRIC_MODELS = ("local-linear", "star-scale-additive")
 
 
 def parse_args() -> argparse.Namespace:
@@ -66,7 +68,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--skip-lnc", action="store_true", help="Only rebuild previews/PDF from existing outputs.")
     parser.add_argument("--skip-previews", action="store_true")
     parser.add_argument("--skip-pdf", action="store_true")
+    parser.add_argument("--skip-html", action="store_true")
     parser.add_argument("--siril-path", type=Path, default=None)
+    parser.add_argument(
+        "--photometric-models",
+        nargs="+",
+        choices=PHOTOMETRIC_MODELS,
+        default=list(PHOTOMETRIC_MODELS),
+        help="LNC photometric models to run. Default: local-linear and star-scale-additive.",
+    )
     parser.add_argument(
         "--omp-threads",
         type=int,
@@ -151,6 +161,52 @@ def image_shape(path: Path) -> tuple[int | None, int | None]:
         return None, None
 
 
+def background_flatness_metrics(path: Path, *, tiles: int = 8) -> dict[str, float | None]:
+    if not path.exists():
+        return {}
+    try:
+        with fits.open(path, memmap=True) as hdul:
+            data = np.asarray(hdul[0].data, dtype=np.float32)
+        if data.ndim != 2:
+            return {}
+        height, width = data.shape
+        medians: list[float] = []
+        for gy in range(tiles):
+            y0 = round(gy * height / tiles)
+            y1 = round((gy + 1) * height / tiles)
+            for gx in range(tiles):
+                x0 = round(gx * width / tiles)
+                x1 = round((gx + 1) * width / tiles)
+                tile = data[y0:y1, x0:x1]
+                finite = tile[np.isfinite(tile)]
+                if finite.size:
+                    medians.append(float(np.median(finite)))
+        if not medians:
+            return {}
+        values = np.asarray(medians, dtype=np.float64)
+        median = float(np.median(values))
+        p05 = float(np.percentile(values, 5))
+        p95 = float(np.percentile(values, 95))
+        mad = float(np.median(np.abs(values - median)))
+        return {
+            "background_tile_median": median,
+            "background_tile_p05": p05,
+            "background_tile_p95": p95,
+            "background_tile_p95_p05": p95 - p05,
+            "background_tile_mad": mad,
+        }
+    except Exception:
+        return {}
+
+
+def ratio_or_none(numerator: object, denominator: object) -> float | None:
+    n = finite_float(numerator)
+    d = finite_float(denominator)
+    if n is None or d is None or d == 0:
+        return None
+    return n / d
+
+
 def host_context(workers: int, siril_path: str | None) -> dict[str, Any]:
     memory_total_gb = None
     try:
@@ -196,6 +252,7 @@ def ensure_lnc_binary() -> None:
 class PairJob:
     row: dict[str, str]
     pair_id: str
+    photometric_model: str
     group_dir: str
     output_dir: Path
     corrected_path: Path
@@ -203,13 +260,14 @@ class PairJob:
     log_path: Path
 
     @classmethod
-    def from_row(cls, dataset_root: Path, row: dict[str, str]) -> PairJob:
+    def from_row(cls, dataset_root: Path, row: dict[str, str], photometric_model: str) -> PairJob:
         group_dir = row["group_dir"]
         pair_key = pair_id_from_row(row)
-        output_dir = dataset_root / "subs" / group_dir / "lnc_outputs" / pair_key
+        output_dir = dataset_root / "subs" / group_dir / "lnc_outputs" / photometric_model / pair_key
         return cls(
             row=row,
             pair_id=pair_key,
+            photometric_model=photometric_model,
             group_dir=group_dir,
             output_dir=output_dir,
             corrected_path=output_dir / "corrected.fit",
@@ -274,6 +332,8 @@ def run_lnc_pair(
         "--save-intermediate-fits",
         "--output-format",
         "float32",
+        "--photometric-model",
+        job.photometric_model,
     ]
     if siril_path is not None:
         command.extend(["--siril-path", str(siril_path)])
@@ -343,17 +403,25 @@ def summarize_existing_pair(job: PairJob, *, status: str) -> dict[str, Any]:
     ref_path = Path(job.row["reference_file"])
     tgt_path = Path(job.row["target_file"])
     width, height = image_shape(tgt_path)
+    ref_flatness = background_flatness_metrics(ref_path)
+    target_flatness = background_flatness_metrics(tgt_path)
+    corrected_flatness = background_flatness_metrics(job.corrected_path)
     wrapper = read_json(job.diag_dir / "wrapper_report.json")
     core = read_json(job.diag_dir / "local_normalize_unregistered_report.json")
     transform = wrapper.get("transform_report", {})
     validation = transform.get("validation", {}) if isinstance(transform, dict) else {}
     ref_mask = wrapper.get("reference_mask", {})
     tgt_mask = wrapper.get("target_mask", {})
+    parameters = wrapper.get("parameters", {}) if isinstance(wrapper.get("parameters"), dict) else {}
+    star_scale = wrapper.get("star_scale_report") or parameters.get("star_scale_report")
+    if not isinstance(star_scale, dict):
+        star_scale = {}
     timings = wrapper.get("timings_seconds", {}) if isinstance(wrapper.get("timings_seconds"), dict) else {}
     wall_seconds = finite_float(timings.get("Total wall time"))
 
     return {
         "pair_id": job.pair_id,
+        "photometric_model": job.photometric_model,
         "group_dir": job.group_dir,
         "user": job.row.get("user", ""),
         "equipment": job.row.get("equipment", ""),
@@ -382,8 +450,25 @@ def summarize_existing_pair(job: PairJob, *, status: str) -> dict[str, Any]:
         "initial_valid_fraction": finite_float(core.get("initial_valid_fraction")),
         "scale_min": finite_float(core.get("scale_min")),
         "scale_max": finite_float(core.get("scale_max")),
+        "global_scale": finite_float(core.get("global_scale") or parameters.get("global_scale")),
+        "star_scale_used_stars": star_scale.get("used_stars"),
+        "star_scale_r_squared": finite_float((star_scale.get("robust_fit") or {}).get("r_squared"))
+        if isinstance(star_scale.get("robust_fit"), dict)
+        else finite_float(star_scale.get("r_squared")),
         "offset_min": finite_float(core.get("offset_min")),
         "offset_max": finite_float(core.get("offset_max")),
+        "reference_background_range": ref_flatness.get("background_tile_p95_p05"),
+        "target_original_background_range": target_flatness.get("background_tile_p95_p05"),
+        "corrected_background_range": corrected_flatness.get("background_tile_p95_p05"),
+        "corrected_background_mad": corrected_flatness.get("background_tile_mad"),
+        "corrected_to_target_background_range_ratio": ratio_or_none(
+            corrected_flatness.get("background_tile_p95_p05"),
+            target_flatness.get("background_tile_p95_p05"),
+        ),
+        "corrected_to_reference_background_range_ratio": ratio_or_none(
+            corrected_flatness.get("background_tile_p95_p05"),
+            ref_flatness.get("background_tile_p95_p05"),
+        ),
         "value_scale": (wrapper.get("value_scale") or {}).get("scale")
         if isinstance(wrapper.get("value_scale"), dict)
         else wrapper.get("parameters", {}).get("value_scale")
@@ -428,10 +513,11 @@ def render_pair_previews(
 ) -> dict[str, str]:
     review_dir = dataset_root / "review_jpegs" / job.group_dir
     outputs: dict[str, str] = {}
+    model_label = "target_ssa_lnc" if job.photometric_model == "star-scale-additive" else "target_local_linear_lnc"
     mapping = {
         "reference": Path(job.row["reference_file"]),
         "target_original": Path(job.row["target_file"]),
-        "target_lnc": job.corrected_path,
+        model_label: job.corrected_path,
     }
     for label, fits_path in mapping.items():
         if not fits_path.exists():
@@ -447,7 +533,12 @@ def cleanup_review_jpegs(dataset_root: Path) -> None:
     review_root = dataset_root / "review_jpegs"
     if not review_root.exists():
         return
-    allowed_suffixes = ("__reference.jpg", "__target_original.jpg", "__target_lnc.jpg")
+    allowed_suffixes = (
+        "__reference.jpg",
+        "__target_original.jpg",
+        "__target_local_linear_lnc.jpg",
+        "__target_ssa_lnc.jpg",
+    )
     for path in review_root.rglob("*.jpg"):
         if not path.name.endswith(allowed_suffixes):
             path.unlink()
@@ -606,6 +697,55 @@ def build_orchestration_recommendation(
             ],
         },
     }
+
+
+def build_ab_comparisons(summaries: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    grouped: dict[tuple[str, str], dict[str, dict[str, Any]]] = defaultdict(dict)
+    for row in summaries:
+        key = (str(row.get("group_dir", "")), str(row.get("pair_id", "")))
+        grouped[key][str(row.get("photometric_model", "local-linear"))] = row
+
+    comparisons: list[dict[str, Any]] = []
+    for (group_dir, pair_id), by_model in sorted(grouped.items()):
+        local = by_model.get("local-linear", {})
+        ssa = by_model.get("star-scale-additive", {})
+        comparisons.append(
+            {
+                "pair_id": pair_id,
+                "group_dir": group_dir,
+                "user": (local or ssa).get("user", ""),
+                "equipment": (local or ssa).get("equipment", ""),
+                "filter": (local or ssa).get("filter", ""),
+                "reference_roles": (local or ssa).get("reference_roles", ""),
+                "target_roles": (local or ssa).get("target_roles", ""),
+                "local_linear_status": local.get("status"),
+                "ssa_lnc_status": ssa.get("status"),
+                "local_linear_valid_fraction": local.get("initial_valid_fraction"),
+                "ssa_lnc_valid_fraction": ssa.get("initial_valid_fraction"),
+                "local_linear_scale_min": local.get("scale_min"),
+                "local_linear_scale_max": local.get("scale_max"),
+                "ssa_lnc_scale_min": ssa.get("scale_min"),
+                "ssa_lnc_scale_max": ssa.get("scale_max"),
+                "ssa_lnc_global_scale": ssa.get("global_scale"),
+                "ssa_lnc_used_stars": ssa.get("star_scale_used_stars"),
+                "ssa_lnc_scale_r_squared": ssa.get("star_scale_r_squared"),
+                "reference_background_range": (local or ssa).get("reference_background_range"),
+                "target_original_background_range": (local or ssa).get("target_original_background_range"),
+                "local_linear_corrected_background_range": local.get("corrected_background_range"),
+                "ssa_lnc_corrected_background_range": ssa.get("corrected_background_range"),
+                "local_linear_background_range_ratio": local.get("corrected_to_target_background_range_ratio"),
+                "ssa_lnc_background_range_ratio": ssa.get("corrected_to_target_background_range_ratio"),
+                "local_linear_wall_seconds": local.get("wall_seconds"),
+                "ssa_lnc_wall_seconds": ssa.get("wall_seconds"),
+                "local_linear_corrected_file": local.get("corrected_file"),
+                "ssa_lnc_corrected_file": ssa.get("corrected_file"),
+                "local_linear_output_dir": local.get("output_dir"),
+                "ssa_lnc_output_dir": ssa.get("output_dir"),
+                "local_linear_error": local.get("error"),
+                "ssa_lnc_error": ssa.get("error"),
+            }
+        )
+    return comparisons
 
 
 def sized_image(path: Path, max_width: float) -> Image | Paragraph:
@@ -790,22 +930,42 @@ def build_pdf(
             if ref_images:
                 story.append(Table([ref_images], colWidths=[2.25 * inch] * len(ref_images)))
 
-        for summary in sorted(group_rows, key=lambda row: str(row.get("pair_id", ""))):
-            previews_map = summary.get("preview_paths", {})
+        by_pair: dict[str, dict[str, dict[str, Any]]] = defaultdict(dict)
+        for summary in group_rows:
+            by_pair[str(summary.get("pair_id", ""))][str(summary.get("photometric_model", "local-linear"))] = summary
+
+        for pair_id in sorted(by_pair):
+            model_rows = by_pair[pair_id]
+            local = model_rows.get("local-linear", {})
+            ssa = model_rows.get("star-scale-additive", {})
+            summary = local or ssa
+            previews_map: dict[str, str] = {}
+            for row in (local, ssa):
+                if isinstance(row.get("preview_paths"), dict):
+                    previews_map.update(row["preview_paths"])
             story.append(
                 Paragraph(
                     f"Reference: {escape(role_label(summary.get('reference_roles')))} | "
                     f"Target: {escape(role_label(summary.get('target_roles')))} | "
-                    f"Status: {escape(str(summary.get('status', '')))}",
+                    f"Local-linear: {escape(str(local.get('status', 'missing')))} | "
+                    f"SSA-LNC: {escape(str(ssa.get('status', 'missing')))}",
                     styles["Heading2"],
                 )
             )
             diag_lines = [
-                f"registration {fmt_num(summary.get('transform_median_residual_px'))} px",
-                f"valid grid {fmt_pct(summary.get('initial_valid_fraction'))}",
+                f"registration local {fmt_num(local.get('transform_median_residual_px'))} px / "
+                f"SSA {fmt_num(ssa.get('transform_median_residual_px'))} px",
+                f"valid grid local {fmt_pct(local.get('initial_valid_fraction'))} / "
+                f"SSA {fmt_pct(ssa.get('initial_valid_fraction'))}",
                 f"target score {fmt_num(summary.get('target_score'))}",
-                f"runtime {fmt_num(summary.get('wall_seconds'), 2, ' s')}",
-                f"CPU eff {fmt_num(summary.get('cpu_efficiency'), 2)}",
+                f"bg range target {fmt_num(summary.get('target_original_background_range'))}, "
+                f"local {fmt_num(local.get('corrected_background_range'))}, "
+                f"SSA {fmt_num(ssa.get('corrected_background_range'))}",
+                f"scale local {fmt_num(local.get('scale_min'))}-{fmt_num(local.get('scale_max'))}, "
+                f"SSA {fmt_num(ssa.get('scale_min'))}-{fmt_num(ssa.get('scale_max'))}",
+                f"SSA star scale {fmt_num(ssa.get('global_scale'))}, "
+                f"stars {fmt_num(ssa.get('star_scale_used_stars'))}, "
+                f"R2 {fmt_num(ssa.get('star_scale_r_squared'))}",
             ]
             story.append(Paragraph(", ".join(diag_lines), styles["Normal"]))
             story.append(
@@ -818,17 +978,26 @@ def build_pdf(
             if summary.get("error"):
                 story.append(Paragraph(escape(str(summary["error"])[:500]), styles["Normal"]))
             images = [
-                sized_image(Path(previews_map["reference"]) if previews_map.get("reference") else Path(), 3.15 * inch),
+                sized_image(Path(previews_map["reference"]) if previews_map.get("reference") else Path(), 2.35 * inch),
                 sized_image(
                     Path(previews_map["target_original"]) if previews_map.get("target_original") else Path(),
-                    3.15 * inch,
+                    2.35 * inch,
                 ),
-                sized_image(Path(previews_map["target_lnc"]) if previews_map.get("target_lnc") else Path(), 3.15 * inch),
+                sized_image(
+                    Path(previews_map["target_local_linear_lnc"])
+                    if previews_map.get("target_local_linear_lnc")
+                    else Path(),
+                    2.35 * inch,
+                ),
+                sized_image(
+                    Path(previews_map["target_ssa_lnc"]) if previews_map.get("target_ssa_lnc") else Path(),
+                    2.35 * inch,
+                ),
             ]
             story.append(
                 Table(
-                    [["Reference", "Original target", "LNC corrected"], images],
-                    colWidths=[3.25 * inch, 3.25 * inch, 3.25 * inch],
+                    [["Reference", "Original target", "Old LNC", "SSA-LNC"], images],
+                    colWidths=[2.4 * inch, 2.4 * inch, 2.4 * inch, 2.4 * inch],
                     style=TableStyle(
                         [
                             ("ALIGN", (0, 0), (-1, -1), "CENTER"),
@@ -846,10 +1015,425 @@ def build_pdf(
     return pdf_path
 
 
+def rel_report_path(dataset_root: Path, path_text: object) -> str:
+    if not path_text:
+        return ""
+    try:
+        path = Path(str(path_text))
+        if not path.is_absolute():
+            return path.as_posix()
+        return os.path.relpath(path, dataset_root)
+    except Exception:
+        return str(path_text)
+
+
+def html_data_value(value: object) -> float | str | None:
+    number = finite_float(value)
+    if number is not None:
+        return number
+    if value is None:
+        return None
+    return str(value)
+
+
+def pair_link_set(dataset_root: Path, row: dict[str, Any]) -> dict[str, str]:
+    output_dir = Path(str(row.get("output_dir") or ""))
+    diag_dir = output_dir / "diag" if output_dir else Path()
+    return {
+        "corrected_fits": rel_report_path(dataset_root, row.get("corrected_file")),
+        "wrapper_report": rel_report_path(dataset_root, diag_dir / "wrapper_report.json"),
+        "core_report": rel_report_path(dataset_root, diag_dir / "local_normalize_unregistered_report.json"),
+        "scale_map": rel_report_path(dataset_root, diag_dir / "scale_map.fits"),
+        "offset_map": rel_report_path(dataset_root, diag_dir / "offset_map.fits"),
+        "run_log": rel_report_path(dataset_root, row.get("log_path")),
+    }
+
+
+def html_summary_stats(ab_rows: list[dict[str, Any]]) -> dict[str, Any]:
+    complete = [
+        row
+        for row in ab_rows
+        if row.get("local_linear_status") == "success" and row.get("ssa_lnc_status") == "success"
+    ]
+    failed = [row for row in ab_rows if row not in complete]
+
+    def values(key: str) -> list[float]:
+        return [float(v) for row in complete if (v := finite_float(row.get(key))) is not None]
+
+    def median(key: str) -> float | None:
+        vals = sorted(values(key))
+        if not vals:
+            return None
+        mid = len(vals) // 2
+        return vals[mid] if len(vals) % 2 else 0.5 * (vals[mid - 1] + vals[mid])
+
+    ssa_better = sum(
+        1
+        for row in complete
+        if finite_float(row.get("ssa_lnc_corrected_background_range")) is not None
+        and finite_float(row.get("local_linear_corrected_background_range")) is not None
+        and float(row["ssa_lnc_corrected_background_range"]) < float(row["local_linear_corrected_background_range"])
+    )
+    local_better = sum(
+        1
+        for row in complete
+        if finite_float(row.get("ssa_lnc_corrected_background_range")) is not None
+        and finite_float(row.get("local_linear_corrected_background_range")) is not None
+        and float(row["local_linear_corrected_background_range"]) < float(row["ssa_lnc_corrected_background_range"])
+    )
+    return {
+        "total_pairs": len(ab_rows),
+        "complete_pairs": len(complete),
+        "failed_pairs": len(failed),
+        "ssa_better_flatness_pairs": ssa_better,
+        "local_better_flatness_pairs": local_better,
+        "median_target_bg_range": median("target_original_background_range"),
+        "median_local_bg_range": median("local_linear_corrected_background_range"),
+        "median_ssa_bg_range": median("ssa_lnc_corrected_background_range"),
+        "median_local_bg_ratio": median("local_linear_background_range_ratio"),
+        "median_ssa_bg_ratio": median("ssa_lnc_background_range_ratio"),
+        "median_ssa_r2": median("ssa_lnc_scale_r_squared"),
+        "median_ssa_used_stars": median("ssa_lnc_used_stars"),
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+def build_interactive_html_report(
+    *,
+    dataset_root: Path,
+    summaries: list[dict[str, Any]],
+    ab_comparisons: list[dict[str, Any]],
+    host: dict[str, Any],
+) -> Path:
+    by_pair: dict[tuple[str, str], dict[str, dict[str, Any]]] = defaultdict(dict)
+    for row in summaries:
+        key = (str(row.get("group_dir", "")), str(row.get("pair_id", "")))
+        by_pair[key][str(row.get("photometric_model", "local-linear"))] = row
+
+    ab_by_key = {(str(row.get("group_dir", "")), str(row.get("pair_id", ""))): row for row in ab_comparisons}
+    pairs: list[dict[str, Any]] = []
+    for key, ab_row in sorted(ab_by_key.items()):
+        model_rows = by_pair.get(key, {})
+        local = model_rows.get("local-linear", {})
+        ssa = model_rows.get("star-scale-additive", {})
+        preview_paths: dict[str, str] = {}
+        for row in (local, ssa):
+            if isinstance(row.get("preview_paths"), dict):
+                preview_paths.update({k: rel_report_path(dataset_root, v) for k, v in row["preview_paths"].items()})
+        local_bg = finite_float(ab_row.get("local_linear_corrected_background_range"))
+        ssa_bg = finite_float(ab_row.get("ssa_lnc_corrected_background_range"))
+        if local.get("status") != "success" or ssa.get("status") != "success":
+            status = "failed"
+        elif local_bg is not None and ssa_bg is not None and ssa_bg < local_bg:
+            status = "ssa_better"
+        elif local_bg is not None and ssa_bg is not None and local_bg < ssa_bg:
+            status = "local_better"
+        else:
+            status = "complete"
+        pairs.append(
+            {
+                "pair_id": ab_row.get("pair_id"),
+                "group_dir": ab_row.get("group_dir"),
+                "user": ab_row.get("user"),
+                "equipment": ab_row.get("equipment"),
+                "filter": ab_row.get("filter"),
+                "reference_roles": ab_row.get("reference_roles"),
+                "target_roles": ab_row.get("target_roles"),
+                "status": status,
+                "search_text": " ".join(
+                    str(ab_row.get(key_name) or "")
+                    for key_name in ("pair_id", "group_dir", "user", "equipment", "filter", "reference_roles", "target_roles")
+                ).lower(),
+                "reference_file": rel_report_path(dataset_root, local.get("reference_file") or ssa.get("reference_file")),
+                "target_file": rel_report_path(dataset_root, local.get("target_file") or ssa.get("target_file")),
+                "images": {
+                    "reference": preview_paths.get("reference", ""),
+                    "target_original": preview_paths.get("target_original", ""),
+                    "local_linear": preview_paths.get("target_local_linear_lnc", ""),
+                    "ssa_lnc": preview_paths.get("target_ssa_lnc", ""),
+                },
+                "metrics": {key_name: html_data_value(value) for key_name, value in ab_row.items()},
+                "local": {
+                    "links": pair_link_set(dataset_root, local),
+                    "residual_px": html_data_value(local.get("transform_median_residual_px")),
+                    "valid_fraction": html_data_value(local.get("initial_valid_fraction")),
+                    "runtime_seconds": html_data_value(local.get("wall_seconds")),
+                    "error": local.get("error"),
+                },
+                "ssa": {
+                    "links": pair_link_set(dataset_root, ssa),
+                    "residual_px": html_data_value(ssa.get("transform_median_residual_px")),
+                    "valid_fraction": html_data_value(ssa.get("initial_valid_fraction")),
+                    "runtime_seconds": html_data_value(ssa.get("wall_seconds")),
+                    "error": ssa.get("error"),
+                },
+            }
+        )
+
+    report_data = {
+        "summary": html_summary_stats(ab_comparisons),
+        "host": host,
+        "pairs": pairs,
+        "groups": sorted({str(pair["group_dir"]) for pair in pairs if pair.get("group_dir")}),
+    }
+    data_json = json.dumps(report_data, separators=(",", ":"), sort_keys=True).replace("</", "<\\/")
+    html_path = dataset_root / "lnc_ab_comparison_report.html"
+    html = f"""<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LNC A/B Interactive Report</title>
+<style>
+:root {{
+  --bg:#f7f7f5; --panel:#ffffff; --ink:#1f2328; --muted:#60656f; --line:#d7d9dd;
+  --soft:#eef0f3; --good:#1f7a3f; --warn:#9a6700; --bad:#b42318; --accent:#1f5fbf;
+}}
+* {{ box-sizing:border-box; }}
+body {{ margin:0; font-family:Arial,Helvetica,sans-serif; background:var(--bg); color:var(--ink); }}
+a {{ color:var(--accent); text-decoration:none; }}
+a:hover {{ text-decoration:underline; }}
+header {{ position:sticky; top:0; z-index:5; background:var(--panel); border-bottom:1px solid var(--line); padding:14px 18px; }}
+h1 {{ margin:0 0 4px; font-size:22px; }}
+h2 {{ margin:22px 0 10px; }}
+.subtle {{ color:var(--muted); font-size:13px; }}
+.layout {{ display:grid; grid-template-columns:250px minmax(0,1fr); gap:18px; padding:18px; }}
+.sidebar {{ position:sticky; top:138px; align-self:start; max-height:calc(100vh - 156px); overflow:auto; background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:12px; }}
+.group-link {{ display:block; width:100%; border:0; background:transparent; text-align:left; padding:6px 8px; border-radius:6px; color:var(--ink); cursor:pointer; font-size:13px; }}
+.group-link:hover {{ background:var(--soft); }}
+.stats {{ display:grid; grid-template-columns:repeat(7,minmax(110px,1fr)); gap:10px; margin-top:12px; }}
+.stat {{ background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:9px 11px; }}
+.stat b {{ display:block; font-size:20px; margin-bottom:2px; }}
+.controls {{ display:grid; grid-template-columns:2fr repeat(4, minmax(150px,1fr)); gap:10px; margin-top:12px; }}
+input,select {{ width:100%; border:1px solid var(--line); border-radius:7px; background:#fff; padding:8px; color:var(--ink); }}
+.results-meta {{ margin:0 0 12px; color:var(--muted); font-size:13px; }}
+.pair {{ background:var(--panel); border:1px solid var(--line); border-left:6px solid var(--line); border-radius:10px; padding:14px; margin:0 0 16px; }}
+.pair.ssa_better {{ border-left-color:var(--good); }}
+.pair.local_better {{ border-left-color:var(--warn); }}
+.pair.failed {{ border-left-color:var(--bad); }}
+.pair-head {{ display:flex; gap:12px; justify-content:space-between; align-items:flex-start; }}
+.pair h3 {{ margin:0 0 6px; font-size:17px; }}
+.badge-row {{ display:flex; flex-wrap:wrap; gap:7px; margin:10px 0; }}
+.badge {{ display:inline-block; background:var(--soft); border-radius:999px; padding:4px 8px; font-size:12px; color:#30343a; }}
+.badge.good {{ color:var(--good); }}
+.badge.warn {{ color:var(--warn); }}
+.badge.bad {{ color:var(--bad); }}
+.images {{ display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin-top:10px; }}
+.image-panel {{ min-width:0; }}
+.image-title {{ font-weight:bold; font-size:12px; margin:0 0 5px; color:#30343a; }}
+.image-panel img {{ width:100%; height:auto; border:1px solid var(--line); background:white; cursor:zoom-in; display:block; }}
+.missing {{ border:1px dashed var(--line); min-height:120px; display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:13px; }}
+.links {{ display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; font-size:12px; }}
+.error {{ margin-top:8px; background:#fff2f0; border:1px solid #f0b8b0; color:#7a1d14; border-radius:7px; padding:8px; font-size:12px; white-space:pre-wrap; }}
+.lightbox {{ position:fixed; inset:0; display:none; z-index:20; background:rgba(0,0,0,.82); padding:28px; }}
+.lightbox.open {{ display:flex; flex-direction:column; align-items:center; justify-content:center; }}
+.lightbox img {{ max-width:96vw; max-height:88vh; border:1px solid #555; background:white; }}
+.lightbox button {{ margin-top:10px; padding:8px 12px; border-radius:7px; border:1px solid #ccc; cursor:pointer; }}
+@media (max-width:1100px) {{
+  .layout {{ grid-template-columns:1fr; }}
+  .sidebar {{ position:static; max-height:none; }}
+  .stats {{ grid-template-columns:repeat(2,minmax(0,1fr)); }}
+  .controls {{ grid-template-columns:1fr 1fr; }}
+  .images {{ grid-template-columns:repeat(2,minmax(0,1fr)); }}
+}}
+</style>
+</head>
+<body>
+<header>
+  <h1>LNC A/B Interactive Report</h1>
+  <div class="subtle">Old local-linear LNC vs StarScale Additive LNC. Generated from <code>lnc_pairs_full.csv</code>.</div>
+  <div id="stats" class="stats"></div>
+  <div class="controls">
+    <input id="search" placeholder="Search user, group, filter, role, pair id">
+    <select id="statusFilter">
+      <option value="all">All statuses</option>
+      <option value="complete">Both succeeded</option>
+      <option value="ssa_better">SSA flatter</option>
+      <option value="local_better">Old LNC flatter</option>
+      <option value="failed">Registration failed</option>
+    </select>
+    <select id="groupFilter"><option value="all">All groups</option></select>
+    <select id="sortBy">
+      <option value="pair_id">Sort by pair id</option>
+      <option value="ssa_advantage">Sort by SSA flatness advantage</option>
+      <option value="ssa_r2">Sort by SSA R²</option>
+      <option value="ssa_stars">Sort by SSA stars used</option>
+      <option value="registration">Sort by registration residual</option>
+      <option value="runtime">Sort by runtime</option>
+    </select>
+    <select id="density">
+      <option value="full">Full cards</option>
+      <option value="compact">Compact metrics</option>
+    </select>
+  </div>
+</header>
+<div class="layout">
+  <aside class="sidebar">
+    <b>Groups</b>
+    <div id="groupLinks"></div>
+    <h2>Artifacts</h2>
+    <div class="links">
+      <a href="lnc_test_report.pdf">PDF report</a>
+      <a href="lnc_ab_comparison_summary.csv">A/B CSV</a>
+      <a href="lnc_runtime_summary.csv">Runtime CSV</a>
+      <a href="lnc_ab_comparison_summary.json">A/B JSON</a>
+    </div>
+  </aside>
+  <main>
+    <div id="resultsMeta" class="results-meta"></div>
+    <div id="pairs"></div>
+  </main>
+</div>
+<div id="lightbox" class="lightbox"><img id="lightboxImg" alt=""><button id="closeLightbox">Close</button></div>
+<script id="report-data" type="application/json">{data_json}</script>
+<script>
+const data = JSON.parse(document.getElementById('report-data').textContent);
+const state = {{ search:'', status:'all', group:'all', sortBy:'pair_id', density:'full' }};
+const fmt = new Intl.NumberFormat(undefined, {{ maximumSignificantDigits: 4 }});
+const pct = v => Number.isFinite(v) ? (100*v).toFixed(1)+'%' : 'n/a';
+const num = v => Number.isFinite(v) ? fmt.format(v) : 'n/a';
+const role = s => String(s || '').replaceAll('_',' ');
+function metric(pair, key) {{
+  const value = pair.metrics[key];
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}}
+function labelForStatus(status) {{
+  if (status === 'ssa_better') return 'SSA flatter';
+  if (status === 'local_better') return 'Old LNC flatter';
+  if (status === 'failed') return 'Registration failed';
+  return 'Both succeeded';
+}}
+function linkList(title, links) {{
+  const entries = Object.entries(links || {{}}).filter(([,v]) => v);
+  if (!entries.length) return '';
+  return '<span class="badge">'+title+'</span>' + entries.map(([k,v]) => `<a href="${{v}}">${{k.replaceAll('_',' ')}}</a>`).join('');
+}}
+function imagePanel(title, src) {{
+  if (!src) return `<div class="image-panel"><div class="image-title">${{title}}</div><div class="missing">missing preview</div></div>`;
+  return `<div class="image-panel"><div class="image-title">${{title}}</div><img loading="lazy" src="${{src}}" alt="${{title}}" data-full="${{src}}"></div>`;
+}}
+function pairSortValue(pair) {{
+  if (state.sortBy === 'ssa_advantage') return (metric(pair,'local_linear_corrected_background_range') ?? 0) - (metric(pair,'ssa_lnc_corrected_background_range') ?? 0);
+  if (state.sortBy === 'ssa_r2') return metric(pair,'ssa_lnc_scale_r_squared') ?? -Infinity;
+  if (state.sortBy === 'ssa_stars') return metric(pair,'ssa_lnc_used_stars') ?? -Infinity;
+  if (state.sortBy === 'registration') return Math.max(pair.local.residual_px ?? Infinity, pair.ssa.residual_px ?? Infinity);
+  if (state.sortBy === 'runtime') return Math.max(pair.local.runtime_seconds ?? -Infinity, pair.ssa.runtime_seconds ?? -Infinity);
+  return pair.pair_id || '';
+}}
+function filteredPairs() {{
+  let rows = data.pairs.filter(pair => {{
+    if (state.status !== 'all') {{
+      if (state.status === 'complete' && pair.status === 'failed') return false;
+      if (state.status !== 'complete' && pair.status !== state.status) return false;
+    }}
+    if (state.group !== 'all' && pair.group_dir !== state.group) return false;
+    if (state.search && !pair.search_text.includes(state.search.toLowerCase())) return false;
+    return true;
+  }});
+  rows.sort((a,b) => {{
+    const av = pairSortValue(a), bv = pairSortValue(b);
+    if (typeof av === 'string') return av.localeCompare(String(bv));
+    if (state.sortBy === 'registration') return av - bv;
+    return bv - av;
+  }});
+  return rows;
+}}
+function renderStats() {{
+  const s = data.summary;
+  const stats = [
+    [s.total_pairs, 'Pairs'],
+    [s.complete_pairs, 'Both succeeded'],
+    [s.failed_pairs, 'Registration failures'],
+    [s.ssa_better_flatness_pairs, 'SSA flatter'],
+    [s.local_better_flatness_pairs, 'Old LNC flatter'],
+    [num(s.median_ssa_r2), 'Median SSA R²'],
+    [num(s.median_ssa_used_stars), 'Median SSA stars'],
+  ];
+  document.getElementById('stats').innerHTML = stats.map(([v,l]) => `<div class="stat"><b>${{v}}</b>${{l}}</div>`).join('');
+}}
+function renderControls() {{
+  const groupSelect = document.getElementById('groupFilter');
+  groupSelect.innerHTML = '<option value="all">All groups</option>' + data.groups.map(g => `<option value="${{g}}">${{g}}</option>`).join('');
+  document.getElementById('groupLinks').innerHTML = data.groups.map(g => `<button class="group-link" data-group="${{g}}">${{g}}</button>`).join('');
+}}
+function renderPairs() {{
+  const rows = filteredPairs();
+  document.getElementById('resultsMeta').textContent = `Showing ${{rows.length}} of ${{data.pairs.length}} pairs`;
+  document.getElementById('pairs').innerHTML = rows.map(pair => {{
+    const m = pair.metrics;
+    const compact = state.density === 'compact';
+    const badges = [
+      `<span class="badge ${{pair.status === 'failed' ? 'bad' : 'good'}}">${{labelForStatus(pair.status)}}</span>`,
+      `<span class="badge">Target bg ${{num(m.target_original_background_range)}}</span>`,
+      `<span class="badge">Old bg ${{num(m.local_linear_corrected_background_range)}} (${{pct(m.local_linear_background_range_ratio)}})</span>`,
+      `<span class="badge">SSA bg ${{num(m.ssa_lnc_corrected_background_range)}} (${{pct(m.ssa_lnc_background_range_ratio)}})</span>`,
+      `<span class="badge">Old grid ${{pct(m.local_linear_valid_fraction)}}</span>`,
+      `<span class="badge">SSA grid ${{pct(m.ssa_lnc_valid_fraction)}}</span>`,
+      `<span class="badge">SSA scale ${{num(m.ssa_lnc_global_scale)}}</span>`,
+      `<span class="badge">SSA stars ${{num(m.ssa_lnc_used_stars)}}</span>`,
+      `<span class="badge">SSA R² ${{num(m.ssa_lnc_scale_r_squared)}}</span>`,
+    ].join('');
+    const errors = [pair.local.error, pair.ssa.error].filter(Boolean).map(e => `<div class="error">${{String(e).slice(-1600)}}</div>`).join('');
+    return `<section class="pair ${{pair.status}}" id="${{pair.pair_id}}">
+      <div class="pair-head">
+        <div><h3>${{pair.user || ''}} · ${{pair.filter || ''}} · ${{role(pair.target_roles)}} </h3>
+        <div class="subtle">${{pair.group_dir}} · ${{pair.pair_id}}</div></div>
+        <a href="#top" onclick="scrollTo({{top:0,behavior:'smooth'}});return false;">top</a>
+      </div>
+      <div class="badge-row">${{badges}}</div>
+      ${{compact ? '' : `<div class="images">
+        ${{imagePanel('Reference', pair.images.reference)}}
+        ${{imagePanel('Original target', pair.images.target_original)}}
+        ${{imagePanel('Old local-linear LNC', pair.images.local_linear)}}
+        ${{imagePanel('SSA-LNC', pair.images.ssa_lnc)}}
+      </div>`}}
+      <div class="links">
+        <span class="badge">Source</span><a href="${{pair.reference_file}}">reference FITS</a><a href="${{pair.target_file}}">target FITS</a>
+        ${{linkList('Old LNC', pair.local.links)}}
+        ${{linkList('SSA-LNC', pair.ssa.links)}}
+      </div>
+      ${{errors}}
+    </section>`;
+  }}).join('');
+}}
+function update() {{ renderPairs(); }}
+document.getElementById('search').addEventListener('input', e => {{ state.search = e.target.value.trim(); update(); }});
+document.getElementById('statusFilter').addEventListener('change', e => {{ state.status = e.target.value; update(); }});
+document.getElementById('groupFilter').addEventListener('change', e => {{ state.group = e.target.value; update(); }});
+document.getElementById('sortBy').addEventListener('change', e => {{ state.sortBy = e.target.value; update(); }});
+document.getElementById('density').addEventListener('change', e => {{ state.density = e.target.value; update(); }});
+document.getElementById('groupLinks').addEventListener('click', e => {{
+  const group = e.target && e.target.dataset ? e.target.dataset.group : null;
+  if (!group) return;
+  state.group = group;
+  document.getElementById('groupFilter').value = group;
+  update();
+  window.scrollTo({{ top: 0, behavior: 'smooth' }});
+}});
+document.addEventListener('click', e => {{
+  if (e.target && e.target.matches('img[data-full]')) {{
+    document.getElementById('lightboxImg').src = e.target.dataset.full;
+    document.getElementById('lightbox').classList.add('open');
+  }}
+}});
+document.getElementById('closeLightbox').addEventListener('click', () => document.getElementById('lightbox').classList.remove('open'));
+document.getElementById('lightbox').addEventListener('click', e => {{ if (e.target.id === 'lightbox') e.currentTarget.classList.remove('open'); }});
+renderStats();
+renderControls();
+renderPairs();
+</script>
+</body>
+</html>
+"""
+    html_path.write_text(html, encoding="utf-8")
+    return html_path
+
+
 def run_pair_worker(payload: dict[str, Any]) -> dict[str, Any]:
     job = PairJob(
         row=payload["row"],
         pair_id=payload["pair_id"],
+        photometric_model=payload["photometric_model"],
         group_dir=payload["group_dir"],
         output_dir=Path(payload["output_dir"]),
         corrected_path=Path(payload["corrected_path"]),
@@ -899,6 +1483,7 @@ def main() -> int:
 
     host = host_context(args.workers, args.siril_path)
     host["omp_threads_per_worker"] = max(1, args.omp_threads)
+    host["photometric_models"] = list(args.photometric_models)
     resolved_siril = host.get("siril_path")
     if not resolved_siril and not args.skip_lnc:
         print("Error: could not resolve Siril path", file=sys.stderr)
@@ -906,11 +1491,16 @@ def main() -> int:
     if not args.skip_lnc:
         ensure_lnc_binary()
 
-    jobs = [PairJob.from_row(dataset_root, row) for row in pair_rows]
+    jobs = [
+        PairJob.from_row(dataset_root, row, photometric_model)
+        for row in pair_rows
+        for photometric_model in args.photometric_models
+    ]
     payloads = [
         {
             "row": job.row,
             "pair_id": job.pair_id,
+            "photometric_model": job.photometric_model,
             "group_dir": job.group_dir,
             "output_dir": str(job.output_dir),
             "corrected_path": str(job.corrected_path),
@@ -946,6 +1536,7 @@ def main() -> int:
 
     run_fields = [
         "pair_id",
+        "photometric_model",
         "group_dir",
         "user",
         "equipment",
@@ -960,8 +1551,17 @@ def main() -> int:
         "initial_valid_fraction",
         "scale_min",
         "scale_max",
+        "global_scale",
+        "star_scale_used_stars",
+        "star_scale_r_squared",
         "offset_min",
         "offset_max",
+        "reference_background_range",
+        "target_original_background_range",
+        "corrected_background_range",
+        "corrected_background_mad",
+        "corrected_to_target_background_range_ratio",
+        "corrected_to_reference_background_range_ratio",
         "ref_mask_fraction",
         "target_mask_fraction",
         "wall_seconds",
@@ -997,6 +1597,43 @@ def main() -> int:
     write_csv(dataset_root / "lnc_runtime_summary.csv", summaries, runtime_fields)
     write_json(dataset_root / "lnc_run_summary.json", summaries)
     write_json(dataset_root / "lnc_runtime_summary.json", summaries)
+    ab_comparisons = build_ab_comparisons(summaries)
+    ab_fields = [
+        "pair_id",
+        "group_dir",
+        "user",
+        "equipment",
+        "filter",
+        "reference_roles",
+        "target_roles",
+        "local_linear_status",
+        "ssa_lnc_status",
+        "local_linear_valid_fraction",
+        "ssa_lnc_valid_fraction",
+        "local_linear_scale_min",
+        "local_linear_scale_max",
+        "ssa_lnc_scale_min",
+        "ssa_lnc_scale_max",
+        "ssa_lnc_global_scale",
+        "ssa_lnc_used_stars",
+        "ssa_lnc_scale_r_squared",
+        "reference_background_range",
+        "target_original_background_range",
+        "local_linear_corrected_background_range",
+        "ssa_lnc_corrected_background_range",
+        "local_linear_background_range_ratio",
+        "ssa_lnc_background_range_ratio",
+        "local_linear_wall_seconds",
+        "ssa_lnc_wall_seconds",
+        "local_linear_corrected_file",
+        "ssa_lnc_corrected_file",
+        "local_linear_output_dir",
+        "ssa_lnc_output_dir",
+        "local_linear_error",
+        "ssa_lnc_error",
+    ]
+    write_csv(dataset_root / "lnc_ab_comparison_summary.csv", ab_comparisons, ab_fields)
+    write_json(dataset_root / "lnc_ab_comparison_summary.json", ab_comparisons)
 
     orchestration = build_orchestration_recommendation(
         summaries=summaries,
@@ -1006,6 +1643,14 @@ def main() -> int:
     write_json(dataset_root / "lnc_orchestration_recommendation.json", orchestration)
 
     manifest_rows = load_selection_manifest(dataset_root)
+    if not args.skip_html:
+        html_path = build_interactive_html_report(
+            dataset_root=dataset_root,
+            summaries=summaries,
+            ab_comparisons=ab_comparisons,
+            host=host,
+        )
+        print(f"Wrote {html_path}")
     if not args.skip_pdf:
         pdf_path = build_pdf(
             dataset_root=dataset_root,
@@ -1022,6 +1667,9 @@ def main() -> int:
     success_count = sum(1 for row in summaries if row.get("status") == "success")
     print(f"Completed {len(summaries)} pair(s): {success_count} success, {complete_count} with corrected outputs")
     print(f"Wrote {dataset_root / 'lnc_runtime_summary.csv'}")
+    print(f"Wrote {dataset_root / 'lnc_ab_comparison_summary.csv'}")
+    if not args.skip_html:
+        print(f"Wrote {dataset_root / 'lnc_ab_comparison_report.html'}")
     print(f"Wrote {dataset_root / 'lnc_orchestration_recommendation.json'}")
     return 0 if complete_count == len(jobs) else 1
 

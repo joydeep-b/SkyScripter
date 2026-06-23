@@ -12,14 +12,21 @@ enum {
   LNC_BACKGROUND_SAMPLE_MEDIAN = 2,
 };
 
+enum {
+  LNC_PHOTOMETRIC_LOCAL_LINEAR = 0,
+  LNC_PHOTOMETRIC_STAR_SCALE_ADDITIVE = 1,
+};
+
 typedef struct {
   int grid_spacing;
   int window_size;
   int min_samples;
   int background_estimator;
+  int photometric_model;
   double trim_fraction;
   double scale_min;
   double scale_max;
+  double global_scale;
   int smooth_passes;
   double min_valid_fraction;
   double H[9];

@@ -35,17 +35,18 @@ from lnc_registered_pair import (
     read_json_if_exists,
     read_shape,
     remove_data_scaling_cards,
-    run_findstar,
     run_siril,
     siril_quote,
     write_wrapper_report,
 )
+from lnc_star_scale import FINDSTAR_MODES, StarScaleOptions, estimate_star_scale, run_lnc_findstar
 
 
 LNC_UNREGISTERED_BINARY = LNC_DIR / "bin" / "lnc_unregistered_pair"
 VALUE_SCALE_ADU = "adu"
 VALUE_SCALE_NORMALIZED = "normalized_float"
 REGISTRATION_TRANSFORMS = ("homography", "affine", "similarity", "shift")
+PHOTOMETRIC_MODELS = ("local-linear", "star-scale-additive")
 
 
 def matrix_to_list(matrix: np.ndarray) -> list[float]:
@@ -181,7 +182,7 @@ def apply_output_format_for_value_scale(output_path: Path, output_format: str, v
     remove_data_scaling_cards(header)
     header["LNCFMT"] = (output_format, "LNC final science image encoding")
     header["LNCVSCL"] = (value_scale, "Input value scale before final encoding")
-    fits.writeto(output_path, output_data, header=header, overwrite=True)
+    fits.writeto(output_path, output_data, header=header, overwrite=True, output_verify="silentfix")
 
 
 def parse_sequence_file(path: Path) -> dict:
@@ -467,6 +468,18 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--diag-dir", type=Path, help="Diagnostic output directory.")
     parser.add_argument("--registration-transform", default="homography", choices=REGISTRATION_TRANSFORMS)
     parser.add_argument(
+        "--photometric-model",
+        choices=PHOTOMETRIC_MODELS,
+        default="local-linear",
+        help="Photometric correction model: existing local scale+offset or StarScale Additive LNC.",
+    )
+    parser.add_argument(
+        "--findstar-mode",
+        choices=FINDSTAR_MODES,
+        default="auto",
+        help="Star detection parameters; auto uses Siril defaults for SSA-LNC and legacy LNC tuning otherwise.",
+    )
+    parser.add_argument(
         "--save-intermediate-fits",
         action="store_true",
         help="Save native-coordinate masked ref/target FITS and background diagnostics.",
@@ -498,6 +511,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--saturation-threshold", type=float, default=65535.0)
     parser.add_argument("--saturation-dilation", type=int, default=2)
     parser.add_argument("--validation-stars", type=int, default=1000)
+    parser.add_argument("--star-scale-match-radius", type=float, default=2.0)
+    parser.add_argument("--star-scale-min-stars", type=int, default=20)
+    parser.add_argument("--star-scale-min-r2", type=float, default=0.90)
+    parser.add_argument("--star-scale-clip-sigma", type=float, default=2.5)
     return parser.parse_args()
 
 
@@ -591,15 +608,20 @@ def main() -> int:
         value_scale = str(value_scale_report["scale"])
         log(f"[LNC2] FITS value scale: {value_scale}")
 
+        findstar_mode = args.findstar_mode
+        if findstar_mode == "auto":
+            findstar_mode = "siril-default" if args.photometric_model == "star-scale-additive" else "lnc-tuned"
+        log(f"[LNC2] Findstar mode: {findstar_mode}")
+
         ref_star_list = diag_dir / "reference_stars.lst"
         target_star_list = diag_dir / "target_stars.lst"
         siril_reports["ref stars"] = timer.run(
             "Detect reference stars",
-            lambda: run_findstar(ref_fits, ref_star_list, siril_path, args.timeout),
+            lambda: run_lnc_findstar(ref_fits, ref_star_list, siril_path, args.timeout, mode=findstar_mode),
         )
         siril_reports["target stars"] = timer.run(
             "Detect target stars",
-            lambda: run_findstar(target_fits, target_star_list, siril_path, args.timeout),
+            lambda: run_lnc_findstar(target_fits, target_star_list, siril_path, args.timeout, mode=findstar_mode),
         )
         ref_stars = timer.run("Parse reference stars", lambda: parse_star_list(ref_star_list))
         target_stars = timer.run("Parse target stars", lambda: parse_star_list(target_star_list))
@@ -665,10 +687,41 @@ def main() -> int:
             json.dumps(transform_report, indent=2, sort_keys=True) + "\n",
             encoding="utf-8",
         )
-
         saturation_threshold = args.saturation_threshold
         if saturation_threshold is not None and saturation_threshold < 0:
             saturation_threshold = None
+        star_scale_report: dict[str, object] | None = None
+        global_scale = 1.0
+        if args.photometric_model == "star-scale-additive":
+            star_scale_options = StarScaleOptions(
+                match_radius=args.star_scale_match_radius,
+                saturation_threshold=saturation_threshold,
+                clip_sigma=args.star_scale_clip_sigma,
+                min_fit_stars=args.star_scale_min_stars,
+                min_r_squared=args.star_scale_min_r2,
+            )
+            star_scale_report = timer.run(
+                "Estimate matched-star scale",
+                lambda: estimate_star_scale(
+                    reference_fits=ref_fits,
+                    target_fits=target_fits,
+                    reference_stars=ref_stars,
+                    target_stars=target_stars,
+                    target_to_reference_h=siril_h,
+                    options=star_scale_options,
+                ),
+            )
+            (diag_dir / "star_scale_report.json").write_text(
+                json.dumps(star_scale_report, indent=2, sort_keys=True) + "\n",
+                encoding="utf-8",
+            )
+            if not star_scale_report.get("ok"):
+                raise RuntimeError(f"SSA-LNC star-scale estimation failed: {star_scale_report.get('message')}")
+            global_scale = float(star_scale_report["target_to_reference_scale"])
+            log(
+                "[LNC2] SSA-LNC global scale target->reference: "
+                f"{global_scale:.8g} ({star_scale_report.get('used_stars')} matched stars used)"
+            )
         ref_mask_path = diag_dir / "reference_mask.fits"
         target_mask_path = diag_dir / "target_mask.fits"
         ref_mask_stats = timer.run(
@@ -726,6 +779,10 @@ def main() -> int:
             str(core_report),
             "--background-estimator",
             args.background_estimator,
+            "--photometric-model",
+            args.photometric_model,
+            "--global-scale",
+            f"{global_scale:.17g}",
             "--grid-spacing",
             str(args.grid_spacing),
             "--window-size",
@@ -762,6 +819,10 @@ def main() -> int:
 
         parameters = {
             "registration_transform": args.registration_transform,
+            "photometric_model": args.photometric_model,
+            "findstar_mode": findstar_mode,
+            "global_scale": global_scale,
+            "star_scale_report": star_scale_report,
             "background_estimator": args.background_estimator,
             "grid_spacing": args.grid_spacing,
             "window_size": args.window_size,
@@ -781,6 +842,10 @@ def main() -> int:
             "value_scale": value_scale,
             "value_scale_report": value_scale_report,
             "validation_stars": args.validation_stars,
+            "star_scale_match_radius": args.star_scale_match_radius,
+            "star_scale_min_stars": args.star_scale_min_stars,
+            "star_scale_min_r2": args.star_scale_min_r2,
+            "star_scale_clip_sigma": args.star_scale_clip_sigma,
         }
         timer.run(
             "Preserve FITS header/provenance",
@@ -811,6 +876,7 @@ def main() -> int:
             "value_scale": value_scale_report,
             "core_report": str(core_report),
             "transform_report": transform_report,
+            "star_scale_report": star_scale_report,
             "intermediate_outputs": intermediate_outputs,
             "normalized_diagnostic_outputs": normalized_diagnostic_outputs,
             "command": command,

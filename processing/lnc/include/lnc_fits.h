@@ -13,6 +13,7 @@ typedef struct {
   const char *output_format;
   const char *value_scale;
   const char *background_estimator;
+  const char *photometric_model;
   const char *reference_path;
   const char *target_path;
   const char *report_path;
@@ -24,6 +25,7 @@ typedef struct {
   double trim_fraction;
   double scale_min;
   double scale_max;
+  double global_scale;
   double min_valid_fraction;
   long ref_masked_pixels;
   long target_masked_pixels;
