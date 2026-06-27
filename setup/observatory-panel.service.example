@@ -15,6 +15,7 @@
 #   - Environment=SKY_SCRIPTER_CONFIG=... absolute path to sky_scripter.json
 #   - Environment=OBSERVATORY_BIND_HOST=...   IPv4 to bind (often the WireGuard address)
 #   - Environment=DLI_PASSWORD=...            DLI digest password
+#   - Environment=STARFRONT_BUILDING=...      Starfront building number for roof/weather status
 #
 # If the bind address only appears after a VPN comes up, also add an ordering
 # dependency on that unit, for example:
@@ -43,6 +44,8 @@ Environment=SKY_SCRIPTER_CONFIG=/home/joydeepb/sky_scripter/sky_scripter.json
 Environment=OBSERVATORY_BIND_HOST=10.0.0.1
 # Required for real outlet status/control. Replace with the DLI digest password.
 Environment=DLI_PASSWORD=CHANGE_ME
+# Required for Starfront roof/weather status. Replace with your building number.
+Environment=STARFRONT_BUILDING=1
 
 # Optional overrides (uncomment and edit as needed; defaults come from sky_scripter.json).
 #Environment=OBSERVATORY_HTTP_PORT=8080
@@ -52,6 +55,12 @@ Environment=DLI_PASSWORD=CHANGE_ME
 #Environment=DLI_LABELS=Dew Heater,Camera,Mount
 #Environment=CAPTURE_DIR=/home/joydeepb/Pictures
 #Environment=INDI_DRIVERS=indi_lx200am5 indi_asi_focuser indi_qhy_ccd indi_playerone_ccd
+#Environment=STARFRONT_STATUS_SCRIPT=/home/joydeepb/sky_scripter/scripts/starfront-status.sh
+#Environment=STARFRONT_POLL_INTERVAL=60
+#Environment=STARFRONT_STATUS_TIMEOUT=12
+#Environment=ALPACA_BASE_URL=https://alpaca-api.tx.starfront.space
+#Environment=ALPACA_WEATHER_DEVICE=1
+#Environment=ALPACA_TIMEOUT=8
 #Environment=FITS_PREVIEW_ENABLED=true
 #Environment=FITS_PREVIEW_CAPTURE_DIR=/home/joydeepb/Pictures
 #Environment=FITS_PREVIEW_MASTER_DARK_DIR=/home/joydeepb/masters/dark

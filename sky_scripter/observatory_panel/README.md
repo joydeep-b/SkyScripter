@@ -1,6 +1,6 @@
 # Observatory Panel
 
-Small HTTP server plus static UI for DLI power switch outlet control, roof status (Discord), INDI controls, host metrics, and mount/camera status.
+Small HTTP server plus static UI for DLI power switch outlet control, Starfront roof/weather status, INDI controls, host metrics, and mount/camera status.
 
 ## Run from the repo root
 
@@ -13,6 +13,7 @@ Bind to the IPv4 address you want the server to listen on (typically your WireGu
 ```bash
 export OBSERVATORY_BIND_HOST=10.x.x.x
 export DLI_PASSWORD='your-dli-password'
+export STARFRONT_BUILDING=1
 python3 -m sky_scripter.observatory_panel.server
 ```
 
@@ -34,6 +35,14 @@ From another host on the VPN, open `http://<your-WG-IPv4>:8080/` (or the host an
 | `DLI_LABELS` | Comma-separated labels aligned with outlets. |
 | `CAPTURE_DIR` | Path used for disk free space (default from `capture.capture_dir`). |
 | `INDI_DRIVERS` | Space-separated driver names passed to `indiserver` (default from `observatory_panel.indi_drivers`). |
+| `STARFRONT_BUILDING` | Starfront building number passed to `scripts/starfront-status.sh` (required for roof/weather status; config fallback: `observatory_panel.starfront_building`). |
+| `STARFRONT_STATUS_SCRIPT` | Path to the Starfront status script (default: `scripts/starfront-status.sh` under the repo root). |
+| `STARFRONT_POLL_INTERVAL` | Seconds between Starfront status script refreshes (default: `60`; config fallback: `observatory_panel.starfront_poll_interval`). |
+| `STARFRONT_STATUS_TIMEOUT` | Subprocess timeout for the Starfront status script (default: `12`; config fallback: `observatory_panel.starfront_status_timeout`). |
+| `ALPACA_BASE_URL` | Optional Starfront Alpaca API base URL override honored by the script. |
+| `ALPACA_WEATHER_DEVICE` | Optional observing-conditions device number override honored by the script (default: `1`). |
+| `ALPACA_CLIENT_ID` | Optional Alpaca client ID override honored by the script; otherwise `~/.sfro_alpaca_clientid` is used/created. |
+| `ALPACA_TIMEOUT` | Optional per-request curl timeout honored by the script (default: `8`). |
 | `FITS_PREVIEW_ENABLED` | Enable the FITS preview worker (`true` by default; set `false` to disable). |
 | `FITS_PREVIEW_CAPTURE_DIR` | Directory watched for new `.fit` / `.fits` files (default: `CAPTURE_DIR`). |
 | `FITS_PREVIEW_MASTER_DARK_DIR` | Master dark directory (default: `~/masters/dark`). |
@@ -44,7 +53,7 @@ INDI mount/camera/focuser **roles** are configured under `devices` in repo-root 
 
 **Collecting names:** start INDI each way (script vs Ekos), then run `indi_getprop -t 2` and note the device prefixes in the output (or save the full snapshot to a file). Add those strings as aliases under `devices.mount`, `devices.camera`, and `devices.focuser`.
 
-Discord credentials are read from repo-root `.discord_token` and `.discord_channel_id`.
+Starfront roof/weather status is read by polling `scripts/starfront-status.sh` from the panel process. The script requires `curl`, `jq`, and `date` on `PATH`, emits JSON even for unsafe or partial-failure states, and may exit nonzero when the roof is unsafe or telemetry is unavailable. The panel caches the latest result for `STARFRONT_POLL_INTERVAL` seconds and keeps stale data visible if a later refresh fails.
 
 ## FITS preview pane
 
@@ -105,6 +114,8 @@ Optional environment variables (commented out in the example) override values fr
 - `DLI_HOST`, `DLI_USER`, `DLI_OUTLETS`, `DLI_LABELS`
 - `CAPTURE_DIR`
 - `INDI_DRIVERS`
+- `STARFRONT_BUILDING`, `STARFRONT_STATUS_SCRIPT`, `STARFRONT_POLL_INTERVAL`, `STARFRONT_STATUS_TIMEOUT`
+- `ALPACA_BASE_URL`, `ALPACA_WEATHER_DEVICE`, `ALPACA_CLIENT_ID`, `ALPACA_TIMEOUT`
 - `FITS_PREVIEW_ENABLED`
 - `FITS_PREVIEW_CAPTURE_DIR`
 - `FITS_PREVIEW_MASTER_DARK_DIR`

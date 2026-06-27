@@ -113,9 +113,14 @@
         </div>
       </section>
       <section class="card roof-card" id="card-roof">
-        <h2>Roof <span id="roof-badge" class="badge">—</span></h2>
-        <div class="row"><span class="label">Time</span><span class="value" id="roof-time">—</span></div>
-        <div class="msgbox" id="roof-msg">—</div>
+        <h2>Starfront Status <span id="roof-badge" class="badge">—</span></h2>
+        <div class="row"><span class="label">Roof safety</span><span class="value" id="roof-safe">—</span></div>
+        <div class="row"><span class="label">Report time</span><span class="value" id="roof-time">—</span></div>
+        <div class="row"><span class="label">Ambient temp</span><span class="value" id="weather-temp">—</span></div>
+        <div class="row"><span class="label">Dew point</span><span class="value" id="weather-dew-point">—</span></div>
+        <div class="row"><span class="label">Humidity</span><span class="value" id="weather-humidity">—</span></div>
+        <div class="row"><span class="label">Sky temp</span><span class="value" id="weather-sky-temp">—</span></div>
+        <div class="row"><span class="label">Wind speed</span><span class="value" id="weather-wind-speed">—</span></div>
         <div class="row" id="roof-note-row" style="display:none"><span class="label">Note</span><span class="value" id="roof-note"></span></div>
       </section>
       <section class="card" id="card-indi">
@@ -208,11 +213,37 @@
     return isNaN(d) ? s : d.toLocaleString();
   }
 
-  function roofBadgeClass(st) {
+  function roofBadgeClass(st, stale) {
+    if (stale) return 'warn';
     const u = (st || '').toUpperCase();
-    if (u === 'OPEN') return 'ok';
-    if (u === 'CLOSED') return 'bad';
+    if (u === 'SAFE') return 'ok';
+    if (u === 'WEATHER_UNAVAILABLE') return 'warn';
     return 'bad';
+  }
+
+  function roofStateLabel(st, stale) {
+    if (stale) return 'STALE';
+    return (st || 'UNKNOWN').toUpperCase();
+  }
+
+  function roofSafeLabel(value) {
+    if (value === true) return 'Safe';
+    if (value === false) return 'Unsafe';
+    return 'Unknown';
+  }
+
+  function unitLabel(unit) {
+    if (unit === 'C') return '°C';
+    if (unit === 'percent') return '%';
+    return unit || '';
+  }
+
+  function fmtCondition(cond, digits) {
+    if (!cond || cond.ok === false || cond.value == null) return '—';
+    const n = Number(cond.value);
+    const value = Number.isFinite(n) ? n.toFixed(digits) : String(cond.value);
+    const unit = unitLabel(cond.units);
+    return unit ? value + ' ' + unit : value;
   }
 
   function previewBadgeClass(st) {
@@ -297,14 +328,25 @@
     }
 
     const roof = d.roof || {};
+    const weather = d.weather || {};
+    const starfront = d.starfront || {};
     const rb = $('roof-badge');
-    setBadge(rb, roof.state || 'UNKNOWN', roofBadgeClass(roof.state));
-    $('roof-time').textContent = fmtTime(roof.timestamp);
-    $('roof-msg').textContent = roof.message || '—';
+    const roofState = roof.state || 'UNKNOWN';
+    const stale = roof.stale === true || weather.stale === true || starfront.stale === true;
+    setBadge(rb, roofStateLabel(roofState, stale), roofBadgeClass(roofState, stale));
+    $('roof-safe').textContent = roofSafeLabel(roof.safe);
+    $('roof-time').textContent = fmtTime(roof.timestamp || starfront.last_check);
+    const conditions = weather.conditions || {};
+    $('weather-temp').textContent = fmtCondition(conditions.temperature, 1);
+    $('weather-dew-point').textContent = fmtCondition(conditions.dew_point, 1);
+    $('weather-humidity').textContent = fmtCondition(conditions.humidity, 0);
+    $('weather-sky-temp').textContent = fmtCondition(conditions.sky_temperature, 1);
+    $('weather-wind-speed').textContent = fmtCondition(conditions.wind_speed, 1);
     const nr = $('roof-note-row');
-    if (roof.note) {
+    const note = roof.note || starfront.note || starfront.error;
+    if (note) {
       nr.style.display = 'flex';
-      $('roof-note').textContent = roof.note;
+      $('roof-note').textContent = stale ? 'Stale data: ' + note : note;
     } else {
       nr.style.display = 'none';
     }

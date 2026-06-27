@@ -5,8 +5,7 @@ Run (from repo root; bind to your WireGuard IPv4 on the astropc):
   OBSERVATORY_BIND_HOST=10.x.x.x DLI_PASSWORD=... python3 -m sky_scripter.observatory_panel.server
 
 Env: OBSERVATORY_HTTP_PORT, DLI_HOST, DLI_USER, DLI_PASSWORD, DLI_OUTLETS, DLI_LABELS,
-CAPTURE_DIR, INDI_DRIVERS, SKY_SCRIPTER_CONFIG. Discord reads .discord_token /
-.discord_channel_id in repo root.
+CAPTURE_DIR, INDI_DRIVERS, SKY_SCRIPTER_CONFIG, STARFRONT_BUILDING.
 INDI device roles (mount/camera/focuser) use ``devices.*`` in sky_scripter.json: each may be a
 string or a list of aliases; see observatory_panel/README.md.
 """
@@ -16,11 +15,11 @@ from __future__ import annotations
 import json
 import logging
 import os
+import subprocess
 import sys
 import threading
-import urllib.error
 import urllib.parse
-import urllib.request
+import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from http import HTTPStatus
@@ -90,6 +89,44 @@ _INDI_DRIVERS = os.environ.get(
     ),
 ).strip()
 
+_STARFRONT_STATUS_SCRIPT = os.path.expanduser(
+    os.environ.get(
+        "STARFRONT_STATUS_SCRIPT",
+        str(
+            _cfg.get(
+                "observatory_panel",
+                "starfront_status_script",
+                default=os.path.join(_REPO_ROOT, "scripts", "starfront-status.sh"),
+            )
+            or os.path.join(_REPO_ROOT, "scripts", "starfront-status.sh")
+        ),
+    )
+).strip()
+if _STARFRONT_STATUS_SCRIPT and not os.path.isabs(_STARFRONT_STATUS_SCRIPT):
+    _STARFRONT_STATUS_SCRIPT = os.path.join(_REPO_ROOT, _STARFRONT_STATUS_SCRIPT)
+
+_STARFRONT_BUILDING = str(
+    os.environ.get(
+        "STARFRONT_BUILDING",
+        _cfg.get("observatory_panel", "starfront_building", default="") or "",
+    )
+).strip()
+
+
+def _float_env_or_config(env_name: str, section: str, key: str, default: float) -> float:
+    raw = os.environ.get(env_name)
+    if raw is None:
+        raw = _cfg.get(section, key, default=default)
+    try:
+        value = float(raw)
+    except (TypeError, ValueError):
+        return default
+    return value if value > 0 else default
+
+
+_STARFRONT_POLL_INTERVAL = _float_env_or_config("STARFRONT_POLL_INTERVAL", "observatory_panel", "starfront_poll_interval", 60.0)
+_STARFRONT_STATUS_TIMEOUT = _float_env_or_config("STARFRONT_STATUS_TIMEOUT", "observatory_panel", "starfront_status_timeout", 12.0)
+
 _DLI = DliPowerSwitch(
     host=os.environ.get("DLI_HOST", str(_cfg.get("dli", "host", default="192.168.0.100") or "192.168.0.100")),
     user=os.environ.get("DLI_USER", str(_cfg.get("dli", "user", default="admin") or "admin")),
@@ -104,95 +141,146 @@ _FITS_PREVIEW = FitsPreviewService(build_config_from_env(_REPO_ROOT, _CAPTURE_DI
 
 _cmd_lock = threading.Lock()
 _last_cmd: dict = {"time": None, "what": "", "ok": None, "detail": ""}
+_starfront_lock = threading.Lock()
+_starfront_cache: dict = {"checked_monotonic": 0.0, "status": None}
 
 
-def _read_discord_creds() -> tuple[str | None, str | None]:
-    tok = cid = None
-    p = os.path.join(_REPO_ROOT, ".discord_token")
+def _utc_now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _starfront_roof_note(roof: dict) -> str | None:
+    parts = []
+    if roof.get("error_message"):
+        parts.append(str(roof["error_message"]))
+    if roof.get("transport_error"):
+        parts.append(str(roof["transport_error"]))
+    if roof.get("curl_status") is not None:
+        parts.append(f"curl status {roof['curl_status']}")
+    if roof.get("error_number") is not None:
+        parts.append(f"error number {roof['error_number']}")
+    return "; ".join(parts) if parts else None
+
+
+def _empty_starfront_status(note: str, stale_status: dict | None = None) -> dict:
+    if stale_status is not None:
+        out = json.loads(json.dumps(stale_status))
+        out["stale"] = True
+        out["note"] = note
+        out["error"] = note
+        out.setdefault("roof", {})["stale"] = True
+        out["roof"]["note"] = note
+        out.setdefault("weather", {})["stale"] = True
+        return out
+    return {
+        "configured": bool(_STARFRONT_BUILDING),
+        "script": _STARFRONT_STATUS_SCRIPT,
+        "building_number": _STARFRONT_BUILDING or None,
+        "poll_interval_seconds": _STARFRONT_POLL_INTERVAL,
+        "last_check": _utc_now_iso(),
+        "stale": False,
+        "note": note,
+        "error": note,
+        "roof": {
+            "state": "UNKNOWN",
+            "safe": None,
+            "timestamp": None,
+            "note": note,
+            "stale": False,
+        },
+        "weather": {
+            "device_number": None,
+            "valid_condition_count": 0,
+            "conditions": {},
+            "stale": False,
+        },
+    }
+
+
+def _normalize_starfront_status(payload: dict, *, exit_code: int, stderr: str, last_check: str) -> dict:
+    roof = payload.get("roof") if isinstance(payload.get("roof"), dict) else {}
+    weather = payload.get("weather") if isinstance(payload.get("weather"), dict) else {}
+    overall = payload.get("overall") if isinstance(payload.get("overall"), dict) else {}
+    state = str(overall.get("state") or "UNKNOWN")
+    note = _starfront_roof_note(roof)
+    stderr = stderr.strip()
+    if stderr and not note:
+        note = stderr[:300]
+
+    return {
+        "configured": True,
+        "script": _STARFRONT_STATUS_SCRIPT,
+        "base_url": payload.get("base_url"),
+        "building_number": payload.get("building_number", _STARFRONT_BUILDING),
+        "poll_interval_seconds": _STARFRONT_POLL_INTERVAL,
+        "last_check": last_check,
+        "stale": False,
+        "note": note,
+        "error": note if state in ("ROOF_UNKNOWN", "WEATHER_UNAVAILABLE") else None,
+        "exit_code": exit_code,
+        "roof": {
+            "state": state,
+            "safe": roof.get("safe"),
+            "api_ok": roof.get("ok"),
+            "timestamp": payload.get("timestamp_utc"),
+            "note": note,
+            "stale": False,
+        },
+        "weather": {
+            "device_number": weather.get("device_number"),
+            "valid_condition_count": weather.get("valid_condition_count", 0),
+            "conditions": weather.get("conditions") if isinstance(weather.get("conditions"), dict) else {},
+            "stale": False,
+        },
+        "raw": payload,
+    }
+
+
+def _run_starfront_status() -> dict:
+    if not _STARFRONT_BUILDING:
+        return _empty_starfront_status("STARFRONT_BUILDING is not configured")
+    if not os.path.isfile(_STARFRONT_STATUS_SCRIPT):
+        return _empty_starfront_status(f"Starfront status script not found: {_STARFRONT_STATUS_SCRIPT}")
+
+    last_check = _utc_now_iso()
+    stale_status = _starfront_cache.get("status")
     try:
-        tok = open(p, encoding="utf-8").read().strip() or None
-    except OSError:
-        tok = None
-    p = os.path.join(_REPO_ROOT, ".discord_channel_id")
+        proc = subprocess.run(
+            ["bash", _STARFRONT_STATUS_SCRIPT, _STARFRONT_BUILDING],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=_STARFRONT_STATUS_TIMEOUT,
+        )
+    except subprocess.TimeoutExpired:
+        return _empty_starfront_status(
+            f"Starfront status script timed out after {_STARFRONT_STATUS_TIMEOUT:g}s",
+            stale_status,
+        )
+    except OSError as e:
+        return _empty_starfront_status(str(e), stale_status)
+
     try:
-        cid = open(p, encoding="utf-8").read().strip() or None
-    except OSError:
-        cid = None
-    return tok, cid
+        payload = json.loads(proc.stdout)
+    except json.JSONDecodeError as e:
+        detail = proc.stderr.strip() or proc.stdout.strip()[:300] or str(e)
+        return _empty_starfront_status(f"Starfront status script returned invalid JSON: {detail}", stale_status)
+    if not isinstance(payload, dict):
+        return _empty_starfront_status("Starfront status script returned unexpected JSON", stale_status)
+    return _normalize_starfront_status(payload, exit_code=proc.returncode, stderr=proc.stderr, last_check=last_check)
 
 
-def discord_message_text(msg: dict) -> str:
-    """Flatten Discord API message JSON (content + embeds) to searchable text."""
-    parts: list[str] = []
-    if msg.get("content"):
-        parts.append(str(msg["content"]))
-    for e in msg.get("embeds") or []:
-        if not isinstance(e, dict):
-            continue
-        for key in ("title", "description"):
-            if e.get(key):
-                parts.append(str(e[key]))
-        for f in e.get("fields") or []:
-            if isinstance(f, dict):
-                if f.get("name"):
-                    parts.append(str(f["name"]))
-                if f.get("value"):
-                    parts.append(str(f["value"]))
-        foot = e.get("footer") or {}
-        if isinstance(foot, dict) and foot.get("text"):
-            parts.append(str(foot["text"]))
-        auth = e.get("author") or {}
-        if isinstance(auth, dict) and auth.get("name"):
-            parts.append(str(auth["name"]))
-    return "\n".join(parts).strip()
-
-
-def infer_roof_state(text: str) -> str:
-    t = text.lower()
-    if "roof" not in t:
-        return "UNKNOWN"
-    if "opening" in t:
-        return "OPEN"
-    if "closing" in t:
-        return "CLOSED"
-    return "UNKNOWN"
-
-
-def is_roof_status_text(text: str) -> bool:
-    t = text.lower()
-    if "roof" in t and ("opening" in t or "closing" in t):
-        return True
-    return False
-
-
-def pick_roof_from_messages(messages: list[dict]) -> tuple[dict | None, str | None]:
-    """messages: newest first from Discord API."""
-    for msg in messages:
-        if not isinstance(msg, dict):
-            continue
-        txt = discord_message_text(msg)
-        if not txt or not is_roof_status_text(txt):
-            continue
-        return msg, txt
-    return None, None
-
-
-def fetch_discord_messages(token: str, channel_id: str, limit: int) -> tuple[list[dict] | None, str]:
-    url = f"https://discord.com/api/v10/channels/{channel_id}/messages?limit={limit}"
-    req = urllib.request.Request(url, method="GET")
-    req.add_header("Authorization", f"Bot {token}")
-    req.add_header("User-Agent", "sky-scripter-observatory-panel (urllib)")
-    try:
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
-        if isinstance(data, list):
-            return data, ""
-        return None, "unexpected discord json"
-    except urllib.error.HTTPError as e:
-        err = e.read().decode("utf-8", errors="replace")[:300]
-        return None, f"discord http {e.code}: {err}"
-    except (urllib.error.URLError, OSError, json.JSONDecodeError) as e:
-        return None, str(e)
+def starfront_status() -> dict:
+    now = time.monotonic()
+    with _starfront_lock:
+        cached = _starfront_cache.get("status")
+        checked = float(_starfront_cache.get("checked_monotonic") or 0.0)
+        if cached is not None and now - checked < _STARFRONT_POLL_INTERVAL:
+            return cached
+        status = _run_starfront_status()
+        _starfront_cache["checked_monotonic"] = now
+        _starfront_cache["status"] = status
+        return status
 
 
 def hms(value: str | None) -> str | None:
@@ -350,29 +438,7 @@ def build_status() -> dict:
             if st is None and e and not perr:
                 perr = e[:200]
 
-    roof_block: dict = {
-        "state": "UNKNOWN",
-        "message": None,
-        "timestamp": None,
-        "note": None,
-    }
-    tok, cid = _read_discord_creds()
-    if not tok or not cid:
-        roof_block["note"] = "Discord token or channel id missing"
-    else:
-        msgs, err = fetch_discord_messages(tok, cid, 3)
-        if err:
-            roof_block["note"] = err
-        elif not msgs:
-            roof_block["note"] = "No messages returned"
-        else:
-            msg, txt = pick_roof_from_messages(msgs)
-            if not msg:
-                roof_block["note"] = "No roof status found in latest 3 messages"
-            else:
-                roof_block["message"] = txt[:500] if txt else None
-                roof_block["timestamp"] = msg.get("timestamp")
-                roof_block["state"] = infer_roof_state(txt or "")
+    starfront_block = starfront_status()
 
     indi_block: dict = {
         "server_running": indi_service.indiserver_running(),
@@ -404,7 +470,13 @@ def build_status() -> dict:
 
     return {
         "power": {"outlets": power_out, "error": perr},
-        "roof": roof_block,
+        "roof": starfront_block["roof"],
+        "weather": starfront_block["weather"],
+        "starfront": {
+            k: v
+            for k, v in starfront_block.items()
+            if k not in ("roof", "weather", "raw")
+        },
         "indi": indi_block,
         "mount_camera": mount_camera_status(
             snapshot_err=ierr or None,
