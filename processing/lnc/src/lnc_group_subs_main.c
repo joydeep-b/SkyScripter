@@ -6,6 +6,7 @@
 
 #include <ctype.h>
 #include <errno.h>
+#include <math.h>
 #include <omp.h>
 #include <pthread.h>
 #include <stdio.h>
@@ -88,12 +89,16 @@ static char *read_file(const char *path, size_t *out_len) {
 }
 
 static char *json_strdup_string(const char *start) {
+  if (!start) return NULL;
   while (*start && *start != '"') start++;
   if (*start != '"') return NULL;
   start++;
   const char *end = start;
   while (*end && *end != '"') {
-    if (*end == '\\') end++;
+    if (*end == '\\') {
+      end++;
+      if (!*end) break;
+    }
     end++;
   }
   size_t len = (size_t)(end - start);
@@ -165,12 +170,14 @@ static void parse_params_object(const char *text, GroupManifest *manifest) {
   const char *estimator_key = find_key(params_block, "background_estimator");
   if (estimator_key) {
     manifest->background_estimator = json_strdup_string(strchr(estimator_key, ':'));
-    if (strcmp(manifest->background_estimator, "trimmed-mean") == 0) {
-      manifest->params.background_estimator = LNC_BACKGROUND_TRIMMED_MEAN;
-    } else if (strcmp(manifest->background_estimator, "trimmed-median") == 0) {
-      manifest->params.background_estimator = LNC_BACKGROUND_TRIMMED_MEDIAN;
-    } else if (strcmp(manifest->background_estimator, "sample-median") == 0) {
-      manifest->params.background_estimator = LNC_BACKGROUND_SAMPLE_MEDIAN;
+    if (manifest->background_estimator) {
+      if (strcmp(manifest->background_estimator, "trimmed-mean") == 0) {
+        manifest->params.background_estimator = LNC_BACKGROUND_TRIMMED_MEAN;
+      } else if (strcmp(manifest->background_estimator, "trimmed-median") == 0) {
+        manifest->params.background_estimator = LNC_BACKGROUND_TRIMMED_MEDIAN;
+      } else if (strcmp(manifest->background_estimator, "sample-median") == 0) {
+        manifest->params.background_estimator = LNC_BACKGROUND_SAMPLE_MEDIAN;
+      }
     }
   }
   const char *model_key = find_key(params_block, "photometric_model");
@@ -197,6 +204,7 @@ static void parse_params_object(const char *text, GroupManifest *manifest) {
 }
 
 static int parse_homography_array(const char *text, double out[9]) {
+  if (!text) return 0;
   const char *open = strchr(text, '[');
   if (!open) return 0;
   open++;
@@ -300,6 +308,52 @@ static int parse_manifest(const char *text, GroupManifest *manifest) {
   }
 
   return manifest->reference.work_sequence_file && manifest->reference.corrected_sequence_file;
+}
+
+static int validate_manifest_params(const GroupManifest *manifest) {
+  const UnregisteredParams *params = &manifest->params;
+  if (params->grid_spacing <= 0) {
+    fprintf(stderr, "Invalid manifest params.grid_spacing: %d\n", params->grid_spacing);
+    return 0;
+  }
+  if (params->window_size <= 0) {
+    fprintf(stderr, "Invalid manifest params.window_size: %d\n", params->window_size);
+    return 0;
+  }
+  if (params->min_samples <= 0) {
+    fprintf(stderr, "Invalid manifest params.min_samples: %d\n", params->min_samples);
+    return 0;
+  }
+  if (params->smooth_passes < 0) {
+    fprintf(stderr, "Invalid manifest params.smooth_passes: %d\n", params->smooth_passes);
+    return 0;
+  }
+  if (!isfinite(params->trim_fraction) || params->trim_fraction < 0.0 || params->trim_fraction >= 0.45) {
+    fprintf(stderr, "Invalid manifest params.trim_fraction: %.17g\n", params->trim_fraction);
+    return 0;
+  }
+  if (!isfinite(params->scale_min) || !isfinite(params->scale_max) ||
+      params->scale_min <= 0.0 || params->scale_max <= params->scale_min) {
+    fprintf(stderr, "Invalid manifest scale clamp range: %.17g..%.17g\n",
+            params->scale_min, params->scale_max);
+    return 0;
+  }
+  if (!isfinite(params->min_valid_fraction) ||
+      params->min_valid_fraction <= 0.0 || params->min_valid_fraction > 1.0) {
+    fprintf(stderr, "Invalid manifest params.min_valid_fraction: %.17g\n",
+            params->min_valid_fraction);
+    return 0;
+  }
+  if (params->photometric_model == LNC_PHOTOMETRIC_STAR_SCALE_ADDITIVE) {
+    for (size_t i = 0; i < manifest->target_count; ++i) {
+      double scale = manifest->targets[i].global_scale;
+      if (!isfinite(scale) || scale <= 0.0) {
+        fprintf(stderr, "Invalid manifest target[%zu].global_scale: %.17g\n", i, scale);
+        return 0;
+      }
+    }
+  }
+  return 1;
 }
 
 static int ensure_directory_path(const char *path) {
@@ -445,12 +499,21 @@ static int run_target(const GroupManifest *manifest, const LncLoadedReference *r
   char *report_path = NULL;
   const char *diag_dir_ptr = NULL;
   if (write_diagnostics) {
-    snprintf(diag_dir, sizeof(diag_dir), "%s", target->corrected_sequence_file);
-    char *dot = strrchr(diag_dir, '.');
+    char base_path[4096];
+    int written = snprintf(base_path, sizeof(base_path), "%s", target->corrected_sequence_file);
+    if (written < 0 || (size_t)written >= sizeof(base_path)) {
+      target_result->status = 1;
+      return 1;
+    }
+    char *dot = strrchr(base_path, '.');
     if (dot) {
       *dot = '\0';
     }
-    strcat(diag_dir, "_lnc_diag");
+    written = snprintf(diag_dir, sizeof(diag_dir), "%s_lnc_diag", base_path);
+    if (written < 0 || (size_t)written >= sizeof(diag_dir)) {
+      target_result->status = 1;
+      return 1;
+    }
     if (ensure_directory_path(diag_dir) != 0) {
       target_result->status = 1;
       return 1;
@@ -513,6 +576,10 @@ int main(int argc, char **argv) {
     return 2;
   }
   free(text);
+  if (!validate_manifest_params(&manifest)) {
+    free_manifest(&manifest);
+    return 2;
+  }
 
   if (copy_reference_file(&manifest) != 0) {
     fprintf(stderr, "Failed to copy reference frame\n");
